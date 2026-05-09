@@ -109,11 +109,11 @@ export const Docs = {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={ { fontWeight: 600 } }>Variant</TableCell>
-                  <TableCell sx={ { fontWeight: 600 } }>Size</TableCell>
-                  <TableCell sx={ { fontWeight: 600 } }>Weight</TableCell>
-                  <TableCell sx={ { fontWeight: 600 } }>Sample</TableCell>
-                  <TableCell sx={ { fontWeight: 600 } }>용도</TableCell>
+                  <TableCell sx={ { fontWeight: 600, width: 100 } }>Variant</TableCell>
+                  <TableCell sx={ { fontWeight: 600, width: 80 } }>Size</TableCell>
+                  <TableCell sx={ { fontWeight: 600, width: 80 } }>Weight</TableCell>
+                  <TableCell sx={ { fontWeight: 600, width: 'auto' } }>Sample</TableCell>
+                  <TableCell sx={ { fontWeight: 600, width: 140 } }>용도</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -122,8 +122,8 @@ export const Docs = {
                     <TableCell sx={ { fontFamily: 'monospace', fontSize: 13 } }>{ row.variant }</TableCell>
                     <TableCell sx={ { fontFamily: 'monospace', fontSize: 13 } }>{ row.fontSize || '-' }</TableCell>
                     <TableCell sx={ { fontFamily: 'monospace', fontSize: 13 } }>{ row.fontWeight || '-' }</TableCell>
-                    <TableCell>
-                      <Typography variant={ row.variant } sx={ { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
+                    <TableCell sx={ { minWidth: 320 } }>
+                      <Typography variant={ row.variant } sx={ { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
                         Typography
                       </Typography>
                     </TableCell>
