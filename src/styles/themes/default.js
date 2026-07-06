@@ -164,6 +164,7 @@ const typography = {
     fontSize: '1.5rem',      // 24px
     lineHeight: 1.3,
     letterSpacing: '-0.01em',
+    fontVariantNumeric: 'tabular-nums', // KPI 숫자 자릿수 변경 시 레이아웃 고정
   },
   h5: {
     fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
@@ -171,6 +172,7 @@ const typography = {
     fontSize: '1.25rem',     // 20px
     lineHeight: 1.4,
     letterSpacing: '0',
+    fontVariantNumeric: 'tabular-nums', // 성과 지표 수치 레이아웃 고정
   },
   h6: {
     fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
@@ -351,6 +353,33 @@ const components = {
     styleOverrides: {
       root: {
         borderRadius: 4,
+      },
+      // compact 모드: small 사이즈 패딩 축소 (운영 툴 정보 밀도 기준)
+      sizeSmall: {
+        height: 20,
+        fontSize: '0.6875rem', // 11px
+      },
+      labelSmall: {
+        paddingLeft: 6,
+        paddingRight: 6,
+      },
+    },
+  },
+  MuiTableRow: {
+    styleOverrides: {
+      root: {
+        // 인터랙티브 행 hover — 클릭 가능한 행에 cursor pointer 적용 시 함께 사용
+        '&.MuiTableRow-hover:hover': {
+          backgroundColor: 'rgba(0, 0, 0, 0.03)',
+        },
+      },
+    },
+  },
+  MuiDrawer: {
+    styleOverrides: {
+      paper: {
+        width: 400, // VD 명시값 — 성과 지표 6개 + Note 수용 최소 너비
+        boxSizing: 'border-box',
       },
     },
   },
