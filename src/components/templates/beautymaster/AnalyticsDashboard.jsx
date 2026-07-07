@@ -1,31 +1,41 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CampaignSummaryGrid from '../../data-display/CampaignSummaryGrid';
 import TopInfluencersTable from '../../data-display/TopInfluencersTable';
 import OpinionBreakdown from '../../data-display/OpinionBreakdown';
 import PlatformBreakdown from '../../data-display/PlatformBreakdown';
 import StoreBreakdown from '../../data-display/StoreBreakdown';
 import InfluencerFunnel from '../../data-display/InfluencerFunnel';
-import TierComparison from '../../data-display/TierComparison';
 import CategoryBreakdown from '../../data-display/CategoryBreakdown';
 import FunnelSummaryTable from '../../data-display/FunnelSummaryTable';
 import TierMetricsTable from '../../data-display/TierMetricsTable';
 import MonthlyTrend from '../../data-display/MonthlyTrend';
 import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
 
-function SectionHeader({ title }) {
+function SectionHeader({ title, id, action }) {
   return (
-    <Typography
-      variant="overline"
-      color="text.secondary"
-      sx={{ display: 'block', mb: 2, letterSpacing: 1 }}
-    >
-      {title}
-    </Typography>
+    <Box id={id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Typography
+        variant="overline"
+        color="text.secondary"
+        sx={{ display: 'block', letterSpacing: 1 }}
+      >
+        {title}
+      </Typography>
+      {action}
+    </Box>
   );
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function getCampaignStatus(summary) {
@@ -33,14 +43,19 @@ function getCampaignStatus(summary) {
   const attended  = summary.funnel?.attended  ?? 0;
   const agreement = summary.funnel?.agreement ?? 0;
   const total     = summary.total;
+  const invited   = summary.funnel?.invited;
+  const responded = summary.funnel?.responded;
+  // Only mention invited/responded when it's a real (different) number — otherwise
+  // it's a plain fallback equal to total and adds nothing.
+  const responseNote = responded !== undefined ? ` — ${responded} of ${invited} invited have responded` : '';
 
   if (attended === 0 && agreement === 0)
-    return { text: 'Not started — no agreements logged yet', color: 'text.disabled' };
+    return { text: `Not started — no agreements logged yet${responseNote}`, color: 'text.disabled' };
   if (attended === 0)
-    return { text: `In progress · ${agreement} of ${total} agreed, visits pending`, color: 'info.main' };
+    return { text: `In progress · ${agreement} of ${total} agreed, visits pending${responseNote}`, color: 'info.main' };
   if (attended < total)
-    return { text: `In progress · ${attended} of ${total} visited`, color: 'info.main' };
-  return { text: `All ${total} influencers visited`, color: 'success.main' };
+    return { text: `In progress · ${attended} of ${total} visited${responseNote}`, color: 'info.main' };
+  return { text: `All ${total} influencers visited${responseNote}`, color: 'success.main' };
 }
 
 /**
@@ -74,104 +89,162 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
   const hasOpinions      = summary.opinionCounts.use + summary.opinionCounts.maybe + summary.opinionCounts.dont > 0;
   const campaignStatus   = getCampaignStatus(summary);
 
+  const [funnelView, setFunnelView] = useState('bar');
+
+  const jumpLinks = [
+    { id: 'analytics-summary', label: 'Summary' },
+    { id: 'analytics-funnel', label: 'Funnel' },
+    (hasPerformance || hasOpinions) && { id: 'analytics-performance', label: 'Performance' },
+    { id: 'analytics-breakdown', label: 'Breakdown' },
+    { id: 'analytics-tier', label: 'Tier & Store' },
+    hasMultiMonth && { id: 'analytics-trend', label: 'Trend' },
+  ].filter(Boolean);
+
   return (
-    <Box sx={{ p: 3 }}>
-
-      {/* ① Campaign Summary */}
-      <SectionHeader title="Campaign Summary" />
-      {campaignStatus && (
-        <Typography variant="body2" sx={{ mb: 2, mt: -1, color: campaignStatus.color }}>
-          {campaignStatus.text}
-        </Typography>
-      )}
-      <CampaignSummaryGrid summary={summary} />
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* ② Conversion Funnel */}
-      <SectionHeader title="Conversion Funnel" />
-      <Box sx={{ maxWidth: 600 }}>
-        <InfluencerFunnel funnel={summary.funnel} />
+    <>
+      {/* Sticky context bar — keeps the active store filter and section nav visible while scrolling */}
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
+          backgroundColor: 'background.paper',
+          borderBottom: 1,
+          borderColor: 'divider',
+          px: 3,
+          py: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        {selectedStore !== 'all' && (
+          <Chip size="small" label={`Store: ${selectedStore}`} sx={{ fontWeight: 600 }} />
+        )}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', ml: selectedStore !== 'all' ? 0 : 'auto' }}>
+          {jumpLinks.map(({ id, label }) => (
+            <Link
+              key={id}
+              component="button"
+              variant="caption"
+              underline="hover"
+              color="text.secondary"
+              onClick={() => scrollToSection(id)}
+            >
+              {label}
+            </Link>
+          ))}
+        </Box>
       </Box>
 
-      {(hasPerformance || hasOpinions) && (
-        <>
-          <Divider sx={{ my: 4 }} />
+      <Box sx={{ p: 3 }}>
 
-          {/* ③ Top Influencers + Opinion */}
-          <Grid container spacing={3}>
-            {hasPerformance && (
-              <Grid size={{ xs: 12, md: hasOpinions ? 8 : 12 }}>
-                <SectionHeader title="Top Influencers by Views" />
-                <TopInfluencersTable influencers={summary.topByViews} />
-              </Grid>
-            )}
-            {hasOpinions && (
-              <Grid size={{ xs: 12, md: hasPerformance ? 4 : 12 }}>
-                <SectionHeader title="Opinion Breakdown" />
-                <OpinionBreakdown counts={summary.opinionCounts} />
-              </Grid>
-            )}
-          </Grid>
-        </>
-      )}
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* ④ Platform + Category */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionHeader title="Platform Breakdown" />
-          <PlatformBreakdown byPlatform={summary.byPlatform} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionHeader title="Category Breakdown" />
-          <CategoryBreakdown byCategory={summary.byCategory} />
-        </Grid>
-      </Grid>
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* ⑤ Tier Comparison + Store */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: hasStores ? 6 : 12 }}>
-          <SectionHeader title="Tier Comparison" />
-          <TierComparison byTier={summary.byTier} />
-        </Grid>
-        {hasStores && (
-          <Grid size={{ xs: 12, md: 6 }}>
-            <SectionHeader title="Store Breakdown" />
-            <StoreBreakdown byStore={summary.byStore} />
-          </Grid>
+        {/* ① Campaign Summary */}
+        <SectionHeader title="Campaign Summary" id="analytics-summary" />
+        {campaignStatus && (
+          <Typography variant="body2" sx={{ mb: 2, mt: -1, color: campaignStatus.color }}>
+            {campaignStatus.text}
+          </Typography>
         )}
-      </Grid>
+        <CampaignSummaryGrid summary={summary} />
 
-      <Divider sx={{ my: 4 }} />
+        <Divider sx={{ my: 4 }} />
 
-      {/* ⑥ Funnel Summary + Tier Metrics (table-form alternative view) */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionHeader title="Funnel Summary" />
-          <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionHeader title="Tier Metrics" />
-          <TierMetricsTable byTier={summary.byTier} />
-        </Grid>
-      </Grid>
+        {/* ② Conversion Funnel — bar chart or table, same underlying data */}
+        <SectionHeader
+          title="Conversion Funnel"
+          id="analytics-funnel"
+          action={
+            <ToggleButtonGroup
+              size="small"
+              value={funnelView}
+              exclusive
+              onChange={(e, val) => val && setFunnelView(val)}
+            >
+              <ToggleButton value="bar" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>Bars</ToggleButton>
+              <ToggleButton value="table" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>Table</ToggleButton>
+            </ToggleButtonGroup>
+          }
+        />
+        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 720 }}>
+          {funnelView === 'bar'
+            ? <InfluencerFunnel funnel={summary.funnel} />
+            : <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />}
+        </Box>
 
-      {/* ⑦ Monthly Trend (멀티 월 데이터 있을 때만) */}
-      {hasMultiMonth && (
-        <>
-          <Divider sx={{ my: 4 }} />
-          <SectionHeader title="Monthly Trend" />
-          <Box sx={{ maxWidth: 600 }}>
-            <MonthlyTrend byMonth={summary.byMonth} />
-          </Box>
-        </>
-      )}
+        {(hasPerformance || hasOpinions) && (
+          <>
+            <Divider sx={{ my: 4 }} />
 
-    </Box>
+            {/* ③ Top Influencers + Opinion */}
+            <Box id="analytics-performance">
+              <Grid container spacing={3}>
+                {hasPerformance && (
+                  <Grid size={{ xs: 12, md: hasOpinions ? 8 : 12 }}>
+                    <SectionHeader title="Top Influencers by Views" />
+                    <TopInfluencersTable influencers={summary.topByViews} />
+                  </Grid>
+                )}
+                {hasOpinions && (
+                  <Grid size={{ xs: 12, md: hasPerformance ? 4 : 12 }}>
+                    <SectionHeader title="Opinion Breakdown" />
+                    <OpinionBreakdown counts={summary.opinionCounts} />
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
+          </>
+        )}
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* ④ Platform + Category */}
+        <Box id="analytics-breakdown">
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <SectionHeader title="Platform Breakdown" />
+              <PlatformBreakdown byPlatform={summary.byPlatform} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <SectionHeader title="Category Breakdown" />
+              <CategoryBreakdown byCategory={summary.byCategory} />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* ⑤ Tier Metrics + Store — single tier table (replaces the old column-form
+            Tier Comparison, which duplicated these same numbers in a second layout) */}
+        <Box id="analytics-tier">
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: hasStores ? 6 : 12 }}>
+              <SectionHeader title="Tier Metrics" />
+              <TierMetricsTable byTier={summary.byTier} />
+            </Grid>
+            {hasStores && (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <SectionHeader title="Store Breakdown" />
+                <StoreBreakdown byStore={summary.byStore} />
+              </Grid>
+            )}
+          </Grid>
+        </Box>
+
+        {/* ⑥ Monthly Trend (멀티 월 데이터 있을 때만) */}
+        {hasMultiMonth && (
+          <>
+            <Divider sx={{ my: 4 }} />
+            <SectionHeader title="Monthly Trend" id="analytics-trend" />
+            <Box sx={{ maxWidth: 600 }}>
+              <MonthlyTrend byMonth={summary.byMonth} />
+            </Box>
+          </>
+        )}
+
+      </Box>
+    </>
   );
 }
 

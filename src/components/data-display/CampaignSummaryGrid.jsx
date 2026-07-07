@@ -79,13 +79,21 @@ function RateCard({ label, rate, sub }) {
  * <CampaignSummaryGrid summary={analyticsSummary} />
  */
 function CampaignSummaryGrid({ summary }) {
+  // funnel.responded only exists when real "Number" tab invite data is available —
+  // in that case `total` is a tracked subset of a larger invited pool, and the
+  // label/sub-text should say so instead of reading as two unrelated "totals".
+  const hasInviteData = summary.funnel?.responded !== undefined;
+  const invited = summary.funnel?.invited;
+
   return (
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
-          label="Total Influencers"
+          label={hasInviteData ? 'Tracked Influencers' : 'Total Influencers'}
           value={summary.total}
-          sub={`Tier 1: ${summary.tier1Count} · Tier 2: ${summary.tier2Count}`}
+          sub={hasInviteData
+            ? `of ${invited.toLocaleString('en-US')} invited · Tier 1: ${summary.tier1Count} · Tier 2: ${summary.tier2Count}`
+            : `Tier 1: ${summary.tier1Count} · Tier 2: ${summary.tier2Count}`}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
