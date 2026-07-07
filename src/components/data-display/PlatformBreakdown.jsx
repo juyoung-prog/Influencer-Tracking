@@ -60,7 +60,7 @@ function PlatformBreakdown({ byPlatform = {} }) {
                 <TableCell sx={{ fontWeight: 500 }}>{p}</TableCell>
                 <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{d.count}</TableCell>
                 {showRates && (
-                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', opacity: d.attendRate === 0 ? 0.35 : 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
                       {pct(d.attendRate)}
                       <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
@@ -70,7 +70,7 @@ function PlatformBreakdown({ byPlatform = {} }) {
                   </TableCell>
                 )}
                 {showRates && (
-                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', opacity: d.uploadRate === 0 ? 0.35 : 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
                       {pct(d.uploadRate)}
                       <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>

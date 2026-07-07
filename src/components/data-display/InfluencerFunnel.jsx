@@ -27,7 +27,10 @@ function InfluencerFunnel({ funnel = {} }) {
         const widthPct = Math.round((count / base) * 100);
         const prevKey = idx > 0 ? steps[idx - 1].key : null;
         const prevCount = prevKey ? (funnel[prevKey] ?? 0) : base;
-        const convPct = prevCount > 0 ? Math.round((count / prevCount) * 100) : 0;
+        // Capped at 100 for the caption text — a later stage having more raw
+        // entries than the previous one (e.g. credit sent before upload is
+        // confirmed) is a real business scenario, but ">100% of X" reads as broken.
+        const convPct = prevCount > 0 ? Math.min(100, Math.round((count / prevCount) * 100)) : 0;
 
         const isPending = count === 0;
 

@@ -69,7 +69,11 @@ function TopInfluencersTable({ influencers = [] }) {
                 <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{inf.platform}</TableCell>
                 <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{inf.tier === 'tier2' ? 'Tier 2' : 'Tier 1'}</TableCell>
                 <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(inf.views)}</TableCell>
-                <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: engRate != null ? 'text.primary' : 'text.disabled' }}>
+                <TableCell sx={{
+                  textAlign: 'right',
+                  fontVariantNumeric: 'tabular-nums',
+                  color: engRate == null ? 'text.disabled' : engRate > 100 ? 'warning.main' : 'text.primary',
+                }}>
                   {engRate != null ? `${engRate}%` : '—'}
                 </TableCell>
                 <TableCell>
