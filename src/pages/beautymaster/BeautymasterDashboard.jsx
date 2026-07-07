@@ -144,7 +144,7 @@ function BeautymasterDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filters, setFilters] = useState({ store: config?.defaultStore || 'all', platform: null, tier: null, category: null });
-  const [analyticsStore, setAnalyticsStore] = useState('all');
+  const [analyticsStore, setAnalyticsStore] = useState(config?.defaultStore || 'all');
 
   const timelinePanelRef = useRef(null);
   const listPanelRef = useRef(null);
