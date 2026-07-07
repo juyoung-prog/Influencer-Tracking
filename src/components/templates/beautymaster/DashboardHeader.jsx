@@ -28,7 +28,7 @@ function DashboardHeader({ kpi, isSyncing = false, lastSyncedAt = null, onRefres
     <Box sx={{ flexShrink: 0, backgroundColor: 'background.paper', ...sx }}>
       <Box sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          BeautyMaster
+          Influencer Tracking Dashboard
         </Typography>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
           <SyncStatusBar
