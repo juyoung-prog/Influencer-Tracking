@@ -1,5 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import AnalyticsDashboard from '../../components/templates/beautymaster/AnalyticsDashboard';
 import InfluencerDrawer from '../../components/overlay-feedback/InfluencerDrawer';
 import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsModal';
 import DashboardHeader from '../../components/templates/beautymaster/DashboardHeader';
@@ -7,7 +10,7 @@ import InfluencerPanel from '../../components/templates/beautymaster/InfluencerP
 import SchedulePanel from '../../components/templates/beautymaster/SchedulePanel';
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
-import { deriveKpiSummary } from '../../data/beautymaster/schema.js';
+import { deriveKpiSummary, deriveAnalyticsSummary } from '../../data/beautymaster/schema.js';
 
 // ─── Mock data (Storybook / ComponentGallery only) ────────────────────────────
 
@@ -133,6 +136,7 @@ export const MOCK_INFLUENCERS = [
 function BeautymasterDashboard() {
   const { influencers, kpi, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
 
+  const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -163,6 +167,7 @@ function BeautymasterDashboard() {
   }), [influencers, filters]);
 
   const filteredKpi = useMemo(() => deriveKpiSummary(filteredInfluencers), [filteredInfluencers]);
+  const analyticsSummary = useMemo(() => deriveAnalyticsSummary(influencers), [influencers]);
 
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
 
@@ -213,27 +218,42 @@ function BeautymasterDashboard() {
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <SchedulePanel
-          ref={timelinePanelRef}
-          influencers={filteredInfluencers}
-          onSelect={handleSelect}
-          selectedId={selectedId}
-        />
-        <InfluencerPanel
-          ref={listPanelRef}
-          influencers={filteredInfluencers}
-          stores={stores}
-          months={months}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onSelect={handleSelect}
-          selectedId={selectedId}
-          isLoading={isSyncing && influencers.length === 0}
-          error={error}
-          onRetry={refresh}
-        />
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 40 }}>
+          <Tab label="Operations" sx={{ minHeight: 40, fontSize: 13 }} />
+          <Tab label="Analytics" sx={{ minHeight: 40, fontSize: 13 }} />
+        </Tabs>
       </Box>
+
+      {activeTab === 0 && (
+        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <SchedulePanel
+            ref={timelinePanelRef}
+            influencers={filteredInfluencers}
+            onSelect={handleSelect}
+            selectedId={selectedId}
+          />
+          <InfluencerPanel
+            ref={listPanelRef}
+            influencers={filteredInfluencers}
+            stores={stores}
+            months={months}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onSelect={handleSelect}
+            selectedId={selectedId}
+            isLoading={isSyncing && influencers.length === 0}
+            error={error}
+            onRetry={refresh}
+          />
+        </Box>
+      )}
+
+      {activeTab === 1 && (
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <AnalyticsDashboard summary={analyticsSummary} />
+        </Box>
+      )}
 
       <InfluencerDrawer
         influencer={selectedInfluencer}

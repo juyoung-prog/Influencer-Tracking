@@ -184,6 +184,95 @@ export function deriveKpiSummary(influencers) {
   }, createKpiSummary());
 }
 
+/**
+ * Aggregate an Influencer array into a full analytics summary for the report view.
+ *
+ * @param {Influencer[]} influencers
+ * @returns {AnalyticsSummary}
+ */
+export function deriveAnalyticsSummary(influencers) {
+  if (!influencers || influencers.length === 0) return createAnalyticsSummary();
+
+  const total        = influencers.length;
+  const tier1Count   = influencers.filter(i => i.tier === TIERS.TIER1).length;
+  const tier2Count   = influencers.filter(i => i.tier === TIERS.TIER2).length;
+  const attendCount  = influencers.filter(i => i.attend).length;
+  const collaboCount = influencers.filter(i => i.collaboShared).length;
+  const creditSharedCount = influencers.filter(i => i.creditShared).length;
+  const creditUsedCount   = influencers.filter(i => i.creditUsed).length;
+
+  const safeRate = (n, d) => (d === 0 ? 0 : n / d);
+  const avgViews = list => {
+    const valid = list.map(i => i.views).filter(v => v != null);
+    return valid.length === 0 ? null : Math.round(valid.reduce((s, v) => s + v, 0) / valid.length);
+  };
+  const normalizePlatform = raw => {
+    const p = raw.split(',')[0].trim().toLowerCase();
+    if (p.includes('tiktok')) return 'TikTok';
+    if (p.includes('instagram')) return 'Instagram';
+    return raw.split(',')[0].trim();
+  };
+
+  // Opinion counts (only influencers where opinion has been entered)
+  const withOpinion = influencers.filter(i => i.opinion);
+  const opinionCounts = {
+    use:   withOpinion.filter(i => i.opinion === OPINIONS.USE).length,
+    maybe: withOpinion.filter(i => i.opinion === OPINIONS.MAYBE).length,
+    dont:  withOpinion.filter(i => i.opinion === OPINIONS.DONT).length,
+  };
+
+  // Group by platform (primary platform)
+  const platformMap = {};
+  for (const inf of influencers) {
+    const p = normalizePlatform(inf.platform);
+    if (!platformMap[p]) platformMap[p] = [];
+    platformMap[p].push(inf);
+  }
+  const byPlatform = {};
+  for (const [p, list] of Object.entries(platformMap)) {
+    const pAttend = list.filter(i => i.attend).length;
+    byPlatform[p] = {
+      count:       list.length,
+      attendRate:  safeRate(pAttend, list.length),
+      uploadRate:  safeRate(list.filter(i => i.collaboShared).length, pAttend),
+      avgViews:    avgViews(list),
+    };
+  }
+
+  // Group by store
+  const storeMap = {};
+  for (const inf of influencers) {
+    if (!storeMap[inf.store]) storeMap[inf.store] = [];
+    storeMap[inf.store].push(inf);
+  }
+  const byStore = {};
+  for (const [s, list] of Object.entries(storeMap)) {
+    const sAttend = list.filter(i => i.attend).length;
+    byStore[s] = {
+      count:       list.length,
+      attendRate:  safeRate(sAttend, list.length),
+      uploadRate:  safeRate(list.filter(i => i.collaboShared).length, sAttend),
+      avgViews:    avgViews(list),
+    };
+  }
+
+  return {
+    total,
+    tier1Count,
+    tier2Count,
+    attendRate:     safeRate(attendCount, total),
+    uploadRate:     safeRate(collaboCount, attendCount),
+    creditUsedRate: safeRate(creditUsedCount, creditSharedCount),
+    opinionCounts,
+    byPlatform,
+    byStore,
+    topByViews: [...influencers]
+      .filter(i => i.views != null)
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10),
+  };
+}
+
 // ─── Factory Functions (safe defaults) ───────────────────────────────────────
 
 /**
@@ -241,6 +330,24 @@ export function createKpiSummary(overrides = {}) {
     creditSharedCount: 0,
     alertCount: 0,
     ...overrides,
+  };
+}
+
+/**
+ * @returns {AnalyticsSummary}
+ */
+export function createAnalyticsSummary() {
+  return {
+    total: 0,
+    tier1Count: 0,
+    tier2Count: 0,
+    attendRate: 0,
+    uploadRate: 0,
+    creditUsedRate: 0,
+    opinionCounts: { use: 0, maybe: 0, dont: 0 },
+    byPlatform: {},
+    byStore: {},
+    topByViews: [],
   };
 }
 
