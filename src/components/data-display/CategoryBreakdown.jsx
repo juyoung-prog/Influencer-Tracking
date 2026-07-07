@@ -38,6 +38,8 @@ function CategoryBreakdown({ byCategory = {} }) {
     );
   }
 
+  const showRates = categories.some(cat => byCategory[cat].attendRate > 0);
+
   return (
     <TableContainer>
       <Table size="small">
@@ -45,9 +47,9 @@ function CategoryBreakdown({ byCategory = {} }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
             <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Count</TableCell>
-            <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Attend</TableCell>
-            <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Upload</TableCell>
-            <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Avg Views</TableCell>
+            {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Attend</TableCell>}
+            {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Upload</TableCell>}
+            {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Avg Views</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -57,25 +59,31 @@ function CategoryBreakdown({ byCategory = {} }) {
               <TableRow key={cat}>
                 <TableCell sx={{ fontWeight: 500 }}>{CATEGORY_LABELS[cat] || cat}</TableCell>
                 <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{d.count}</TableCell>
-                <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                    {pct(d.attendRate)}
-                    <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
-                      <Box sx={{ height: '100%', width: `${Math.round(d.attendRate * 100)}%`, backgroundColor: 'primary.main' }} />
+                {showRates && (
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                      {pct(d.attendRate)}
+                      <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', width: `${Math.round(d.attendRate * 100)}%`, backgroundColor: 'primary.main' }} />
+                      </Box>
                     </Box>
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                    {pct(d.uploadRate)}
-                    <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
-                      <Box sx={{ height: '100%', width: `${Math.round(d.uploadRate * 100)}%`, backgroundColor: 'success.main' }} />
+                  </TableCell>
+                )}
+                {showRates && (
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                      {pct(d.uploadRate)}
+                      <Box sx={{ width: 32, height: 3, backgroundColor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', width: `${Math.round(d.uploadRate * 100)}%`, backgroundColor: 'success.main' }} />
+                      </Box>
                     </Box>
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
-                  {fmt(d.avgViews)}
-                </TableCell>
+                  </TableCell>
+                )}
+                {showRates && (
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
+                    {fmt(d.avgViews)}
+                  </TableCell>
+                )}
               </TableRow>
             );
           })}

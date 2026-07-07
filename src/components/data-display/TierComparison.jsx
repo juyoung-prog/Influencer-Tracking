@@ -25,8 +25,10 @@ function TierComparison({ byTier = {} }) {
   const t1 = byTier.tier1 || EMPTY_TIER;
   const t2 = byTier.tier2 || EMPTY_TIER;
 
-  const rows = [
-    { label: 'Count',         t1: t1.count,                         t2: t2.count },
+  const showRates = t1.attendRate > 0 || t2.attendRate > 0;
+
+  const allRows = [
+    { label: 'Count',         t1: t1.count,                         t2: t2.count,                        alwaysShow: true },
     { label: 'Attend Rate',   t1: pct(t1.attendRate),               t2: pct(t2.attendRate) },
     { label: 'Upload Rate',   t1: pct(t1.uploadRate),               t2: pct(t2.uploadRate) },
     { label: 'Avg Views',     t1: fmt(t1.avgViews),                 t2: fmt(t2.avgViews) },
@@ -34,6 +36,8 @@ function TierComparison({ byTier = {} }) {
     { label: 'MAYBE',         t1: t1.opinionCounts?.maybe ?? 0,     t2: t2.opinionCounts?.maybe ?? 0 },
     { label: "DON'T",         t1: t1.opinionCounts?.dont ?? 0,      t2: t2.opinionCounts?.dont ?? 0 },
   ];
+
+  const rows = allRows.filter(r => r.alwaysShow || showRates);
 
   return (
     <Table size="small">
