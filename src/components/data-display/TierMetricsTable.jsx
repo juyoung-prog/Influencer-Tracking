@@ -82,16 +82,16 @@ function TierMetricsTable({ byTier = {} }) {
             <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400 }}>
               {fmt(invited)}
             </TableCell>
-            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400 }}>
+            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400, opacity: agreementCount === 0 ? 0.35 : 1 }}>
               {agreementCount} <Typography component="span" variant="caption" color="text.secondary">({pct(agreementRate)})</Typography>
             </TableCell>
-            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400 }}>
+            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400, opacity: attendCount === 0 ? 0.35 : 1 }}>
               {attendCount} <Typography component="span" variant="caption" color="text.secondary">({pct(visitedRate)})</Typography>
             </TableCell>
-            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400 }}>
+            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400, opacity: scheduledCount === 0 ? 0.35 : 1 }}>
               {scheduledCount}
             </TableCell>
-            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400 }}>
+            <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: isTotal ? 700 : 400, opacity: collaboSharedCount === 0 ? 0.35 : 1 }}>
               {collaboSharedCount} <Typography component="span" variant="caption" color="text.secondary">({pct(contentRate)})</Typography>
             </TableCell>
           </TableRow>

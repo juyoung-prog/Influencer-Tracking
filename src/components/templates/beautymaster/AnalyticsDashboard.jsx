@@ -42,19 +42,16 @@ function getCampaignStatus(summary) {
   const attended  = summary.funnel?.attended  ?? 0;
   const agreement = summary.funnel?.agreement ?? 0;
   const total     = summary.total;
-  const invited   = summary.funnel?.invited;
-  const responded = summary.funnel?.responded;
-  // Only mention invited/responded when it's a real (different) number — otherwise
-  // it's a plain fallback equal to total and adds nothing.
-  const responseNote = responded !== undefined ? ` — ${responded} of ${invited} invited have responded` : '';
 
+  // Invited/responded context lives on the Tracked Influencers stat card —
+  // repeating it here too was redundant and made this line a run-on sentence.
   if (attended === 0 && agreement === 0)
-    return { text: `Not started — no agreements logged yet${responseNote}`, color: 'text.disabled' };
+    return { text: 'Not started — no agreements logged yet', color: 'text.disabled' };
   if (attended === 0)
-    return { text: `In progress · ${agreement} of ${total} agreed, visits pending${responseNote}`, color: 'info.main' };
+    return { text: `In progress · ${agreement} of ${total} agreed, visits pending`, color: 'info.main' };
   if (attended < total)
-    return { text: `In progress · ${attended} of ${total} visited${responseNote}`, color: 'info.main' };
-  return { text: `All ${total} influencers visited${responseNote}`, color: 'success.main' };
+    return { text: `In progress · ${attended} of ${total} visited`, color: 'info.main' };
+  return { text: `All ${total} influencers visited`, color: 'success.main' };
 }
 
 /**
@@ -164,7 +161,7 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
             </ToggleButtonGroup>
           }
         />
-        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 720 }}>
+        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 'none' }}>
           {funnelView === 'bar'
             ? <InfluencerFunnel funnel={summary.funnel} />
             : <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />}
