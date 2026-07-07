@@ -163,7 +163,6 @@ export function deriveAlertFlags(influencer, today = new Date()) {
   if (agreement && !attend && visitIsPastDue) flags.push(ALERT_FLAGS.AGREEMENT_NO_ATTEND);
   if (attend && !collaboShared)              flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
   if (collaboShared && !creditShared)        flags.push(ALERT_FLAGS.COLLABO_NO_CREDIT);
-  if (creditShared && !creditUsed)           flags.push(ALERT_FLAGS.CREDIT_SHARED_NO_USED);
   return flags;
 }
 
