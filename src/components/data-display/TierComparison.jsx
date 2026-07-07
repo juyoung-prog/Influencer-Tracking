@@ -39,12 +39,12 @@ function TierComparison({ byTier = {} }) {
     <Table size="small">
       <TableHead>
         <TableRow>
-          <TableCell />
-          <TableCell sx={{ fontWeight: 600, textAlign: 'center' }}>
+          <TableCell sx={{ width: 140 }} />
+          <TableCell sx={{ fontWeight: 600, textAlign: 'center', width: '50%' }}>
             Tier 1
             <Typography component="div" variant="caption" color="text.secondary">$100 Credit</Typography>
           </TableCell>
-          <TableCell sx={{ fontWeight: 600, textAlign: 'center' }}>
+          <TableCell sx={{ fontWeight: 600, textAlign: 'center', width: '50%' }}>
             Tier 2
             <Typography component="div" variant="caption" color="text.secondary">$20 Credit</Typography>
           </TableCell>
@@ -53,7 +53,7 @@ function TierComparison({ byTier = {} }) {
       <TableBody>
         {rows.map(({ label, t1: v1, t2: v2 }) => (
           <TableRow key={label}>
-            <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{label}</TableCell>
+            <TableCell sx={{ color: 'text.secondary', fontSize: 13, width: 140, whiteSpace: 'nowrap' }}>{label}</TableCell>
             <TableCell sx={{ textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{v1}</TableCell>
             <TableCell sx={{ textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{v2}</TableCell>
           </TableRow>
