@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 function pct(rate) { return `${Math.round(rate * 100)}%`; }
 function fmt(val) { return val == null ? '—' : val.toLocaleString('en-US'); }
 
-const EMPTY_TIER = { count: 0, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } };
+const EMPTY_TIER = { count: 0, invited: null, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } };
 
 /**
  * TierComparison component
@@ -25,19 +25,21 @@ function TierComparison({ byTier = {} }) {
   const t1 = byTier.tier1 || EMPTY_TIER;
   const t2 = byTier.tier2 || EMPTY_TIER;
 
-  const showRates = t1.attendRate > 0 || t2.attendRate > 0;
+  const showRates   = t1.attendRate > 0 || t2.attendRate > 0;
+  const showInvited = t1.invited != null || t2.invited != null;
 
   const allRows = [
-    { label: 'Count',         t1: t1.count,                         t2: t2.count,                        alwaysShow: true },
-    { label: 'Attend Rate',   t1: pct(t1.attendRate),               t2: pct(t2.attendRate) },
-    { label: 'Upload Rate',   t1: pct(t1.uploadRate),               t2: pct(t2.uploadRate) },
-    { label: 'Avg Views',     t1: fmt(t1.avgViews),                 t2: fmt(t2.avgViews) },
-    { label: 'USE',           t1: t1.opinionCounts?.use ?? 0,       t2: t2.opinionCounts?.use ?? 0 },
-    { label: 'MAYBE',         t1: t1.opinionCounts?.maybe ?? 0,     t2: t2.opinionCounts?.maybe ?? 0 },
-    { label: "DON'T",         t1: t1.opinionCounts?.dont ?? 0,      t2: t2.opinionCounts?.dont ?? 0 },
+    { label: 'Count',         t1: t1.count,                         t2: t2.count,                        show: true },
+    { label: 'Invited',       t1: fmt(t1.invited),                  t2: fmt(t2.invited),                 show: showInvited },
+    { label: 'Attend Rate',   t1: pct(t1.attendRate),               t2: pct(t2.attendRate),               show: showRates },
+    { label: 'Upload Rate',   t1: pct(t1.uploadRate),               t2: pct(t2.uploadRate),               show: showRates },
+    { label: 'Avg Views',     t1: fmt(t1.avgViews),                 t2: fmt(t2.avgViews),                 show: showRates },
+    { label: 'USE',           t1: t1.opinionCounts?.use ?? 0,       t2: t2.opinionCounts?.use ?? 0,       show: showRates },
+    { label: 'MAYBE',         t1: t1.opinionCounts?.maybe ?? 0,     t2: t2.opinionCounts?.maybe ?? 0,     show: showRates },
+    { label: "DON'T",         t1: t1.opinionCounts?.dont ?? 0,      t2: t2.opinionCounts?.dont ?? 0,      show: showRates },
   ];
 
-  const rows = allRows.filter(r => r.alwaysShow || showRates);
+  const rows = allRows.filter(r => r.show);
 
   return (
     <Table size="small">

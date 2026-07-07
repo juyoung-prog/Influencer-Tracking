@@ -65,6 +65,7 @@ function emptySource() {
  *
  * Dialog for configuring one or more Google Sheets connections (multi-source).
  * Each source has a label, Processing tab URL, and optional Done tab URL.
+ * Also has an optional Invite counts tab URL ("Number" tab) shared across all sources.
  *
  * Props:
  * @param {boolean} open - Whether the dialog is open [Required]
@@ -86,6 +87,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
     : [emptySource()];
 
   const [sources, setSources] = useState(initialSources);
+  const [inviteCountsUrl, setInviteCountsUrl] = useState(config?.inviteCountsUrl ?? '');
   const [interval, setInterval] = useState(config?.pollingIntervalMs ?? 30000);
   const [defaultStore, setDefaultStore] = useState(config?.defaultStore ?? 'all');
   const [testStatuses, setTestStatuses] = useState({});  // { index: 'idle'|'testing'|'success'|'error' }
@@ -126,6 +128,8 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
     }
   }
 
+  const inviteCountsCsvUrl = toCsvUrl(inviteCountsUrl);
+
   const validSources  = sources.filter(s => toCsvUrl(s.processingUrl));
   const hasTestError  = Object.values(testStatuses).some(s => s === 'error');
   const isTesting     = Object.values(testStatuses).some(s => s === 'testing');
@@ -139,7 +143,12 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
         processingCsvUrl: toCsvUrl(s.processingUrl),
         doneCsvUrl: toCsvUrl(s.doneUrl) ?? '',
       }));
-    onSave?.({ sources: processedSources, pollingIntervalMs: interval, defaultStore });
+    onSave?.({
+      sources: processedSources,
+      inviteCountsUrl: toCsvUrl(inviteCountsUrl) ?? '',
+      pollingIntervalMs: interval,
+      defaultStore,
+    });
     onClose?.();
   }
 
@@ -276,6 +285,22 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
         </Button>
 
         <Divider sx={{ mb: 2 }} />
+
+        {/* Invite counts (Number tab) */}
+        <TextField
+          label="Invite counts tab URL (optional)"
+          placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
+          value={inviteCountsUrl}
+          onChange={e => setInviteCountsUrl(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{ mb: 2.5 }}
+          helperText={inviteCountsCsvUrl
+            ? `→ ${inviteCountsCsvUrl}`
+            : inviteCountsUrl ? 'URL 형식을 확인하세요' : '스토어×티어×카테고리별 초대 인원 "Number" 탭. 없으면 비워두세요'}
+          error={Boolean(inviteCountsUrl && !inviteCountsCsvUrl)}
+          FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
+        />
 
         {/* Global settings */}
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>

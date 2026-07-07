@@ -38,7 +38,8 @@ function StoreBreakdown({ byStore = {} }) {
     );
   }
 
-  const showRates = stores.some(s => byStore[s].attendRate > 0);
+  const showRates   = stores.some(s => byStore[s].attendRate > 0);
+  const showInvited = stores.some(s => byStore[s].invited != null);
 
   return (
     <TableContainer>
@@ -47,6 +48,7 @@ function StoreBreakdown({ byStore = {} }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 600 }}>Store</TableCell>
             <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Count</TableCell>
+            {showInvited && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Invited</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Attend</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Upload</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Avg Views</TableCell>}
@@ -59,6 +61,11 @@ function StoreBreakdown({ byStore = {} }) {
               <TableRow key={s}>
                 <TableCell sx={{ fontWeight: 500 }}>{s || '—'}</TableCell>
                 <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{d.count}</TableCell>
+                {showInvited && (
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
+                    {fmt(d.invited)}
+                  </TableCell>
+                )}
                 {showRates && (
                   <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>

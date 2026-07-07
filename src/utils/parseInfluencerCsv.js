@@ -51,7 +51,7 @@ function collapseMultilineFields(text) {
   return result;
 }
 
-function parseCsvRow(line) {
+export function parseCsvRow(line) {
   const result = [];
   let current = '';
   let inQuotes = false;

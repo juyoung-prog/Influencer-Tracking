@@ -5,7 +5,7 @@
  * When no config is saved, returns empty state without starting any fetch.
  *
  * Config format (v2 — multi-source):
- * { sources: [{label, processingCsvUrl, doneCsvUrl}], pollingIntervalMs, defaultStore }
+ * { sources: [{label, processingCsvUrl, doneCsvUrl}], inviteCountsUrl, pollingIntervalMs, defaultStore }
  *
  * Old single-source configs are automatically migrated on load.
  */
@@ -25,6 +25,7 @@ const DEFAULT_CONFIG = {
     { label: 'GA', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0` },
     { label: 'FL', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1776175069` },
   ],
+  inviteCountsUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=778920622`,
   pollingIntervalMs: 30000,
   defaultStore: 'all',
 };
@@ -42,6 +43,7 @@ function loadConfig() {
           processingCsvUrl: parsed.processingCsvUrl,
           doneCsvUrl: parsed.doneCsvUrl || '',
         }],
+        inviteCountsUrl: parsed.inviteCountsUrl || '',
         pollingIntervalMs: parsed.pollingIntervalMs || 30000,
         defaultStore: parsed.defaultStore || 'all',
       };
@@ -55,6 +57,7 @@ function loadConfig() {
 const EMPTY_STATE = {
   influencers: [],
   kpi: createKpiSummary(),
+  inviteCounts: {},
   lastSyncedAt: null,
   isSyncing: false,
   error: null,
@@ -67,6 +70,7 @@ const EMPTY_STATE = {
  * @returns {{
  *   influencers: Influencer[],
  *   kpi: KpiSummary,
+ *   inviteCounts: Object,
  *   lastSyncedAt: Date|null,
  *   isSyncing: boolean,
  *   error: Error|null,
@@ -89,6 +93,7 @@ export function useSheetData() {
 
   const pollingConfig = {
     sources: config?.sources ?? [],
+    inviteCountsUrl: config?.inviteCountsUrl ?? '',
     pollingIntervalMs: config?.pollingIntervalMs ?? 30000,
   };
 

@@ -48,17 +48,23 @@ function getCampaignStatus(summary) {
  *
  * Props:
  * @param {Influencer[]} influencers - Full influencer list [Required]
+ * @param {Object} inviteCounts - Invited-per-store/tier/category counts from the "Number" tab, from parseInviteCountsCsv() [Optional, default: {}]
  * @param {string} selectedStore - Active store filter ('all' or store name) [Optional, default: 'all']
  *
  * Example usage:
- * <AnalyticsDashboard influencers={influencers} selectedStore="G10" />
+ * <AnalyticsDashboard influencers={influencers} inviteCounts={inviteCounts} selectedStore="G10" />
  */
-function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
+function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore = 'all' }) {
   const filtered = useMemo(() => (
     selectedStore === 'all' ? influencers : influencers.filter(i => i.store === selectedStore)
   ), [influencers, selectedStore]);
 
-  const summary = useMemo(() => deriveAnalyticsSummary(filtered), [filtered]);
+  const filteredInviteCounts = useMemo(() => {
+    if (selectedStore === 'all') return inviteCounts;
+    return inviteCounts[selectedStore] ? { [selectedStore]: inviteCounts[selectedStore] } : {};
+  }, [inviteCounts, selectedStore]);
+
+  const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
 
   const hasStores        = Object.keys(summary.byStore).length > 1;
   const hasMultiMonth    = Object.keys(summary.byMonth).length > 1;

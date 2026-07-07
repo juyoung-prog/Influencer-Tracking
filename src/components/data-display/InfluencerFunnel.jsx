@@ -1,38 +1,51 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
-const STEPS = [
-  { key: 'invited',    label: 'Invited',     note: null },
-  { key: 'agreement',  label: 'Agreement',   note: '% of invited' },
-  { key: 'attended',   label: 'Visited',     note: '% of agreement' },
-  { key: 'uploaded',   label: 'Uploaded',    note: '% of visited' },
-  { key: 'creditSent', label: 'Credit Sent', note: '% of uploaded' },
-  { key: 'creditUsed', label: 'Credit Used', note: '% of sent' },
+const STEPS_BASE = [
+  { key: 'invited',    label: 'Invited',     note: null,             color: 'primary.main' },
+  { key: 'agreement',  label: 'Agreement',   note: '% of invited',   color: 'primary.main' },
+  { key: 'attended',   label: 'Visited',     note: '% of agreement', color: 'info.main' },
+  { key: 'uploaded',   label: 'Uploaded',    note: '% of visited',   color: 'info.main' },
+  { key: 'creditSent', label: 'Credit Sent', note: '% of uploaded',  color: 'success.main' },
+  { key: 'creditUsed', label: 'Credit Used', note: '% of sent',      color: 'success.main' },
 ];
 
-const STEP_COLORS = ['primary.main', 'primary.main', 'info.main', 'info.main', 'success.main', 'success.main'];
+// With real invite-count data (funnel.responded present), an extra step sits
+// between Invited and Agreement — how many of the invited actually entered tracking.
+const STEPS_WITH_RESPONDED = [
+  { key: 'invited',    label: 'Invited',     note: null,              color: 'primary.main' },
+  { key: 'responded',  label: 'Responded',   note: '% of invited',    color: 'primary.main' },
+  { key: 'agreement',  label: 'Agreement',   note: '% of responded',  color: 'primary.main' },
+  { key: 'attended',   label: 'Visited',     note: '% of agreement',  color: 'info.main' },
+  { key: 'uploaded',   label: 'Uploaded',    note: '% of visited',    color: 'info.main' },
+  { key: 'creditSent', label: 'Credit Sent', note: '% of uploaded',   color: 'success.main' },
+  { key: 'creditUsed', label: 'Credit Used', note: '% of sent',       color: 'success.main' },
+];
 
 /**
  * InfluencerFunnel component
  *
  * Horizontal funnel showing conversion from Invited → Credit Used.
  * Bar width = count / total (invited). Drop-off rate shown per step.
+ * When funnel.responded is present (real "Number" tab invite data available),
+ * an extra "Responded" step is shown between Invited and Agreement.
  *
  * Props:
- * @param {{ invited, agreement, attended, uploaded, creditSent, creditUsed }} funnel - from deriveAnalyticsSummary().funnel [Required]
+ * @param {{ invited, responded, agreement, attended, uploaded, creditSent, creditUsed }} funnel - from deriveAnalyticsSummary().funnel [Required]
  *
  * Example usage:
  * <InfluencerFunnel funnel={summary.funnel} />
  */
 function InfluencerFunnel({ funnel = {} }) {
   const base = funnel.invited || 1;
+  const steps = funnel.responded !== undefined ? STEPS_WITH_RESPONDED : STEPS_BASE;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {STEPS.map(({ key, label, note }, idx) => {
+      {steps.map(({ key, label, note, color }, idx) => {
         const count = funnel[key] ?? 0;
         const widthPct = Math.round((count / base) * 100);
-        const prevKey = idx > 0 ? STEPS[idx - 1].key : null;
+        const prevKey = idx > 0 ? steps[idx - 1].key : null;
         const prevCount = prevKey ? (funnel[prevKey] ?? 0) : base;
         const convPct = prevCount > 0 ? Math.round((count / prevCount) * 100) : 0;
 
@@ -62,7 +75,7 @@ function InfluencerFunnel({ funnel = {} }) {
               <Box sx={{
                 height: '100%',
                 width: `${widthPct}%`,
-                backgroundColor: STEP_COLORS[idx],
+                backgroundColor: color,
                 borderRadius: 1,
               }} />
             </Box>

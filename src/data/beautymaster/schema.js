@@ -185,12 +185,76 @@ export function deriveKpiSummary(influencers) {
 }
 
 /**
+ * Sum invite counts (from the "Number" tab) across all stores/tiers/categories.
+ *
+ * @param {Object<string, Object<string, Object<string, number>>>} inviteCounts - { [store]: { [tier]: { [category]: count } } }
+ * @returns {number}
+ */
+export function sumInviteCountsTotal(inviteCounts) {
+  let sum = 0;
+  for (const tiers of Object.values(inviteCounts || {})) {
+    for (const categories of Object.values(tiers)) {
+      for (const count of Object.values(categories)) sum += count;
+    }
+  }
+  return sum;
+}
+
+/**
+ * @param {Object} inviteCounts
+ * @returns {Object<string, number>} { [store]: total }
+ */
+export function sumInviteCountsByStore(inviteCounts) {
+  const result = {};
+  for (const [store, tiers] of Object.entries(inviteCounts || {})) {
+    let sum = 0;
+    for (const categories of Object.values(tiers)) {
+      for (const count of Object.values(categories)) sum += count;
+    }
+    result[store] = sum;
+  }
+  return result;
+}
+
+/**
+ * @param {Object} inviteCounts
+ * @returns {{tier1: number, tier2: number}}
+ */
+export function sumInviteCountsByTier(inviteCounts) {
+  const result = { tier1: 0, tier2: 0 };
+  for (const tiers of Object.values(inviteCounts || {})) {
+    for (const [tier, categories] of Object.entries(tiers)) {
+      if (result[tier] === undefined) continue;
+      for (const count of Object.values(categories)) result[tier] += count;
+    }
+  }
+  return result;
+}
+
+/**
+ * @param {Object} inviteCounts
+ * @returns {Object<string, number>} { [category]: total }
+ */
+export function sumInviteCountsByCategory(inviteCounts) {
+  const result = {};
+  for (const tiers of Object.values(inviteCounts || {})) {
+    for (const categories of Object.values(tiers)) {
+      for (const [cat, count] of Object.entries(categories)) {
+        result[cat] = (result[cat] || 0) + count;
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * Aggregate an Influencer array into a full analytics summary for the report view.
  *
  * @param {Influencer[]} influencers
+ * @param {Object<string, Object<string, Object<string, number>>>} [inviteCounts] - from parseInviteCountsCsv(), the "Number" tab. { [store]: { [tier]: { [category]: count } } }
  * @returns {AnalyticsSummary}
  */
-export function deriveAnalyticsSummary(influencers) {
+export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   if (!influencers || influencers.length === 0) return createAnalyticsSummary();
 
   const total             = influencers.length;
@@ -235,9 +299,18 @@ export function deriveAnalyticsSummary(influencers) {
   // Opinion counts
   const opinionCounts = countOpinions(influencers);
 
-  // Funnel
+  // Invite counts (from the "Number" tab) — total contacted, before agreement tracking starts
+  const invitedTotal      = sumInviteCountsTotal(inviteCounts);
+  const invitedByStore    = sumInviteCountsByStore(inviteCounts);
+  const invitedByTier     = sumInviteCountsByTier(inviteCounts);
+  const invitedByCategory = sumInviteCountsByCategory(inviteCounts);
+  const hasInviteData     = invitedTotal > 0;
+
+  // Funnel — "responded" (= total tracked rows) only shown as a distinct step
+  // when real invite data exists; otherwise invited falls back to total (old behavior).
   const funnel = {
-    invited:    total,
+    invited:    hasInviteData ? invitedTotal : total,
+    responded:  hasInviteData ? total : undefined,
     agreement:  agreementCount,
     attended:   attendCount,
     uploaded:   collaboCount,
@@ -274,6 +347,7 @@ export function deriveAnalyticsSummary(influencers) {
     const sAttend = list.filter(i => i.attend).length;
     byStore[s] = {
       count:      list.length,
+      invited:    invitedByStore[s] ?? null,
       attendRate: safeRate(sAttend, list.length),
       uploadRate: safeRate(list.filter(i => i.collaboShared).length, sAttend),
       avgViews:   avgViews(list),
@@ -282,8 +356,8 @@ export function deriveAnalyticsSummary(influencers) {
 
   // Group by tier
   const byTier = {
-    tier1: groupStats(influencers.filter(i => i.tier === TIERS.TIER1)),
-    tier2: groupStats(influencers.filter(i => i.tier === TIERS.TIER2)),
+    tier1: { ...groupStats(influencers.filter(i => i.tier === TIERS.TIER1)), invited: hasInviteData ? invitedByTier.tier1 : null },
+    tier2: { ...groupStats(influencers.filter(i => i.tier === TIERS.TIER2)), invited: hasInviteData ? invitedByTier.tier2 : null },
   };
 
   // Group by category
@@ -298,6 +372,7 @@ export function deriveAnalyticsSummary(influencers) {
     const cAttend = list.filter(i => i.attend).length;
     byCategory[cat] = {
       count:      list.length,
+      invited:    invitedByCategory[cat] ?? null,
       attendRate: safeRate(cAttend, list.length),
       uploadRate: safeRate(list.filter(i => i.collaboShared).length, cAttend),
       avgViews:   avgViews(list),
@@ -409,7 +484,7 @@ export function createKpiSummary(overrides = {}) {
  * @returns {AnalyticsSummary}
  */
 export function createAnalyticsSummary() {
-  const emptyTierStats = () => ({ count: 0, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } });
+  const emptyTierStats = () => ({ count: 0, invited: null, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } });
   return {
     total: 0,
     tier1Count: 0,
@@ -418,7 +493,7 @@ export function createAnalyticsSummary() {
     uploadRate: 0,
     creditUsedRate: 0,
     opinionCounts: { use: 0, maybe: 0, dont: 0 },
-    funnel: { invited: 0, agreement: 0, attended: 0, uploaded: 0, creditSent: 0, creditUsed: 0 },
+    funnel: { invited: 0, responded: undefined, agreement: 0, attended: 0, uploaded: 0, creditSent: 0, creditUsed: 0 },
     byPlatform: {},
     byStore: {},
     byTier: { tier1: emptyTierStats(), tier2: emptyTierStats() },

@@ -137,7 +137,7 @@ export const MOCK_INFLUENCERS = [
  * Props: (none — data is owned internally via useSheetData)
  */
 function BeautymasterDashboard() {
-  const { influencers, kpi, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
+  const { influencers, kpi, inviteCounts, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
 
   const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
@@ -274,7 +274,7 @@ function BeautymasterDashboard() {
 
       {activeTab === 1 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <AnalyticsDashboard influencers={influencers} selectedStore={analyticsStore} />
+          <AnalyticsDashboard influencers={influencers} inviteCounts={inviteCounts} selectedStore={analyticsStore} />
         </Box>
       )}
 

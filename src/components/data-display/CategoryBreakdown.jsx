@@ -38,7 +38,8 @@ function CategoryBreakdown({ byCategory = {} }) {
     );
   }
 
-  const showRates = categories.some(cat => byCategory[cat].attendRate > 0);
+  const showRates   = categories.some(cat => byCategory[cat].attendRate > 0);
+  const showInvited = categories.some(cat => byCategory[cat].invited != null);
 
   return (
     <TableContainer>
@@ -47,6 +48,7 @@ function CategoryBreakdown({ byCategory = {} }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
             <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Count</TableCell>
+            {showInvited && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Invited</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Attend</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Upload</TableCell>}
             {showRates && <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Avg Views</TableCell>}
@@ -59,6 +61,11 @@ function CategoryBreakdown({ byCategory = {} }) {
               <TableRow key={cat}>
                 <TableCell sx={{ fontWeight: 500 }}>{CATEGORY_LABELS[cat] || cat}</TableCell>
                 <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{d.count}</TableCell>
+                {showInvited && (
+                  <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
+                    {fmt(d.invited)}
+                  </TableCell>
+                )}
                 {showRates && (
                   <TableCell sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>

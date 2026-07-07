@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { parseInfluencerCsv } from '../utils/parseInfluencerCsv.js';
+import { parseInviteCountsCsv } from '../utils/parseInviteCountsCsv.js';
 import {
   deriveKpiSummary,
   createKpiSummary,
@@ -25,20 +26,23 @@ async function fetchCsvText(url) {
  * Props:
  * @param {object} config
  * @param {Array<{processingCsvUrl: string, doneCsvUrl: string}>} config.sources
+ * @param {string} [config.inviteCountsUrl] - CSV URL for the "Number" tab (total invited per store/tier/category)
  * @param {number} config.pollingIntervalMs
  *
  * @returns {{
  *   influencers: Influencer[],
  *   kpi: KpiSummary,
+ *   inviteCounts: Object,
  *   lastSyncedAt: Date|null,
  *   isSyncing: boolean,
  *   error: Error|null,
  *   refresh: function
  * }}
  */
-export function useCsvPolling({ sources = [], pollingIntervalMs = 30000 }) {
+export function useCsvPolling({ sources = [], inviteCountsUrl = '', pollingIntervalMs = 30000 }) {
   const [influencers, setInfluencers] = useState([]);
   const [kpi, setKpi] = useState(createKpiSummary());
+  const [inviteCounts, setInviteCounts] = useState({});
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
@@ -47,15 +51,18 @@ export function useCsvPolling({ sources = [], pollingIntervalMs = 30000 }) {
   // Keep a ref so sync() always reads the latest sources without being in deps
   const sourcesRef = useRef(sources);
   useEffect(() => { sourcesRef.current = sources; });
+  const inviteCountsUrlRef = useRef(inviteCountsUrl);
+  useEffect(() => { inviteCountsUrlRef.current = inviteCountsUrl; });
 
   // Stable key — sync is recreated only when URLs actually change
   const sourcesKey = sources
     .map(s => `${s.processingCsvUrl}|${s.doneCsvUrl || ''}`)
-    .join(';;');
+    .join(';;') + `|${inviteCountsUrl}`;
 
   const sync = useCallback(async () => {
     const activeSources = sourcesRef.current.filter(s => s.processingCsvUrl);
-    if (activeSources.length === 0) return;
+    const activeInviteCountsUrl = inviteCountsUrlRef.current;
+    if (activeSources.length === 0 && !activeInviteCountsUrl) return;
     setIsSyncing(true);
     setError(null);
     try {
@@ -74,10 +81,16 @@ export function useCsvPolling({ sources = [], pollingIntervalMs = 30000 }) {
           );
         }
       }
-      const results = await Promise.all(fetches);
+      const [results, inviteCountsResult] = await Promise.all([
+        Promise.all(fetches),
+        activeInviteCountsUrl
+          ? fetchCsvText(activeInviteCountsUrl).then(parseInviteCountsCsv)
+          : Promise.resolve(null),
+      ]);
       const merged = results.flat();
       setInfluencers(merged);
       setKpi(deriveKpiSummary(merged));
+      if (inviteCountsResult) setInviteCounts(inviteCountsResult);
       setLastSyncedAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -93,5 +106,5 @@ export function useCsvPolling({ sources = [], pollingIntervalMs = 30000 }) {
     return () => clearInterval(intervalRef.current);
   }, [sync, pollingIntervalMs]);
 
-  return { influencers, kpi, lastSyncedAt, isSyncing, error, refresh: sync };
+  return { influencers, kpi, inviteCounts, lastSyncedAt, isSyncing, error, refresh: sync };
 }
