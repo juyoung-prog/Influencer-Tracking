@@ -25,7 +25,7 @@ const DEFAULT_CONFIG = {
     { label: 'GA', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0` },
     { label: 'FL', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1776175069` },
   ],
-  pollingIntervalMs: 60000,
+  pollingIntervalMs: 30000,
   defaultStore: 'all',
 };
 
@@ -42,7 +42,7 @@ function loadConfig() {
           processingCsvUrl: parsed.processingCsvUrl,
           doneCsvUrl: parsed.doneCsvUrl || '',
         }],
-        pollingIntervalMs: parsed.pollingIntervalMs || 60000,
+        pollingIntervalMs: parsed.pollingIntervalMs || 30000,
         defaultStore: parsed.defaultStore || 'all',
       };
     }
@@ -89,7 +89,7 @@ export function useSheetData() {
 
   const pollingConfig = {
     sources: config?.sources ?? [],
-    pollingIntervalMs: config?.pollingIntervalMs ?? 60000,
+    pollingIntervalMs: config?.pollingIntervalMs ?? 30000,
   };
 
   const polling = useCsvPolling(pollingConfig);

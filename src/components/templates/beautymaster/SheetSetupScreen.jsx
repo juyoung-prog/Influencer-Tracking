@@ -57,7 +57,7 @@ function SheetSetupScreen({ onSetup }) {
         color="text.secondary"
         sx={{ mb: 4, textAlign: 'center', maxWidth: 360, lineHeight: 1.7 }}
       >
-        Paste your published Google Sheets URL to automatically sync influencer data to your dashboard every 60 seconds.
+        Paste your published Google Sheets URL to automatically sync influencer data to your dashboard every 30 seconds.
       </Typography>
 
       {/* CTA */}

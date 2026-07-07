@@ -36,7 +36,7 @@ async function fetchCsvText(url) {
  *   refresh: function
  * }}
  */
-export function useCsvPolling({ sources = [], pollingIntervalMs = 60000 }) {
+export function useCsvPolling({ sources = [], pollingIntervalMs = 30000 }) {
   const [influencers, setInfluencers] = useState([]);
   const [kpi, setKpi] = useState(createKpiSummary());
   const [lastSyncedAt, setLastSyncedAt] = useState(null);

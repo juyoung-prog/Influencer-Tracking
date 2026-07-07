@@ -86,7 +86,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
     : [emptySource()];
 
   const [sources, setSources] = useState(initialSources);
-  const [interval, setInterval] = useState(config?.pollingIntervalMs ?? 60000);
+  const [interval, setInterval] = useState(config?.pollingIntervalMs ?? 30000);
   const [defaultStore, setDefaultStore] = useState(config?.defaultStore ?? 'all');
   const [testStatuses, setTestStatuses] = useState({});  // { index: 'idle'|'testing'|'success'|'error' }
   const [testErrors, setTestErrors]     = useState({});  // { index: string }

@@ -104,7 +104,7 @@ export const ALERT_FLAGS = Object.freeze({
  * @typedef {Object} DataSourceConfig
  * @property {string} processingCsvUrl - Google Sheets CSV URL for Processing tab
  * @property {string} doneCsvUrl - Google Sheets CSV URL for Done tab
- * @property {number} pollingIntervalMs - Polling interval in ms. Default: 60000
+ * @property {number} pollingIntervalMs - Polling interval in ms. Default: 30000
  */
 
 // ─── Derive Functions (pure — no side effects) ───────────────────────────────
@@ -436,7 +436,7 @@ export function createDataSourceConfig(overrides = {}) {
   return {
     processingCsvUrl: '',
     doneCsvUrl: '',
-    pollingIntervalMs: 60000,
+    pollingIntervalMs: 30000,
     ...overrides,
   };
 }
