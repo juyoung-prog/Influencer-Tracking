@@ -26,6 +26,21 @@ function SectionHeader({ title }) {
   );
 }
 
+function getCampaignStatus(summary) {
+  if (summary.total === 0) return null;
+  const attended  = summary.funnel?.attended  ?? 0;
+  const agreement = summary.funnel?.agreement ?? 0;
+  const total     = summary.total;
+
+  if (attended === 0 && agreement === 0)
+    return { text: 'Not started — no agreements logged yet', color: 'text.disabled' };
+  if (attended === 0)
+    return { text: `In progress · ${agreement} of ${total} agreed, visits pending`, color: 'info.main' };
+  if (attended < total)
+    return { text: `In progress · ${attended} of ${total} visited`, color: 'info.main' };
+  return { text: `All ${total} influencers visited`, color: 'success.main' };
+}
+
 /**
  * AnalyticsDashboard component
  *
@@ -45,14 +60,22 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
 
   const summary = useMemo(() => deriveAnalyticsSummary(filtered), [filtered]);
 
-  const hasStores   = Object.keys(summary.byStore).length > 1;
-  const hasMultiMonth = Object.keys(summary.byMonth).length > 1;
+  const hasStores        = Object.keys(summary.byStore).length > 1;
+  const hasMultiMonth    = Object.keys(summary.byMonth).length > 1;
+  const hasPerformance   = summary.topByViews.length > 0;
+  const hasOpinions      = summary.opinionCounts.use + summary.opinionCounts.maybe + summary.opinionCounts.dont > 0;
+  const campaignStatus   = getCampaignStatus(summary);
 
   return (
     <Box sx={{ p: 3 }}>
 
       {/* ① Campaign Summary */}
       <SectionHeader title="Campaign Summary" />
+      {campaignStatus && (
+        <Typography variant="body2" sx={{ mb: 2, mt: -1, color: campaignStatus.color }}>
+          {campaignStatus.text}
+        </Typography>
+      )}
       <CampaignSummaryGrid summary={summary} />
 
       <Divider sx={{ my: 4 }} />
@@ -63,19 +86,27 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
         <InfluencerFunnel funnel={summary.funnel} />
       </Box>
 
-      <Divider sx={{ my: 4 }} />
+      {(hasPerformance || hasOpinions) && (
+        <>
+          <Divider sx={{ my: 4 }} />
 
-      {/* ③ Top Influencers + Opinion */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 8 }}>
-          <SectionHeader title="Top Influencers by Views" />
-          <TopInfluencersTable influencers={summary.topByViews} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <SectionHeader title="Opinion Breakdown" />
-          <OpinionBreakdown counts={summary.opinionCounts} />
-        </Grid>
-      </Grid>
+          {/* ③ Top Influencers + Opinion */}
+          <Grid container spacing={3}>
+            {hasPerformance && (
+              <Grid size={{ xs: 12, md: hasOpinions ? 8 : 12 }}>
+                <SectionHeader title="Top Influencers by Views" />
+                <TopInfluencersTable influencers={summary.topByViews} />
+              </Grid>
+            )}
+            {hasOpinions && (
+              <Grid size={{ xs: 12, md: hasPerformance ? 4 : 12 }}>
+                <SectionHeader title="Opinion Breakdown" />
+                <OpinionBreakdown counts={summary.opinionCounts} />
+              </Grid>
+            )}
+          </Grid>
+        </>
+      )}
 
       <Divider sx={{ my: 4 }} />
 
