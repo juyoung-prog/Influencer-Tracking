@@ -16,10 +16,23 @@ import { createKpiSummary } from '../data/beautymaster/schema.js';
 
 const STORAGE_KEY = 'beautymaster:sheetConfig';
 
+// Shipped default — GA/FL 매장 시트는 고정이라 코드에 기본값으로 내장.
+// 관리자가 localStorage에 직접 설정을 저장한 적이 없으면 이 값을 그대로 사용하므로,
+// 최초 진입 시 설정 화면 없이 바로 대시보드가 보인다.
+const SHEET_ID = '1FEdoUfToSKGJ8oVyDIaj15Oo2YRLasj_kfhlsHkwFI4';
+const DEFAULT_CONFIG = {
+  sources: [
+    { label: 'GA', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0` },
+    { label: 'FL', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1776175069` },
+  ],
+  pollingIntervalMs: 60000,
+  defaultStore: 'all',
+};
+
 function loadConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return DEFAULT_CONFIG;
     const parsed = JSON.parse(raw);
     // Migrate old single-source format → new multi-source format
     if (parsed.processingCsvUrl !== undefined) {
@@ -35,7 +48,7 @@ function loadConfig() {
     }
     return parsed;
   } catch {
-    return null;
+    return DEFAULT_CONFIG;
   }
 }
 
