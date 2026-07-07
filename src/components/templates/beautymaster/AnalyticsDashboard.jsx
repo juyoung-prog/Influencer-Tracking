@@ -161,7 +161,7 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
             </ToggleButtonGroup>
           }
         />
-        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 'none' }}>
+        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 900 }}>
           {funnelView === 'bar'
             ? <InfluencerFunnel funnel={summary.funnel} />
             : <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />}
