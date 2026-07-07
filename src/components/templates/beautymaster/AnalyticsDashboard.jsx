@@ -8,6 +8,10 @@ import TopInfluencersTable from '../../data-display/TopInfluencersTable';
 import OpinionBreakdown from '../../data-display/OpinionBreakdown';
 import PlatformBreakdown from '../../data-display/PlatformBreakdown';
 import StoreBreakdown from '../../data-display/StoreBreakdown';
+import InfluencerFunnel from '../../data-display/InfluencerFunnel';
+import TierComparison from '../../data-display/TierComparison';
+import CategoryBreakdown from '../../data-display/CategoryBreakdown';
+import MonthlyTrend from '../../data-display/MonthlyTrend';
 import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
 
 function SectionHeader({ title }) {
@@ -41,7 +45,8 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
 
   const summary = useMemo(() => deriveAnalyticsSummary(filtered), [filtered]);
 
-  const hasStores = Object.keys(summary.byStore).length > 1;
+  const hasStores   = Object.keys(summary.byStore).length > 1;
+  const hasMultiMonth = Object.keys(summary.byMonth).length > 1;
 
   return (
     <Box sx={{ p: 3 }}>
@@ -52,7 +57,15 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* ② Performance */}
+      {/* ② Conversion Funnel */}
+      <SectionHeader title="Conversion Funnel" />
+      <Box sx={{ maxWidth: 600 }}>
+        <InfluencerFunnel funnel={summary.funnel} />
+      </Box>
+
+      <Divider sx={{ my: 4 }} />
+
+      {/* ③ Top Influencers + Opinion */}
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 8 }}>
           <SectionHeader title="Top Influencers by Views" />
@@ -66,11 +79,25 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* ③ Platform + Store Breakdown */}
+      {/* ④ Platform + Category */}
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: hasStores ? 6 : 12 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <SectionHeader title="Platform Breakdown" />
           <PlatformBreakdown byPlatform={summary.byPlatform} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <SectionHeader title="Category Breakdown" />
+          <CategoryBreakdown byCategory={summary.byCategory} />
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ my: 4 }} />
+
+      {/* ⑤ Tier Comparison + Store */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: hasStores ? 6 : 12 }}>
+          <SectionHeader title="Tier Comparison" />
+          <TierComparison byTier={summary.byTier} />
         </Grid>
         {hasStores && (
           <Grid size={{ xs: 12, md: 6 }}>
@@ -79,6 +106,17 @@ function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
           </Grid>
         )}
       </Grid>
+
+      {/* ⑥ Monthly Trend (멀티 월 데이터 있을 때만) */}
+      {hasMultiMonth && (
+        <>
+          <Divider sx={{ my: 4 }} />
+          <SectionHeader title="Monthly Trend" />
+          <Box sx={{ maxWidth: 600 }}>
+            <MonthlyTrend byMonth={summary.byMonth} />
+          </Box>
+        </>
+      )}
 
     </Box>
   );

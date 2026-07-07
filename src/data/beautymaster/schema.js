@@ -193,11 +193,12 @@ export function deriveKpiSummary(influencers) {
 export function deriveAnalyticsSummary(influencers) {
   if (!influencers || influencers.length === 0) return createAnalyticsSummary();
 
-  const total        = influencers.length;
-  const tier1Count   = influencers.filter(i => i.tier === TIERS.TIER1).length;
-  const tier2Count   = influencers.filter(i => i.tier === TIERS.TIER2).length;
-  const attendCount  = influencers.filter(i => i.attend).length;
-  const collaboCount = influencers.filter(i => i.collaboShared).length;
+  const total             = influencers.length;
+  const tier1Count        = influencers.filter(i => i.tier === TIERS.TIER1).length;
+  const tier2Count        = influencers.filter(i => i.tier === TIERS.TIER2).length;
+  const agreementCount    = influencers.filter(i => i.agreement).length;
+  const attendCount       = influencers.filter(i => i.attend).length;
+  const collaboCount      = influencers.filter(i => i.collaboShared).length;
   const creditSharedCount = influencers.filter(i => i.creditShared).length;
   const creditUsedCount   = influencers.filter(i => i.creditUsed).length;
 
@@ -212,13 +213,36 @@ export function deriveAnalyticsSummary(influencers) {
     if (p.includes('instagram')) return 'Instagram';
     return raw.split(',')[0].trim();
   };
+  const countOpinions = list => {
+    const withOp = list.filter(i => i.opinion);
+    return {
+      use:   withOp.filter(i => i.opinion === OPINIONS.USE).length,
+      maybe: withOp.filter(i => i.opinion === OPINIONS.MAYBE).length,
+      dont:  withOp.filter(i => i.opinion === OPINIONS.DONT).length,
+    };
+  };
+  const groupStats = list => {
+    const ga = list.filter(i => i.attend).length;
+    return {
+      count:         list.length,
+      attendRate:    safeRate(ga, list.length),
+      uploadRate:    safeRate(list.filter(i => i.collaboShared).length, ga),
+      avgViews:      avgViews(list),
+      opinionCounts: countOpinions(list),
+    };
+  };
 
-  // Opinion counts (only influencers where opinion has been entered)
-  const withOpinion = influencers.filter(i => i.opinion);
-  const opinionCounts = {
-    use:   withOpinion.filter(i => i.opinion === OPINIONS.USE).length,
-    maybe: withOpinion.filter(i => i.opinion === OPINIONS.MAYBE).length,
-    dont:  withOpinion.filter(i => i.opinion === OPINIONS.DONT).length,
+  // Opinion counts
+  const opinionCounts = countOpinions(influencers);
+
+  // Funnel
+  const funnel = {
+    invited:    total,
+    agreement:  agreementCount,
+    attended:   attendCount,
+    uploaded:   collaboCount,
+    creditSent: creditSharedCount,
+    creditUsed: creditUsedCount,
   };
 
   // Group by platform (primary platform)
@@ -232,10 +256,10 @@ export function deriveAnalyticsSummary(influencers) {
   for (const [p, list] of Object.entries(platformMap)) {
     const pAttend = list.filter(i => i.attend).length;
     byPlatform[p] = {
-      count:       list.length,
-      attendRate:  safeRate(pAttend, list.length),
-      uploadRate:  safeRate(list.filter(i => i.collaboShared).length, pAttend),
-      avgViews:    avgViews(list),
+      count:      list.length,
+      attendRate: safeRate(pAttend, list.length),
+      uploadRate: safeRate(list.filter(i => i.collaboShared).length, pAttend),
+      avgViews:   avgViews(list),
     };
   }
 
@@ -249,10 +273,54 @@ export function deriveAnalyticsSummary(influencers) {
   for (const [s, list] of Object.entries(storeMap)) {
     const sAttend = list.filter(i => i.attend).length;
     byStore[s] = {
-      count:       list.length,
-      attendRate:  safeRate(sAttend, list.length),
-      uploadRate:  safeRate(list.filter(i => i.collaboShared).length, sAttend),
-      avgViews:    avgViews(list),
+      count:      list.length,
+      attendRate: safeRate(sAttend, list.length),
+      uploadRate: safeRate(list.filter(i => i.collaboShared).length, sAttend),
+      avgViews:   avgViews(list),
+    };
+  }
+
+  // Group by tier
+  const byTier = {
+    tier1: groupStats(influencers.filter(i => i.tier === TIERS.TIER1)),
+    tier2: groupStats(influencers.filter(i => i.tier === TIERS.TIER2)),
+  };
+
+  // Group by category
+  const categoryMap = {};
+  for (const inf of influencers) {
+    const cat = inf.category || 'unknown';
+    if (!categoryMap[cat]) categoryMap[cat] = [];
+    categoryMap[cat].push(inf);
+  }
+  const byCategory = {};
+  for (const [cat, list] of Object.entries(categoryMap)) {
+    const cAttend = list.filter(i => i.attend).length;
+    byCategory[cat] = {
+      count:      list.length,
+      attendRate: safeRate(cAttend, list.length),
+      uploadRate: safeRate(list.filter(i => i.collaboShared).length, cAttend),
+      avgViews:   avgViews(list),
+    };
+  }
+
+  // Group by month
+  const monthMap = {};
+  for (const inf of influencers) {
+    const m = inf.month || 0;
+    if (!monthMap[m]) monthMap[m] = [];
+    monthMap[m].push(inf);
+  }
+  const byMonth = {};
+  for (const [m, list] of Object.entries(monthMap)) {
+    const mAttend = list.filter(i => i.attend).length;
+    byMonth[m] = {
+      count:         list.length,
+      attendedCount: mAttend,
+      uploadedCount: list.filter(i => i.collaboShared).length,
+      attendRate:    safeRate(mAttend, list.length),
+      uploadRate:    safeRate(list.filter(i => i.collaboShared).length, mAttend),
+      avgViews:      avgViews(list),
     };
   }
 
@@ -264,8 +332,12 @@ export function deriveAnalyticsSummary(influencers) {
     uploadRate:     safeRate(collaboCount, attendCount),
     creditUsedRate: safeRate(creditUsedCount, creditSharedCount),
     opinionCounts,
+    funnel,
     byPlatform,
     byStore,
+    byTier,
+    byCategory,
+    byMonth,
     topByViews: [...influencers]
       .filter(i => i.views != null)
       .sort((a, b) => b.views - a.views)
@@ -337,6 +409,7 @@ export function createKpiSummary(overrides = {}) {
  * @returns {AnalyticsSummary}
  */
 export function createAnalyticsSummary() {
+  const emptyTierStats = () => ({ count: 0, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } });
   return {
     total: 0,
     tier1Count: 0,
@@ -345,8 +418,12 @@ export function createAnalyticsSummary() {
     uploadRate: 0,
     creditUsedRate: 0,
     opinionCounts: { use: 0, maybe: 0, dont: 0 },
+    funnel: { invited: 0, agreement: 0, attended: 0, uploaded: 0, creditSent: 0, creditUsed: 0 },
     byPlatform: {},
     byStore: {},
+    byTier: { tier1: emptyTierStats(), tier2: emptyTierStats() },
+    byCategory: {},
+    byMonth: {},
     topByViews: [],
   };
 }
