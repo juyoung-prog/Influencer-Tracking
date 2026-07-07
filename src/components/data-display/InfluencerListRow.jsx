@@ -110,26 +110,24 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {fullName || '—'}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mt: 0.25 }}>
-          <Typography variant="caption" color="text.disabled" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-            {timeLabel}
+        <Typography variant="caption" color="text.disabled" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          {timeLabel}
+        </Typography>
+        {categoryLabel && (
+          <Typography variant="caption" sx={{ display: 'inline-block', color: 'text.secondary', border: '1px solid', borderColor: 'divider', borderRadius: 0.5, px: 0.5, lineHeight: 1.4, mt: 0.25, ml: 0.75 }}>
+            {categoryLabel}
           </Typography>
-          <Typography variant="caption" color="text.disabled">·</Typography>
-          <Typography variant="caption" color="text.disabled">
-            {tier === 'tier2' ? 'T2' : 'T1'} · {platform}
-          </Typography>
-          {categoryLabel && (
-            <Typography variant="caption" sx={{ color: 'text.secondary', border: '1px solid', borderColor: 'divider', borderRadius: 0.5, px: 0.5, lineHeight: 1.4 }}>
-              {categoryLabel}
-            </Typography>
-          )}
-        </Box>
+        )}
         {note && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {note}
           </Typography>
         )}
       </Box>
+
+      <Typography variant="caption" color="text.disabled" sx={{ flex: '0 0 100px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {tier === 'tier2' ? 'T2' : 'T1'} · {platform}
+      </Typography>
 
       <Box sx={{ flex: '0 0 140px', flexShrink: 0 }}>
         {stage.show && (

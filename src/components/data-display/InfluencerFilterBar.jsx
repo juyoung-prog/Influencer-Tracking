@@ -1,14 +1,17 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 
-const FILTER_DROPDOWNS = [
+const CHIP_SX = { borderRadius: 0, height: 28, fontSize: 12 };
+
+const FILTER_GROUPS = [
   {
     key: 'platform',
-    placeholder: 'Platform',
+    label: 'SNS',
     options: [
       { value: 'Instagram', label: 'Instagram' },
       { value: 'TikTok',    label: 'TikTok' },
@@ -16,7 +19,7 @@ const FILTER_DROPDOWNS = [
   },
   {
     key: 'tier',
-    placeholder: 'Tier',
+    label: 'Tier',
     options: [
       { value: 'tier1', label: 'Tier 1' },
       { value: 'tier2', label: 'Tier 2' },
@@ -24,7 +27,7 @@ const FILTER_DROPDOWNS = [
   },
   {
     key: 'category',
-    placeholder: 'Category',
+    label: 'Category',
     options: [
       { value: 'general',  label: 'General' },
       { value: 'kbeauty',  label: 'K-Beauty' },
@@ -33,17 +36,11 @@ const FILTER_DROPDOWNS = [
   },
 ];
 
-const SELECT_SX = {
-  fontSize: 12,
-  height: 28,
-  minWidth: 100,
-  '& .MuiSelect-select': { py: 0.5, fontSize: 12 },
-};
-
 /**
  * InfluencerFilterBar component
  *
- * Store dropdown + Platform / Tier / Category dropdowns.
+ * Store dropdown + grouped SNS / Tier / Category chip filters.
+ * Groups are labeled to clarify filter dimensions at a glance.
  * Reset button appears only when at least one filter is active.
  *
  * Props:
@@ -72,7 +69,11 @@ function InfluencerFilterBar({
     filters.category !== null;
 
   const handleChange = (key, value) => {
-    onFiltersChange?.({ ...filters, [key]: value || null });
+    onFiltersChange?.({ ...filters, [key]: value });
+  };
+
+  const handleToggleChip = (key, value) => {
+    handleChange(key, filters[key] === value ? null : value);
   };
 
   const handleReset = () => {
@@ -80,61 +81,52 @@ function InfluencerFilterBar({
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', ...sx }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', ...sx }}>
       {/* Store dropdown */}
       {stores.length > 0 && (
-        <>
-          <FormControl size="small">
-            <Select
-              value={filters.store ?? 'all'}
-              onChange={e => handleChange('store', e.target.value === 'all' ? 'all' : e.target.value)}
-              displayEmpty
-              sx={SELECT_SX}
-            >
-              <MenuItem value="all"><Typography variant="caption">All Stores</Typography></MenuItem>
-              {stores.map(s => (
-                <MenuItem key={s} value={s}><Typography variant="caption">{s}</Typography></MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Box sx={{ width: '1px', height: 20, backgroundColor: 'divider', flexShrink: 0 }} />
-        </>
+        <FormControl size="small">
+          <Select
+            value={filters.store ?? 'all'}
+            onChange={e => handleChange('store', e.target.value)}
+            displayEmpty
+            sx={{ fontSize: 13, height: 28, '& .MuiSelect-select': { py: 0.5 } }}
+          >
+            <MenuItem value="all">
+              <Typography variant="caption">All Stores</Typography>
+            </MenuItem>
+            {stores.map(s => (
+              <MenuItem key={s} value={s}>
+                <Typography variant="caption">{s}</Typography>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       )}
 
-      {/* Platform / Tier / Category dropdowns */}
-      {FILTER_DROPDOWNS.map(({ key, placeholder, options }) => {
-        const active = filters[key] != null;
-        return (
-          <FormControl key={key} size="small">
-            <Select
-              value={filters[key] ?? ''}
-              onChange={e => handleChange(key, e.target.value)}
-              displayEmpty
-              sx={{
-                ...SELECT_SX,
-                ...(active && {
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
-                  color: 'primary.main',
-                }),
-              }}
-              renderValue={val => (
-                <Typography variant="caption" sx={{ color: val ? 'primary.main' : 'text.secondary' }}>
-                  {val ? options.find(o => o.value === val)?.label : placeholder}
-                </Typography>
-              )}
-            >
-              <MenuItem value="">
-                <Typography variant="caption" color="text.secondary">All {placeholder}s</Typography>
-              </MenuItem>
-              {options.map(o => (
-                <MenuItem key={o.value} value={o.value}>
-                  <Typography variant="caption">{o.label}</Typography>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        );
-      })}
+      {/* Divider between store and chip groups */}
+      {stores.length > 0 && (
+        <Box sx={{ width: '1px', height: 20, backgroundColor: 'divider', flexShrink: 0 }} />
+      )}
+
+      {/* Labeled chip groups */}
+      {FILTER_GROUPS.map((group, gIdx) => (
+        <Box key={group.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {gIdx > 0 && (
+            <Box sx={{ width: '1px', height: 20, backgroundColor: 'divider', flexShrink: 0, mr: 0.5 }} />
+          )}
+          {group.options.map(({ value, label }) => (
+            <Chip
+              key={value}
+              label={label}
+              size="small"
+              onClick={() => handleToggleChip(group.key, value)}
+              color={filters[group.key] === value ? 'primary' : 'default'}
+              variant={filters[group.key] === value ? 'filled' : 'outlined'}
+              sx={CHIP_SX}
+            />
+          ))}
+        </Box>
+      ))}
 
       {/* Reset */}
       {hasFilter && (
