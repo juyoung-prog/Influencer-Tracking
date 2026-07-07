@@ -5,12 +5,12 @@ import Typography from '@mui/material/Typography';
 import { ALERT_FLAGS } from '../../data/beautymaster/schema.js';
 
 function getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup }) {
-  if (creditShared)  return { label: 'Completed',        color: 'success.main' };
-  if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main' };
-  if (attend)        return { label: 'Awaiting Upload',  color: 'text.secondary' };
+  if (creditShared)  return { label: 'Completed',        color: 'success.main',   show: true };
+  if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main',     show: true };
+  if (attend)        return { label: 'Awaiting Upload',  color: 'text.secondary', show: true };
   const isFuture = scheduleGroup === 'upcoming' || scheduleGroup === 'today';
-  if (isFuture)      return { label: 'Scheduled',        color: 'text.secondary' };
-  return               { label: 'Visit Unconfirmed', color: 'warning.main' };
+  if (isFuture)      return { label: 'Scheduled',        color: 'text.disabled',  show: false };
+  return               { label: 'Visit Unconfirmed', color: 'warning.main',   show: true };
 }
 
 function getDaysOverdue(alertFlags, scheduledTime, uploadDate) {
@@ -130,9 +130,11 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
       </Typography>
 
       <Box sx={{ flex: '0 0 140px', flexShrink: 0 }}>
-        <Typography variant="caption" sx={{ display: 'block', fontWeight: stage.color === 'error.main' ? 700 : 500, color: stage.color, whiteSpace: 'nowrap' }}>
-          {stage.label}
-        </Typography>
+        {stage.show && (
+          <Typography variant="caption" sx={{ display: 'block', fontWeight: stage.color === 'error.main' ? 700 : 500, color: stage.color, whiteSpace: 'nowrap' }}>
+            {stage.label}
+          </Typography>
+        )}
         {daysOverdue != null && (
           <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.625rem', lineHeight: 1 }}>
             {daysOverdue}d overdue

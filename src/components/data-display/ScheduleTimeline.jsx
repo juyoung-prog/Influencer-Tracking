@@ -3,34 +3,20 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
-const GROUP_ORDER = ['today', 'upcoming', 'past', 'no-time'];
-
-const GROUP_LABEL = {
-  today: 'TODAY',
-  upcoming: 'UPCOMING',
-  past: 'PAST',
-  'no-time': 'NO TIME SET',
-};
-
 /**
- * TODAY → "10:30 AM" (time)
- * UPCOMING / PAST → "Jul 5" (date, because the day matters more than the time)
+ * TODAY → "10:30 AM"
+ * date groups → "11:00 AM" (time only, date is in the group header)
+ * PAST → "Jul 5 · 10:00 AM"
  * NO TIME SET → "—"
  */
-function formatLabel(date, group) {
+function formatTimeLabel(date, isDateGroup) {
   if (!date) return '—';
-  if (group === 'today') {
+  if (isDateGroup) {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-/**
- * Derive stage label + color from influencer fields.
- * show: false for default/expected states (Scheduled, Agreement Pending) —
- * they add noise when repeated across many upcoming rows.
- * show: true only for states that need attention or signal completion.
- */
 function getStageInfo({ attend, collaboShared, creditShared, scheduleGroup }) {
   if (creditShared)  return { label: 'Completed',        color: 'success.main',   show: true };
   if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main',     show: true };
@@ -40,55 +26,83 @@ function getStageInfo({ attend, collaboShared, creditShared, scheduleGroup }) {
   return               { label: 'Visit Unconfirmed', color: 'warning.main',   show: true };
 }
 
-/**
- * Group influencers by scheduleGroup and sort each group by time.
- *
- * @param {Influencer[]} influencers
- * @returns {{ group: string, items: Influencer[] }[]}
- */
-function groupAndSort(influencers) {
-  const groups = {};
-  influencers.forEach(inf => {
-    const g = inf.scheduleGroup || 'no-time';
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(inf);
-  });
+function dateKey(date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
 
-  return GROUP_ORDER
-    .filter(g => groups[g] && groups[g].length > 0)
-    .map(g => ({
-      group: g,
-      items: groups[g].sort((a, b) => {
-        if (!a.scheduledTime && !b.scheduledTime) return 0;
-        if (!a.scheduledTime) return 1;
-        if (!b.scheduledTime) return -1;
-        return g === 'past'
-          ? b.scheduledTime - a.scheduledTime
-          : a.scheduledTime - b.scheduledTime;
-      }),
-    }));
+/**
+ * Group influencers:
+ * - TODAY → single group
+ * - UPCOMING → split by specific calendar date (Jul 8, Jul 9, ...)
+ * - PAST → single group
+ * - NO TIME → single group
+ */
+function buildGroups(influencers) {
+  const todayGroup = { key: 'today', label: 'TODAY', isToday: true, items: [] };
+  const pastGroup  = { key: 'past',  label: 'PAST',  isToday: false, items: [] };
+  const noTimeGroup = { key: 'no-time', label: 'NO TIME SET', isToday: false, items: [] };
+  const dateGroups = {};
+
+  for (const inf of influencers) {
+    const g = inf.scheduleGroup || 'no-time';
+    if (g === 'today') {
+      todayGroup.items.push(inf);
+    } else if (g === 'upcoming' && inf.scheduledTime) {
+      const k = dateKey(inf.scheduledTime);
+      if (!dateGroups[k]) {
+        const label = inf.scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dateGroups[k] = { key: k, label, isToday: false, isDateGroup: true, _sortDate: inf.scheduledTime, items: [] };
+      }
+      dateGroups[k].items.push(inf);
+    } else if (g === 'past') {
+      pastGroup.items.push(inf);
+    } else {
+      noTimeGroup.items.push(inf);
+    }
+  }
+
+  const sortedDateGroups = Object.values(dateGroups).sort((a, b) => a._sortDate - b._sortDate);
+
+  const all = [];
+  if (todayGroup.items.length)    all.push(todayGroup);
+  all.push(...sortedDateGroups);
+  if (pastGroup.items.length)     all.push(pastGroup);
+  if (noTimeGroup.items.length)   all.push(noTimeGroup);
+
+  // Sort items within each group
+  for (const grp of all) {
+    grp.items.sort((a, b) => {
+      if (!a.scheduledTime && !b.scheduledTime) return 0;
+      if (!a.scheduledTime) return 1;
+      if (!b.scheduledTime) return -1;
+      return grp.key === 'past'
+        ? b.scheduledTime - a.scheduledTime
+        : a.scheduledTime - b.scheduledTime;
+    });
+  }
+
+  return all;
 }
 
 /**
  * ScheduleTimeline component
  *
- * Left-panel visit schedule sorted by time.
- * Groups: TODAY → UPCOMING → PAST → NO TIME SET.
- * Each row shows name + stage label text (same vocabulary as right-panel list).
+ * Left-panel visit schedule. TODAY is a single group; UPCOMING is split by
+ * specific calendar date so each date shows a count and acts as a mini header.
  *
  * Props:
  * @param {Influencer[]} influencers - Full influencer list [Optional, default: []]
  * @param {function} onSelect - Row click handler (influencer) => void [Required]
- * @param {string|null} selectedId - ID of the currently selected influencer [Optional, default: null]
+ * @param {string|null} selectedId - Currently selected influencer ID [Optional, default: null]
  * @param {object} sx - Additional styles [Optional]
  *
  * Example usage:
  * <ScheduleTimeline influencers={influencers} onSelect={handleSelect} selectedId={selectedId} />
  */
 function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx }) {
-  const grouped = groupAndSort(influencers);
+  const groups = buildGroups(influencers);
 
-  if (grouped.length === 0) {
+  if (groups.length === 0) {
     return (
       <Box sx={{ p: 2, ...sx }}>
         <Typography variant="caption" color="text.disabled">
@@ -100,18 +114,22 @@ function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx })
 
   return (
     <Box sx={{ overflow: 'auto', ...sx }}>
-      {grouped.map(({ group, items }, gIdx) => (
-        <Box key={group}>
+      {groups.map((grp, gIdx) => (
+        <Box key={grp.key}>
           {gIdx > 0 && <Divider />}
+
           {/* Group header */}
           <Box
             sx={{
               px: 2,
               py: 0.75,
-              backgroundColor: group === 'today' ? 'grey.900' : 'grey.50',
+              backgroundColor: grp.isToday ? 'grey.900' : 'grey.50',
               position: 'sticky',
               top: 0,
               zIndex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
             <Typography
@@ -120,15 +138,26 @@ function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx })
                 fontSize: '0.625rem',
                 fontWeight: 700,
                 lineHeight: 1,
-                color: group === 'today' ? 'common.white' : 'text.secondary',
+                color: grp.isToday ? 'common.white' : 'text.secondary',
               }}
             >
-              {GROUP_LABEL[group]}
+              {grp.label}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                color: grp.isToday ? 'grey.400' : 'text.disabled',
+                lineHeight: 1,
+              }}
+            >
+              {grp.items.length}
             </Typography>
           </Box>
 
           {/* Rows */}
-          {items.map(inf => {
+          {grp.items.map(inf => {
             const isSelected = inf.id === selectedId;
             const stage = getStageInfo({
               attend: inf.attend,
@@ -147,7 +176,7 @@ function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx })
                   gap: 1,
                   width: '100%',
                   px: 2,
-                  py: 1,
+                  py: 0.875,
                   textAlign: 'left',
                   borderLeft: '2px solid',
                   borderColor: isSelected ? 'primary.main' : 'transparent',
@@ -159,7 +188,7 @@ function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx })
                   variant="caption"
                   sx={{ width: 52, flexShrink: 0, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}
                 >
-                  {formatLabel(inf.scheduledTime, group)}
+                  {formatTimeLabel(inf.scheduledTime, grp.isDateGroup || grp.isToday)}
                 </Typography>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
@@ -170,6 +199,7 @@ function ScheduleTimeline({ influencers = [], onSelect, selectedId = null, sx })
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       lineHeight: 1.3,
+                      fontSize: 13,
                     }}
                   >
                     {inf.fullName || '—'}
