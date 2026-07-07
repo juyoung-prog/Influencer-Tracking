@@ -287,12 +287,19 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   };
   const groupStats = list => {
     const ga = list.filter(i => i.attend).length;
+    const agreementCount     = list.filter(i => i.agreement).length;
+    const collaboSharedCount = list.filter(i => i.collaboShared).length;
+    const scheduledCount     = list.filter(i => !i.attend && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).length;
     return {
-      count:         list.length,
-      attendRate:    safeRate(ga, list.length),
-      uploadRate:    safeRate(list.filter(i => i.collaboShared).length, ga),
-      avgViews:      avgViews(list),
-      opinionCounts: countOpinions(list),
+      count:              list.length,
+      agreementCount,
+      attendCount:        ga,
+      collaboSharedCount,
+      scheduledCount,
+      attendRate:         safeRate(ga, list.length),
+      uploadRate:         safeRate(collaboSharedCount, ga),
+      avgViews:           avgViews(list),
+      opinionCounts:      countOpinions(list),
     };
   };
 
@@ -484,7 +491,18 @@ export function createKpiSummary(overrides = {}) {
  * @returns {AnalyticsSummary}
  */
 export function createAnalyticsSummary() {
-  const emptyTierStats = () => ({ count: 0, invited: null, attendRate: 0, uploadRate: 0, avgViews: null, opinionCounts: { use: 0, maybe: 0, dont: 0 } });
+  const emptyTierStats = () => ({
+    count: 0,
+    invited: null,
+    agreementCount: 0,
+    attendCount: 0,
+    collaboSharedCount: 0,
+    scheduledCount: 0,
+    attendRate: 0,
+    uploadRate: 0,
+    avgViews: null,
+    opinionCounts: { use: 0, maybe: 0, dont: 0 },
+  });
   return {
     total: 0,
     tier1Count: 0,

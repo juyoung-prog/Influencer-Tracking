@@ -11,6 +11,8 @@ import StoreBreakdown from '../../data-display/StoreBreakdown';
 import InfluencerFunnel from '../../data-display/InfluencerFunnel';
 import TierComparison from '../../data-display/TierComparison';
 import CategoryBreakdown from '../../data-display/CategoryBreakdown';
+import FunnelSummaryTable from '../../data-display/FunnelSummaryTable';
+import TierMetricsTable from '../../data-display/TierMetricsTable';
 import MonthlyTrend from '../../data-display/MonthlyTrend';
 import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
 
@@ -144,7 +146,21 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
         )}
       </Grid>
 
-      {/* ⑥ Monthly Trend (멀티 월 데이터 있을 때만) */}
+      <Divider sx={{ my: 4 }} />
+
+      {/* ⑥ Funnel Summary + Tier Metrics (table-form alternative view) */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <SectionHeader title="Funnel Summary" />
+          <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <SectionHeader title="Tier Metrics" />
+          <TierMetricsTable byTier={summary.byTier} />
+        </Grid>
+      </Grid>
+
+      {/* ⑦ Monthly Trend (멀티 월 데이터 있을 때만) */}
       {hasMultiMonth && (
         <>
           <Divider sx={{ my: 4 }} />
