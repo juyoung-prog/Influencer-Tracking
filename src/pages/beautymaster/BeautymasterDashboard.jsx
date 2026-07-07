@@ -10,7 +10,7 @@ import InfluencerPanel from '../../components/templates/beautymaster/InfluencerP
 import SchedulePanel from '../../components/templates/beautymaster/SchedulePanel';
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
-import { deriveKpiSummary, deriveAnalyticsSummary } from '../../data/beautymaster/schema.js';
+import { deriveKpiSummary } from '../../data/beautymaster/schema.js';
 
 // ─── Mock data (Storybook / ComponentGallery only) ────────────────────────────
 
@@ -167,7 +167,6 @@ function BeautymasterDashboard() {
   }), [influencers, filters]);
 
   const filteredKpi = useMemo(() => deriveKpiSummary(filteredInfluencers), [filteredInfluencers]);
-  const analyticsSummary = useMemo(() => deriveAnalyticsSummary(influencers), [influencers]);
 
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
 
@@ -251,7 +250,7 @@ function BeautymasterDashboard() {
 
       {activeTab === 1 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <AnalyticsDashboard summary={analyticsSummary} />
+          <AnalyticsDashboard influencers={influencers} stores={stores} />
         </Box>
       )}
 
