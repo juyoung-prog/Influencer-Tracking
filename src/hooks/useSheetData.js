@@ -38,17 +38,20 @@ function loadConfig() {
     // Migrate old single-source format → new multi-source format
     if (parsed.processingCsvUrl !== undefined) {
       return {
+        ...DEFAULT_CONFIG,
         sources: [{
           label: 'Main',
           processingCsvUrl: parsed.processingCsvUrl,
           doneCsvUrl: parsed.doneCsvUrl || '',
         }],
-        inviteCountsUrl: parsed.inviteCountsUrl || '',
+        inviteCountsUrl: parsed.inviteCountsUrl || DEFAULT_CONFIG.inviteCountsUrl,
         pollingIntervalMs: parsed.pollingIntervalMs || 30000,
         defaultStore: parsed.defaultStore || 'all',
       };
     }
-    return parsed;
+    // Merge onto DEFAULT_CONFIG so fields added later (e.g. inviteCountsUrl) are
+    // picked up even for configs saved before that field existed.
+    return { ...DEFAULT_CONFIG, ...parsed };
   } catch {
     return DEFAULT_CONFIG;
   }
