@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import FormControl from '@mui/material/FormControl';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import CampaignSummaryGrid from '../../data-display/CampaignSummaryGrid';
@@ -52,26 +54,20 @@ function AnalyticsDashboard({ influencers = [], stores = [] }) {
 
       {/* Store selector */}
       {stores.length > 0 && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
-          <Chip
-            label="All Stores"
-            size="small"
-            onClick={() => setSelectedStore('all')}
-            color={selectedStore === 'all' ? 'primary' : 'default'}
-            variant={selectedStore === 'all' ? 'filled' : 'outlined'}
-            sx={{ borderRadius: 0, height: 28, fontSize: 12 }}
-          />
-          {stores.map(s => (
-            <Chip
-              key={s}
-              label={s}
-              size="small"
-              onClick={() => setSelectedStore(s)}
-              color={selectedStore === s ? 'primary' : 'default'}
-              variant={selectedStore === s ? 'filled' : 'outlined'}
-              sx={{ borderRadius: 0, height: 28, fontSize: 12 }}
-            />
-          ))}
+        <Box sx={{ mb: 3 }}>
+          <FormControl size="small">
+            <Select
+              value={selectedStore}
+              onChange={e => setSelectedStore(e.target.value)}
+              displayEmpty
+              sx={{ fontSize: 13, height: 32, minWidth: 140 }}
+            >
+              <MenuItem value="all">All Stores</MenuItem>
+              {stores.map(s => (
+                <MenuItem key={s} value={s}>{s}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
       )}
 
