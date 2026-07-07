@@ -1,5 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
+import FormControl from '@mui/material/FormControl';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import AnalyticsDashboard from '../../components/templates/beautymaster/AnalyticsDashboard';
@@ -141,6 +144,7 @@ function BeautymasterDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filters, setFilters] = useState({ store: config?.defaultStore || 'all', platform: null, tier: null, category: null });
+  const [analyticsStore, setAnalyticsStore] = useState('all');
 
   const timelinePanelRef = useRef(null);
   const listPanelRef = useRef(null);
@@ -217,11 +221,26 @@ function BeautymasterDashboard() {
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 40 }}>
           <Tab label="Operations" sx={{ minHeight: 40, fontSize: 13 }} />
           <Tab label="Analytics" sx={{ minHeight: 40, fontSize: 13 }} />
         </Tabs>
+        {activeTab === 1 && stores.length > 0 && (
+          <Box sx={{ ml: 'auto', pr: 2 }}>
+            <FormControl size="small">
+              <Select
+                value={analyticsStore}
+                onChange={e => setAnalyticsStore(e.target.value)}
+                displayEmpty
+                sx={{ fontSize: 13, height: 32, minWidth: 140 }}
+              >
+                <MenuItem value="all">All Stores</MenuItem>
+                {stores.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+        )}
       </Box>
 
       {activeTab === 0 && (
@@ -250,7 +269,7 @@ function BeautymasterDashboard() {
 
       {activeTab === 1 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <AnalyticsDashboard influencers={influencers} stores={stores} />
+          <AnalyticsDashboard influencers={influencers} selectedStore={analyticsStore} />
         </Box>
       )}
 

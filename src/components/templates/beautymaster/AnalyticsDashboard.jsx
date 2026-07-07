@@ -1,9 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import CampaignSummaryGrid from '../../data-display/CampaignSummaryGrid';
@@ -28,19 +25,16 @@ function SectionHeader({ title }) {
 /**
  * AnalyticsDashboard component
  *
- * Campaign analytics report view with store selector.
- * Derives summary internally from the filtered influencer list.
+ * Campaign analytics report view. Store filtering is controlled by the parent.
  *
  * Props:
  * @param {Influencer[]} influencers - Full influencer list [Required]
- * @param {string[]} stores - Available store options [Optional, default: []]
+ * @param {string} selectedStore - Active store filter ('all' or store name) [Optional, default: 'all']
  *
  * Example usage:
- * <AnalyticsDashboard influencers={influencers} stores={stores} />
+ * <AnalyticsDashboard influencers={influencers} selectedStore="G10" />
  */
-function AnalyticsDashboard({ influencers = [], stores = [] }) {
-  const [selectedStore, setSelectedStore] = useState('all');
-
+function AnalyticsDashboard({ influencers = [], selectedStore = 'all' }) {
   const filtered = useMemo(() => (
     selectedStore === 'all' ? influencers : influencers.filter(i => i.store === selectedStore)
   ), [influencers, selectedStore]);
@@ -50,26 +44,7 @@ function AnalyticsDashboard({ influencers = [], stores = [] }) {
   const hasStores = Object.keys(summary.byStore).length > 1;
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1100, mx: 'auto' }}>
-
-      {/* Store selector */}
-      {stores.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <FormControl size="small">
-            <Select
-              value={selectedStore}
-              onChange={e => setSelectedStore(e.target.value)}
-              displayEmpty
-              sx={{ fontSize: 13, height: 32, minWidth: 140 }}
-            >
-              <MenuItem value="all">All Stores</MenuItem>
-              {stores.map(s => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-      )}
+    <Box sx={{ p: 3 }}>
 
       {/* ① Campaign Summary */}
       <SectionHeader title="Campaign Summary" />
