@@ -16,7 +16,6 @@ import InfluencerFunnel from '../../data-display/InfluencerFunnel';
 import CategoryBreakdown from '../../data-display/CategoryBreakdown';
 import FunnelSummaryTable from '../../data-display/FunnelSummaryTable';
 import TierMetricsTable from '../../data-display/TierMetricsTable';
-import MonthlyTrend from '../../data-display/MonthlyTrend';
 import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
 
 function SectionHeader({ title, id, action }) {
@@ -84,7 +83,6 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
   const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
 
   const hasStores        = Object.keys(summary.byStore).length > 1;
-  const hasMultiMonth    = Object.keys(summary.byMonth).length > 1;
   const hasPerformance   = summary.topByViews.length > 0;
   const hasOpinions      = summary.opinionCounts.use + summary.opinionCounts.maybe + summary.opinionCounts.dont > 0;
   const campaignStatus   = getCampaignStatus(summary);
@@ -97,7 +95,6 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
     (hasPerformance || hasOpinions) && { id: 'analytics-performance', label: 'Performance' },
     { id: 'analytics-breakdown', label: 'Breakdown' },
     { id: 'analytics-tier', label: 'Tier & Store' },
-    hasMultiMonth && { id: 'analytics-trend', label: 'Trend' },
   ].filter(Boolean);
 
   return (
@@ -231,17 +228,6 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
             )}
           </Grid>
         </Box>
-
-        {/* ⑥ Monthly Trend (멀티 월 데이터 있을 때만) */}
-        {hasMultiMonth && (
-          <>
-            <Divider sx={{ my: 4 }} />
-            <SectionHeader title="Monthly Trend" id="analytics-trend" />
-            <Box sx={{ maxWidth: 600 }}>
-              <MonthlyTrend byMonth={summary.byMonth} />
-            </Box>
-          </>
-        )}
 
       </Box>
     </>
