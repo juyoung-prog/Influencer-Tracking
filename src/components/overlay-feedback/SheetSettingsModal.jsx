@@ -32,19 +32,28 @@ const INTERVAL_OPTIONS = [
 /**
  * Converts a Google Sheets URL to a CSV export URL.
  * Accepts pubhtml URLs (with or without ?gid=) and preserves the gid when present.
- * Also accepts tab "Copy link" URLs (edit#gid=) to extract the gid.
+ * Also accepts plain "탭 우클릭 → 링크 복사" edit URLs (spreadsheets/d/{ID}/edit#gid=…),
+ * which is the more common copy-link format and has no /d/e/ published segment.
  *
  * @param {string} url
  * @returns {string|null}
  */
 function toCsvUrl(url) {
   if (!url) return null;
-  const idMatch = url.match(/spreadsheets\/d\/e\/([^/?#]+)/);
-  if (!idMatch) return null;
-  const id = idMatch[1];
   const gidMatch = url.match(/[?&#]gid=(\d+)/);
   const gid = gidMatch ? gidMatch[1] : '';
-  return `https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv${gid ? `&gid=${gid}` : ''}`;
+
+  const publishedMatch = url.match(/spreadsheets\/d\/e\/([^/?#]+)/);
+  if (publishedMatch) {
+    return `https://docs.google.com/spreadsheets/d/e/${publishedMatch[1]}/pub?output=csv${gid ? `&gid=${gid}` : ''}`;
+  }
+
+  const plainMatch = url.match(/spreadsheets\/d\/([^/?#]+)/);
+  if (plainMatch) {
+    return `https://docs.google.com/spreadsheets/d/${plainMatch[1]}/export?format=csv${gid ? `&gid=${gid}` : ''}`;
+  }
+
+  return null;
 }
 
 function emptySource() {

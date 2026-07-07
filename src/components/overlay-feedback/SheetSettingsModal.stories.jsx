@@ -91,6 +91,41 @@ export const MultiSource = {
   },
 };
 
+export const PlainEditLink = {
+  name: 'Plain edit link (탭 우클릭 → 링크 복사)',
+  render: () => {
+    const [open, setOpen] = useState(true);
+    const config = {
+      sources: [
+        {
+          label: 'GA',
+          processingCsvUrl: 'https://docs.google.com/spreadsheets/d/1FEdoUfToSKGJ8oVyDIaj15Oo2YRLasj_kfhlsHkwFI4/edit?gid=0#gid=0',
+          doneCsvUrl: '',
+        },
+        {
+          label: 'FL',
+          processingCsvUrl: 'https://docs.google.com/spreadsheets/d/1FEdoUfToSKGJ8oVyDIaj15Oo2YRLasj_kfhlsHkwFI4/edit?gid=1776175069#gid=1776175069',
+          doneCsvUrl: '',
+        },
+      ],
+      pollingIntervalMs: 60000,
+      defaultStore: 'all',
+    };
+    return (
+      <>
+        <Button variant="outlined" onClick={() => setOpen(true)}>Open Settings</Button>
+        <SheetSettingsModal
+          open={open}
+          onClose={() => setOpen(false)}
+          config={config}
+          onSave={() => setOpen(false)}
+          stores={['G10', 'BF4']}
+        />
+      </>
+    );
+  },
+};
+
 export const Trigger = {
   name: 'With trigger button',
   render: () => {
