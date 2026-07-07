@@ -172,6 +172,11 @@ function BeautymasterDashboard() {
 
   const filteredKpi = useMemo(() => deriveKpiSummary(filteredInfluencers), [filteredInfluencers]);
 
+  const analyticsFilteredInfluencers = useMemo(() => (
+    analyticsStore === 'all' ? influencers : influencers.filter(i => i.store === analyticsStore)
+  ), [influencers, analyticsStore]);
+  const analyticsKpi = useMemo(() => deriveKpiSummary(analyticsFilteredInfluencers), [analyticsFilteredInfluencers]);
+
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
 
   const handleSelect = inf => {
@@ -214,7 +219,7 @@ function BeautymasterDashboard() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <DashboardHeader
-        kpi={filteredKpi}
+        kpi={activeTab === 1 ? analyticsKpi : filteredKpi}
         isSyncing={isSyncing}
         lastSyncedAt={lastSyncedAt}
         onRefresh={refresh}
