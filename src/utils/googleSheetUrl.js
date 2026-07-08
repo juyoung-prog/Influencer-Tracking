@@ -30,3 +30,28 @@ export function toSheetViewUrl(csvUrl) {
 
   return null;
 }
+
+/**
+ * Picks the best Google Sheet link to expose from a saved config.
+ *
+ * A config can mix "plain" copy-link sources (real document ID, so
+ * toSheetViewUrl resolves to an editable /edit URL) with "Publish to web"
+ * sources (resolves only to a read-only /pubhtml view). Since sources
+ * sharing one spreadsheet often have both forms saved under different
+ * tabs/fields, this scans every URL in the config and prefers any that
+ * resolves to a real /edit link over a /pubhtml fallback.
+ *
+ * @param {object|null|undefined} config - Saved sheet config (config.sources[], config.inviteCountsUrl)
+ * @returns {string|null}
+ */
+export function findSheetViewUrl(config) {
+  if (!config) return null;
+
+  const candidates = [
+    ...(config.sources || []).flatMap(s => [s.processingCsvUrl, s.doneCsvUrl]),
+    config.inviteCountsUrl,
+  ].filter(Boolean);
+
+  const resolved = candidates.map(toSheetViewUrl).filter(Boolean);
+  return resolved.find(url => url.includes('/edit')) || resolved[0] || null;
+}
