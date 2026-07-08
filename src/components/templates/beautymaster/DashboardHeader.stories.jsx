@@ -22,6 +22,7 @@ export default {
     lastSyncedAt: { control: 'date', description: 'Timestamp of last sync' },
     onRefresh: { action: 'refresh clicked' },
     onSettingsClick: { action: 'settings clicked' },
+    sheetUrl: { control: 'text', description: 'Connected Google Sheet URL; icon hidden when null' },
     sx: { control: false },
   },
   decorators: [
@@ -63,6 +64,16 @@ export const NeverSynced = {
     kpi: { total: 0, agreementCount: 0, attendCount: 0, collaboSharedCount: 0, creditSharedCount: 0, alertCount: 0 },
     isSyncing: false,
     lastSyncedAt: null,
+  },
+};
+
+export const WithSheetLink = {
+  name: 'Google Sheet link icon',
+  args: {
+    kpi: mockKpi,
+    isSyncing: false,
+    lastSyncedAt: new Date('2026-07-05T10:28:00'),
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1FEdoUfToSKGJ8oVyDIaj15Oo2YRLasj_kfhlsHkwFI4/edit#gid=0',
   },
 };
 

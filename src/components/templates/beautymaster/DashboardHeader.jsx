@@ -3,6 +3,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import KpiBar from '../../data-display/KpiBar';
 import SyncStatusBar from '../../layout/SyncStatusBar';
 
@@ -18,12 +19,13 @@ import SyncStatusBar from '../../layout/SyncStatusBar';
  * @param {Date|null} lastSyncedAt - Timestamp of last successful sync [Optional, default: null]
  * @param {function} onRefresh - Handler for the refresh button [Optional]
  * @param {function} onSettingsClick - Settings icon click → opens SheetSettingsModal [Optional]
+ * @param {string|null} sheetUrl - Human-viewable URL of the connected Google Sheet; icon hidden when null [Optional, default: null]
  * @param {object} sx - MUI sx overrides applied to the root Box [Optional]
  *
  * Example usage:
- * <DashboardHeader kpi={kpi} isSyncing={false} lastSyncedAt={new Date()} onRefresh={handleRefresh} onSettingsClick={() => setSettingsOpen(true)} />
+ * <DashboardHeader kpi={kpi} isSyncing={false} lastSyncedAt={new Date()} onRefresh={handleRefresh} onSettingsClick={() => setSettingsOpen(true)} sheetUrl="https://docs.google.com/spreadsheets/d/abc/edit#gid=0" />
  */
-function DashboardHeader({ kpi, isSyncing = false, lastSyncedAt = null, onRefresh, onSettingsClick, sx }) {
+function DashboardHeader({ kpi, isSyncing = false, lastSyncedAt = null, onRefresh, onSettingsClick, sheetUrl = null, sx }) {
   return (
     <Box sx={{ flexShrink: 0, backgroundColor: 'background.paper', ...sx }}>
       <Box sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center' }}>
@@ -36,6 +38,20 @@ function DashboardHeader({ kpi, isSyncing = false, lastSyncedAt = null, onRefres
             isSyncing={isSyncing}
             onRefresh={onRefresh || (() => {})}
           />
+          {sheetUrl && (
+            <Tooltip title="Open Google Sheet">
+              <IconButton
+                size="small"
+                component="a"
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}
+              >
+                <TableChartOutlinedIcon sx={{ fontSize: 17 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Google Sheets settings">
             <IconButton size="small" onClick={onSettingsClick} sx={{ color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}>
               <SettingsOutlinedIcon sx={{ fontSize: 17 }} />

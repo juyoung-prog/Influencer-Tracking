@@ -14,6 +14,7 @@ import SchedulePanel from '../../components/templates/beautymaster/SchedulePanel
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
 import { deriveKpiSummary } from '../../data/beautymaster/schema.js';
+import { toSheetViewUrl } from '../../utils/googleSheetUrl.js';
 
 // ─── Mock data (Storybook / ComponentGallery only) ────────────────────────────
 
@@ -179,6 +180,8 @@ function BeautymasterDashboard() {
 
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
 
+  const sheetUrl = toSheetViewUrl(config?.sources?.[0]?.processingCsvUrl);
+
   const handleSelect = inf => {
     setSelectedId(inf.id);
     setDrawerOpen(true);
@@ -224,6 +227,7 @@ function BeautymasterDashboard() {
         lastSyncedAt={lastSyncedAt}
         onRefresh={refresh}
         onSettingsClick={() => setSettingsOpen(true)}
+        sheetUrl={sheetUrl}
       />
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
