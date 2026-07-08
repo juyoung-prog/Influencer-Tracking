@@ -26,3 +26,5 @@ CLAUDE.local.md
 *.sln
 *.sw?
 storybook-static
+.vercel
+.env*
