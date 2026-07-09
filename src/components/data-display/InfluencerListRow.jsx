@@ -2,7 +2,7 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { ALERT_FLAGS } from '../../data/beautymaster/schema.js';
+import { ALERT_FLAGS, CONTACT_STATUSES } from '../../data/beautymaster/schema.js';
 
 function getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup }) {
   if (creditShared)  return { label: 'Completed',        color: 'success.main',   show: true };
@@ -30,6 +30,32 @@ function getDaysOverdue(alertFlags, scheduledTime, uploadDate) {
     return days > 0 ? days : null;
   }
   return null;
+}
+
+const CONTACT_ALERT_LABEL = {
+  [ALERT_FLAGS.NO_SHOW_UNRESOLVED]: 'No-show',
+  [ALERT_FLAGS.RESCHEDULE_PENDING]: 'Reschedule',
+};
+
+function getContactAlert(alertFlags, contactStatus, lastContactDate, requestedDate) {
+  const flag = alertFlags.find(f => CONTACT_ALERT_LABEL[f]);
+  if (!flag) return null;
+
+  const label = CONTACT_ALERT_LABEL[flag];
+  const isNoResponse = contactStatus === CONTACT_STATUSES.NO_RESPONSE;
+  const requestedSuffix = requestedDate
+    ? ` → ${requestedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : '';
+
+  if (isNoResponse && lastContactDate) {
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const d = new Date(lastContactDate.getFullYear(), lastContactDate.getMonth(), lastContactDate.getDate());
+    const days = Math.floor((todayStart - d) / 86400000);
+    return { text: `${label} · ${days > 0 ? days : 0}d no reply${requestedSuffix}`, isUrgent: true };
+  }
+
+  return { text: `${label} · awaiting reply${requestedSuffix}`, isUrgent: false };
 }
 
 /**
@@ -60,6 +86,9 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
     collaboShared = false,
     creditShared = false,
     alertFlags = [],
+    contactStatus = null,
+    lastContactDate = null,
+    requestedDate = null,
     note = '',
   } = influencer;
 
@@ -76,6 +105,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
 
   const stage = getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup });
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);
+  const contactAlert = getContactAlert(alertFlags, contactStatus, lastContactDate, requestedDate);
 
   return (
     <ButtonBase
@@ -138,6 +168,21 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         {daysOverdue != null && (
           <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.625rem', lineHeight: 1 }}>
             {daysOverdue}d overdue
+          </Typography>
+        )}
+        {contactAlert && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: 'block',
+              mt: 0.25,
+              color: 'warning.main',
+              fontWeight: contactAlert.isUrgent ? 700 : 500,
+              fontSize: '0.625rem',
+              lineHeight: 1.2,
+            }}
+          >
+            {contactAlert.text}
           </Typography>
         )}
       </Box>

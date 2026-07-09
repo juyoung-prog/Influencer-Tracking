@@ -30,8 +30,8 @@ export const Doc = {
     <>
       <DocumentTitle
         title="BeautyMaster — Visual Direction"
-        status="Planning"
-        note="Operational dashboard — readability over aesthetics"
+        status="Available"
+        note="Operational dashboard — readability over aesthetics. Tokens live in src/styles/themes/default.js"
         brandName="BeautyMaster"
         systemName="Influencer Dashboard"
         version="1.0"
@@ -165,6 +165,10 @@ export const Doc = {
                 <TableCell sx={{ fontWeight: 600 }}>Alert 긴급도 구분</TableCell>
                 <TableCell>방문·업로드 미완료 → warning amber (#ED6C02) / 크레딧 미발송 → error red (#D32F2F)</TableCell>
               </TableRow>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>노쇼 · 일정변경 무응답 배지</TableCell>
+                <TableCell>새 색 도입하지 않음 — warning amber (#ED6C02) 재사용. 크레딧 미발송처럼 확정적 실패가 아니라 협의 중 상태이므로 방문·업로드 미완료와 같은 심각도로 취급</TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </TableContainer>
@@ -281,6 +285,9 @@ export const Doc = {
             </TableBody>
           </Table>
         </TableContainer>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 4 }}>
+          노쇼 · 일정변경 무응답 상태는 이 4단계 완료/미완료 아이콘 체계에 속하지 않는다 — 별도의 텍스트 배지("N일째 무응답" 등)로 표시하며 warning amber를 사용한다.
+        </Typography>
 
         <SectionTitle title="변경 필요 토큰 요약" />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

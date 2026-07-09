@@ -14,6 +14,8 @@ import {
   CATEGORIES,
   OPINIONS,
   SHEET_STATUS,
+  CONTACT_REASONS,
+  CONTACT_STATUSES,
 } from '../data/beautymaster/schema.js';
 
 // ─── Low-level CSV utilities ─────────────────────────────────────────────────
@@ -184,6 +186,23 @@ function parseOpinion(val) {
   return null;
 }
 
+function parseContactReason(val) {
+  if (!val) return null;
+  const norm = val.trim().toLowerCase().replace(/\s+/g, '-');
+  if (norm === 'no-show') return CONTACT_REASONS.NO_SHOW;
+  if (norm === 'reschedule-request' || norm === 'reschedule') return CONTACT_REASONS.RESCHEDULE_REQUEST;
+  return null;
+}
+
+function parseContactStatus(val) {
+  if (!val) return null;
+  const norm = val.trim().toLowerCase().replace(/\s+/g, '-');
+  if (norm === 'pending-reply' || norm === 'pending') return CONTACT_STATUSES.PENDING_REPLY;
+  if (norm === 'replied') return CONTACT_STATUSES.REPLIED;
+  if (norm === 'no-response') return CONTACT_STATUSES.NO_RESPONSE;
+  return null;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -255,6 +274,10 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       comments: parseNum(row['comments']),
       reposts: parseNum(row['reposts']),
       note: row['note'] || '',
+      contactReason: parseContactReason(row['contact reason']),
+      contactStatus: parseContactStatus(row['contact status']),
+      lastContactDate: parseDate(row['last contact date']),
+      requestedDate: parseDate(row['requested date']),
       scheduleGroup: deriveScheduleGroup(scheduledTime),
     };
 
