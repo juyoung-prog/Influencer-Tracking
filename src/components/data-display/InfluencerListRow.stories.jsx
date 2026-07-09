@@ -21,6 +21,10 @@ function make(overrides = {}) {
     creditShared: false,
     creditUsed: false,
     note: '',
+    contactReason: null,
+    contactStatus: null,
+    lastContactDate: null,
+    requestedDate: null,
     alertFlags: [],
     scheduleGroup: 'today',
     ...overrides,
@@ -98,6 +102,39 @@ export const AlertCreditNotSent = {
   },
 };
 
+export const AlertNoShowFollowUp = {
+  name: 'Alert — No-show Follow-up',
+  args: {
+    influencer: make({
+      id: 'inf-a3',
+      fullName: 'Han Yerin',
+      scheduledTime: D('2026-07-03T13:00:00'),
+      attend: false,
+      contactReason: 'no-show',
+      contactStatus: 'no-response',
+      lastContactDate: D('2026-07-05'),
+    }),
+    isSelected: false,
+  },
+};
+
+export const AlertReschedulePending = {
+  name: 'Alert — Reschedule Pending',
+  args: {
+    influencer: make({
+      id: 'inf-a4',
+      fullName: 'Choi Yuna',
+      scheduledTime: D('2026-07-10T15:00:00'),
+      attend: false,
+      contactReason: 'reschedule-request',
+      contactStatus: 'pending-reply',
+      lastContactDate: D('2026-07-07'),
+      requestedDate: D('2026-07-14'),
+    }),
+    isSelected: false,
+  },
+};
+
 export const Completed = {
   args: {
     influencer: make({
@@ -157,6 +194,8 @@ export const AllStates = {
       make({ id: '2', fullName: 'Shin Dahye', category: 'specific', scheduledTime: D('2026-07-02T13:00:00'), attend: true, collaboShared: false }),
       make({ id: '3', fullName: 'Park Soyeon', category: 'kbeauty', scheduledTime: D('2026-07-01T14:00:00'), attend: true, collaboShared: true, creditShared: false, uploadDate: D('2026-07-01') }),
       make({ id: '4', fullName: 'Oh Seulgi', category: 'general', scheduledTime: D('2026-06-28T10:00:00'), attend: true, collaboShared: true, creditShared: true }),
+      make({ id: '5', fullName: 'Han Yerin', category: 'kbeauty', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'no-response', lastContactDate: D('2026-07-05') }),
+      make({ id: '6', fullName: 'Choi Yuna', category: 'general', scheduledTime: D('2026-07-10T15:00:00'), attend: false, contactReason: 'reschedule-request', contactStatus: 'pending-reply', lastContactDate: D('2026-07-07'), requestedDate: D('2026-07-14') }),
     ];
     return (
       <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>

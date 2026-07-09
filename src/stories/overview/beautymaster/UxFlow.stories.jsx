@@ -63,6 +63,7 @@ const SCENARIOS = [
     steps: [
       '우측 Alert 배너에서 액션 필요 인원 수 확인',
       '배너 클릭 또는 스크롤 → 인플루언서별 요구 액션 확인',
+      '노쇼/일정변경 배지가 뜬 인플루언서는 Contact Status(응답대기·무응답) 확인 후 재연락 여부 판단',
       '해당 인플루언서 클릭 → Drawer에서 Note 이력 파악',
       '구글시트에서 직접 조치 → 60초 이내 대시보드 자동 갱신 확인',
     ],
@@ -77,7 +78,7 @@ const SCENARIOS = [
     steps: [
       '헤더 KPI 한 줄에서 총원 · 동의 · 방문 · 업로드 · 크레딧 완료 수 확인',
       'Store / Month / Platform / Tier 필터로 특정 그룹만 좁혀 보기',
-      '인플루언서 그리드에서 개별 상태 카드 확인',
+      '인플루언서 리스트에서 개별 행의 상태 확인',
     ],
     success: '페이지 상단만 봐도 전체 진행률 파악 가능',
     exception: '데이터 없을 때 Skeleton 상태 표시',
@@ -88,8 +89,8 @@ const SCENARIOS = [
     badge: '',
     goal: '콘텐츠 업로드 인플루언서의 성과 확인 (업로드 후 한 달 경과 시점)',
     steps: [
-      'Done 탭 필터 → 완료 인플루언서만 그리드에 표시',
-      '카드 클릭 → Drawer에서 Views · Likes 등 성과 지표 + Opinion 확인',
+      'Done 탭 필터 → 완료 인플루언서만 리스트에 표시',
+      '행 클릭 → Drawer에서 Views · Likes 등 성과 지표 + Opinion 확인',
       'Collabo Link 클릭 → 소셜 콘텐츠 새 탭 오픈',
     ],
     success: 'Drawer 한 화면에서 성과 지표와 콘텐츠 링크 동시 확인',
@@ -129,6 +130,12 @@ const MODEL_FIELDS = [
     ['creditUsed', 'boolean', 'Credit Used', '"TRUE"/체크 → true'],
     ['serialNumber', 'string', 'serial#', '그대로'],
   ]},
+  { group: '연락 상태 (노쇼 · 일정변경)', fields: [
+    ['contactReason', "'no-show' | 'reschedule-request' | null", 'Contact Reason', '재연락 유발 사유'],
+    ['contactStatus', "'pending-reply' | 'replied' | 'no-response' | null", 'Contact Status', '재연락 응답 상태'],
+    ['lastContactDate', 'Date | null', 'Last Contact Date', '최근 연락 시각, 무응답 경과일 계산 기준'],
+    ['requestedDate', 'Date | null', 'Requested Date', '인플루언서가 제시한 희망일 — 확정 전 임시값, 확정 시 scheduledTime으로 승격'],
+  ]},
   { group: '성과 · 평가 (Drawer 전용)', fields: [
     ['opinion', "'USE' | 'MAYBE' | \"DON'T\" | null", 'Opinion', '한 달 후 성과 평가'],
     ['views', 'number | null', 'Views', 'parseInt, 실패 시 null'],
@@ -145,33 +152,33 @@ const MODEL_FIELDS = [
   ]},
 ];
 
-/* ─── 컴포넌트 리스트 ──────────────────────────────── */
+/* ─── 컴포넌트 리스트 (Operations 탭 기준 — 실제 구현과 동기화됨) ─── */
+/* Analytics 탭 컴포넌트는 AnalyticsPlan.stories.jsx, 시트 연동은 SheetConnectionPlan.stories.jsx 참고 */
 const COMPONENTS = [
-  { name: 'AppShell', desc: '헤더 + 2컬럼 바디 전체 래퍼', type: '재활용', path: 'components/layout/AppShell.jsx' },
-  { name: 'SplitScreen', desc: '좌측 고정 패널 + 우측 스크롤 2컬럼 레이아웃', type: '재활용', path: 'components/layout/SplitScreen.jsx' },
-  { name: 'PageContainer', desc: '반응형 페이지 너비 제한', type: '재활용', path: 'components/layout/PageContainer.jsx' },
-  { name: 'CategoryTab', desc: 'Processing / Done 탭 전환', type: '재활용', path: 'components/in-page-navigation/CategoryTab.jsx' },
+  { name: 'AppShell', desc: '전역 헤더 + 사이드 네비 래퍼 (App.jsx에서 앱 전체에 적용)', type: '재활용', path: 'components/layout/AppShell.jsx' },
+  { name: 'CategoryTab', desc: 'All / Processing / Done 탭 전환', type: '재활용', path: 'components/in-page-navigation/CategoryTab.jsx' },
   { name: 'SearchBar', desc: '인플루언서 이름 검색', type: '재활용', path: 'components/input/SearchBar.jsx' },
-  { name: 'CardContainer', desc: '인플루언서 카드 래퍼', type: '재활용', path: 'components/card/CardContainer.jsx' },
-  { name: 'FadeTransition', desc: '카드 로드 등장 애니메이션', type: '재활용', path: 'components/motion/FadeTransition.jsx' },
-  { name: 'MUI Avatar', desc: '인플루언서 프로필 이미지', type: '재활용', path: 'MUI' },
-  { name: 'MUI Chip', desc: '플랫폼 · 티어 · Alert 뱃지', type: '재활용', path: 'MUI' },
+  { name: 'MUI Avatar', desc: '인플루언서 프로필 이미지 (리스트 행 · Drawer)', type: '재활용', path: 'MUI' },
   { name: 'MUI Drawer', desc: '인플루언서 상세 패널', type: '재활용', path: 'MUI' },
   { name: 'MUI Skeleton', desc: '데이터 로딩 플레이스홀더', type: '재활용', path: 'MUI' },
-  { name: 'MUI Tooltip', desc: 'Note 호버 시 전문 표시', type: '재활용', path: 'MUI' },
-  { name: 'MUI Select', desc: '필터 드롭다운', type: '재활용', path: 'MUI' },
+  { name: 'MUI Tooltip', desc: '상태 아이콘 · 동기화 버튼 설명', type: '재활용', path: 'MUI' },
+  { name: 'MUI Select', desc: '필터 · 시트 설정 드롭다운', type: '재활용', path: 'MUI' },
   { name: 'MUI Alert', desc: 'CSV 로드 실패 에러 배너', type: '재활용', path: 'MUI' },
-  { name: 'MUI IconButton', desc: '새로고침 버튼', type: '재활용', path: 'MUI' },
-  { name: 'FilterBar', desc: 'Store · Month · Platform · Tier 필터 (항목 추가)', type: '수정', path: 'components/templates/FilterBar.jsx' },
-  { name: 'KpiBar', desc: '헤더 KPI 한 줄 요약 — 총원 · 동의 · 방문 · 업로드 · 크레딧', type: '신규', path: 'data-display' },
-  { name: 'InfluencerCard', desc: '이름+시각(Hero) · 상태4개(Status) · Alert뱃지 3계층 카드', type: '신규', path: 'card' },
-  { name: 'StatusIconRow', desc: '동의 · 방문 · 업로드 · 크레딧 아이콘 4개 한 줄', type: '신규', path: 'data-display' },
-  { name: 'AlertBanner', desc: '액션 필요 케이스 배너 — 없으면 미표시', type: '신규', path: 'overlay-feedback' },
-  { name: 'ScheduleTimeline', desc: 'Time 기준 정렬 방문 예정 리스트 (TODAY 강조)', type: '신규', path: 'data-display' },
-  { name: 'InfluencerDrawer', desc: '성과지표 · Note · Collabo Link · Opinion 상세 패널', type: '신규', path: 'overlay-feedback' },
-  { name: 'SyncStatusBar', desc: '마지막 동기화 시각 + 새로고침 버튼', type: '신규', path: 'layout' },
-  { name: 'useCsvPolling', desc: 'CSV 폴링 훅 — fetch + 파싱 + 60초 인터벌', type: '신규', path: 'src/hooks/useCsvPolling.js' },
+  { name: 'MUI IconButton', desc: '새로고침 · 설정 버튼', type: '재활용', path: 'MUI' },
+  { name: 'KpiBar', desc: '헤더 KPI 한 줄 요약 — 총원 · 동의 · 방문 · 업로드 · 크레딧', type: '신규', path: 'components/data-display/KpiBar.jsx' },
+  { name: 'StatusIconRow', desc: '동의 · 방문 · 업로드 · 크레딧 아이콘 4개 한 줄', type: '신규', path: 'components/data-display/StatusIconRow.jsx' },
+  { name: 'InfluencerListRow', desc: '가로형 리스트 행 — avatar + 이름/시간/노트 + 플랫폼·티어 + 스테이지 + overdue + 노쇼/일정변경 연락 배지. 최종 UI는 카드 그리드가 아니라 이 리스트 행으로 결정됨', type: '신규', path: 'components/data-display/InfluencerListRow.jsx' },
+  { name: 'InfluencerFilterBar', desc: 'Store · Month · Platform · Tier 필터 바', type: '신규', path: 'components/data-display/InfluencerFilterBar.jsx' },
+  { name: 'ScheduleTimeline', desc: 'Time 기준 정렬 방문 예정 리스트 (TODAY 강조)', type: '신규', path: 'components/data-display/ScheduleTimeline.jsx' },
+  { name: 'InfluencerDrawer', desc: '성과지표 · Note · Collabo Link · Opinion 상세 패널', type: '신규', path: 'components/overlay-feedback/InfluencerDrawer.jsx' },
+  { name: 'SyncStatusBar', desc: '마지막 동기화 시각 + 새로고침 버튼', type: '신규', path: 'components/layout/SyncStatusBar.jsx' },
+  { name: 'DashboardHeader', desc: '상단 섹션 — 타이틀 + SyncStatusBar + KpiBar 조합', type: '신규', path: 'components/templates/beautymaster/DashboardHeader.jsx' },
+  { name: 'SchedulePanel', desc: '좌측 패널 — Visit Schedule 레이블 + ScheduleTimeline', type: '신규', path: 'components/templates/beautymaster/SchedulePanel.jsx' },
+  { name: 'InfluencerPanel', desc: '우측 패널(스마트) — SearchBar + FilterBar + CategoryTab + 섹션별 InfluencerListRow', type: '신규', path: 'components/templates/beautymaster/InfluencerPanel.jsx' },
+  { name: 'useSheetData', desc: '구글시트 CSV fetch + localStorage 설정 + 60초 폴링 훅', type: '신규', path: 'src/hooks/useSheetData.js' },
   { name: 'parseInfluencerCsv', desc: 'CSV row → Influencer 객체 변환 유틸', type: '신규', path: 'src/utils/parseInfluencerCsv.js' },
+  { name: 'InfluencerCard', desc: '초기 기획은 카드 그리드였으나 최종 UI는 리스트로 피벗됨. 컴포넌트는 남아있고 ComponentGalleryPage 데모에서만 사용, 실제 대시보드에는 미연결', type: '수정', path: 'components/card/InfluencerCard.jsx' },
+  { name: 'AlertBanner', desc: '경보 배너로 계획했으나 실제로는 InfluencerPanel의 "ACTION REQUIRED" 섹션이 그 역할을 대체함. ComponentGalleryPage 데모 전용, 실제 대시보드에는 미연결', type: '수정', path: 'components/overlay-feedback/AlertBanner.jsx' },
 ];
 
 const typeColor = (t) => t === '신규' ? 'error' : t === '수정' ? 'warning' : 'success';
@@ -181,11 +188,11 @@ export const Doc = {
     <>
       <DocumentTitle
         title="BeautyMaster — UX Flow"
-        status="Planning"
-        note="v3 — desktop 2-column layout confirmed"
+        status="Available"
+        note="v3 구현 완료 — 컴포넌트 리스트는 최종 구현(리스트 UI, useSheetData)에 맞춰 동기화됨"
         brandName="BeautyMaster"
         systemName="Influencer Dashboard"
-        version="3.0"
+        version="3.1"
       />
       <PageContainer>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>UX Flow</Typography>

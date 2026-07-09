@@ -41,6 +41,19 @@ export const OPINIONS = Object.freeze({
   DONT: "DON'T",
 });
 
+/** 인플루언서 재연락 사유 — 방문일 경과 후 노쇼 확인 vs 방문 전 일정변경 요청 */
+export const CONTACT_REASONS = Object.freeze({
+  NO_SHOW: 'no-show',
+  RESCHEDULE_REQUEST: 'reschedule-request',
+});
+
+/** 재연락 응답 상태 */
+export const CONTACT_STATUSES = Object.freeze({
+  PENDING_REPLY: 'pending-reply',
+  REPLIED: 'replied',
+  NO_RESPONSE: 'no-response',
+});
+
 /** agreement 제출 후 방문 미완료 */
 export const ALERT_FLAGS = Object.freeze({
   AGREEMENT_NO_ATTEND: 'agreement-no-attend',
@@ -50,6 +63,10 @@ export const ALERT_FLAGS = Object.freeze({
   COLLABO_NO_CREDIT: 'collabo-no-credit',
   /** 크레딧 발송 후 미사용 */
   CREDIT_SHARED_NO_USED: 'credit-shared-no-used',
+  /** 노쇼 확인 연락을 보냈으나 아직 응답이 확정되지 않음 */
+  NO_SHOW_UNRESOLVED: 'no-show-unresolved',
+  /** 방문 전 일정변경 요청에 대한 응답이 아직 확정되지 않음 */
+  RESCHEDULE_PENDING: 'reschedule-pending',
 });
 
 // ─── JSDoc Typedefs ──────────────────────────────────────────────────────────
@@ -86,6 +103,10 @@ export const ALERT_FLAGS = Object.freeze({
  * @property {number|null} comments
  * @property {number|null} reposts
  * @property {string} note
+ * @property {'no-show'|'reschedule-request'|null} contactReason - Why the influencer was re-contacted about their visit date
+ * @property {'pending-reply'|'replied'|'no-response'|null} contactStatus - Status of that re-contact
+ * @property {Date|null} lastContactDate - When the re-contact message was sent
+ * @property {Date|null} requestedDate - New date the influencer proposed, pending confirmation into scheduledTime
  * @property {string[]} alertFlags - Derived from boolean status fields
  * @property {'today'|'upcoming'|'past'|'no-time'} scheduleGroup - Derived from scheduledTime
  */
@@ -152,7 +173,7 @@ export function deriveScheduleGroup(scheduledTime) {
  * @returns {string[]}
  */
 export function deriveAlertFlags(influencer, today = new Date()) {
-  const { agreement, attend, collaboShared, creditShared, creditUsed, scheduledTime } = influencer;
+  const { agreement, attend, collaboShared, creditShared, creditUsed, scheduledTime, contactReason, contactStatus } = influencer;
   const flags = [];
 
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -163,6 +184,14 @@ export function deriveAlertFlags(influencer, today = new Date()) {
   if (agreement && !attend && visitIsPastDue) flags.push(ALERT_FLAGS.AGREEMENT_NO_ATTEND);
   if (attend && !collaboShared)              flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
   if (collaboShared && !creditShared)        flags.push(ALERT_FLAGS.COLLABO_NO_CREDIT);
+
+  // Resolved by reality once the influencer actually shows up, regardless of whether
+  // Contact Status was manually updated to Replied in the sheet.
+  const contactUnresolved = !attend
+    && (contactStatus === CONTACT_STATUSES.PENDING_REPLY || contactStatus === CONTACT_STATUSES.NO_RESPONSE);
+  if (contactReason === CONTACT_REASONS.NO_SHOW && contactUnresolved) flags.push(ALERT_FLAGS.NO_SHOW_UNRESOLVED);
+  if (contactReason === CONTACT_REASONS.RESCHEDULE_REQUEST && contactUnresolved) flags.push(ALERT_FLAGS.RESCHEDULE_PENDING);
+
   return flags;
 }
 
@@ -465,6 +494,10 @@ export function createInfluencer(overrides = {}) {
     comments: null,
     reposts: null,
     note: '',
+    contactReason: null,
+    contactStatus: null,
+    lastContactDate: null,
+    requestedDate: null,
     alertFlags: [],
     scheduleGroup: SCHEDULE_GROUPS.NO_TIME,
     ...overrides,
