@@ -60,8 +60,9 @@ const PHASES = [
   {
     num: '05',
     title: 'Follow Up',
-    summary: 'Chase no-shows, handle reschedules, and gate coupons on delivered content.',
+    summary: 'Remind them before their visit, chase no-shows, handle reschedules, and gate coupons on delivered content.',
     steps: [
+      "The day before their scheduled visit, message the influencer — mention the collaboration to the manager or staff when you arrive, and they'll guide you from there",
       'If they miss the scheduled date, ask when they can come; once confirmed, write it down in both lists — Contact Reason, Contact Status, Last Contact Date, Requested Date',
       'If they want to change their visit date, reschedule it and write the change down in both lists',
       'Once they share the content collab, send the coupon',
