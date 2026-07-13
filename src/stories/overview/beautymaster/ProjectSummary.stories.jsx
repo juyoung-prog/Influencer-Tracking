@@ -54,6 +54,10 @@ export const Doc = {
                 <TableCell sx={{ fontWeight: 600, verticalAlign: 'top' }}>기대 효과</TableCell>
                 <TableCell>인플루언서 방문 일정 · 상태 · 성과를 한 화면에서 파악 → 누락 대응 시간 단축, 운영 부담 감소</TableCell>
               </TableRow>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, verticalAlign: 'top' }}>확장 배경</TableCell>
+                <TableCell>대시보드를 여러 팀원이 함께 보므로, 인플루언서 업무 프로세스 자체를 문서화해 누구나 파악할 수 있게 함 (Workflow 탭)</TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </TableContainer>
@@ -100,6 +104,73 @@ export const Doc = {
                       {priority}
                     </Box>
                   </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <SectionTitle
+          title="인플루언서 워크플로우 (Workflow 탭)"
+          description="Operations · Analytics 탭 옆 세 번째 탭 — 구현 완료. 인플루언서 업무 전체를 7단계로 구조화한 참조 콘텐츠(영문) + 스토어별 실제 문서 링크"
+        />
+        <TableContainer sx={{ mb: 2 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, width: '4%' }}>#</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: '14%' }}>단계</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>체크리스트</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: '22%' }}>관련 파일 · 툴</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {[
+                ['01', 'Prepare', 'Design tier-based emails/coupons · Obtain coupon numbers & expiration dates · Prepare tier consent forms', 'Tier 1/2 Consent Form'],
+                ['02', 'Find', 'Find influencers (AI-assisted or manual) · Log them in Wix', 'Wix'],
+                ['03', 'Send', 'Send invitations via Wix · Notify the team by DM once sent', 'Wix · DM'],
+                ['04', 'Record', 'Review submitted consent forms · Log the influencer in both lists', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
+                ['05', 'Follow Up', 'Chase no-shows and reschedules · Record Contact Reason/Status/Last Contact Date/Requested Date · Send coupon once content is shared', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
+                ['06', 'Share', 'Share the latest list (PDF) with the Store Manager · Log the visit list received back', 'Tier 1/2 Influencer Tracking List (manager) · Handoff → Store Manager'],
+                ['07', 'Report', 'Log credit usage and content performance (views/likes/shares) · Report results', 'Influencer Tracking List'],
+              ].map(([num, name, desc, files]) => (
+                <TableRow key={num}>
+                  <TableCell sx={{ color: 'text.secondary' }}>{num}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{name}</TableCell>
+                  <TableCell sx={{ fontSize: 12.5 }}>{desc}</TableCell>
+                  <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{files}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>Files & Systems</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: 13 }}>
+          Tier 1/2 Consent Form과 Tier 1/2 Influencer Tracking List (manager)는 스토어마다 링크가 다름 — 별도 구글시트 "Links" 탭에서 store별로 관리하고, 대시보드가 자동으로 읽어와 Workflow 탭 상단 store 셀렉터로 선택한 스토어에 맞는 링크를 보여줌. Influencer Tracking List만 스토어 무관 고정 링크(코드에 내장).
+        </Typography>
+        <TableContainer sx={{ mb: 4 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, width: '16%' }}>종류</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: '26%' }}>이름</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>설명</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {[
+                ['Google Form (store별)', 'Tier 1 Consent Form', 'Consent capture for Tier 1 influencers'],
+                ['Google Form (store별)', 'Tier 2 Consent Form', 'Consent capture for Tier 2 influencers'],
+                ['Internal sheet (공통)', 'Influencer Tracking List', '우리가 직접 기록하고 보는 작업용 시트 — 모든 연락 상태와 팔로업 이력'],
+                ['Shared sheet (store별)', 'Tier 1 Influencer Tracking List (manager)', 'Tier 1 스토어 매니저에게 전달하는 버전 — 매니저가 보고 방문 확인 후 되돌려주는 시트'],
+                ['Shared sheet (store별)', 'Tier 2 Influencer Tracking List (manager)', 'Tier 2 스토어 매니저에게 전달하는 버전 — 매니저가 보고 방문 확인 후 되돌려주는 시트'],
+                ['This app', 'Influencer Tracking Dashboard', '전체 스케줄 · 프로세싱 시각화 · 알림 — 이 Workflow 탭이 위치한 곳'],
+              ].map(([kind, name, desc]) => (
+                <TableRow key={name}>
+                  <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{kind}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{name}</TableCell>
+                  <TableCell>{desc}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
