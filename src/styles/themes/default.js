@@ -34,28 +34,30 @@ const palette = {
   },
 
   // 상태 색상 (Feedback)
+  // MUI 기본값에서 교체됨 — Brand Blue(#0000FF)의 채도에 맞춰 재조정,
+  // info는 primary와 색상군이 겹치지 않도록 청록 계열로 분리 (VisualDirection 참고)
   error: {
-    light: '#ef5350',
-    main: '#d32f2f',
-    dark: '#c62828',
+    light: '#DE5B4E',
+    main: '#B3261E',
+    dark: '#7A160F',
     contrastText: '#FFFFFF',
   },
   warning: {
-    light: '#ff9800',
-    main: '#ed6c02',
-    dark: '#e65100',
+    light: '#C98A2E',
+    main: '#8A5A00',
+    dark: '#5C3C00',
     contrastText: '#FFFFFF',
   },
   success: {
-    light: '#4caf50',
-    main: '#2e7d32',
-    dark: '#1b5e20',
+    light: '#4FAE6F',
+    main: '#167C3D',
+    dark: '#0E5A2B',
     contrastText: '#FFFFFF',
   },
   info: {
-    light: '#03a9f4',
-    main: '#0288d1',
-    dark: '#01579b',
+    light: '#4FA3B0',
+    main: '#0E6B7A',
+    dark: '#06505C',
     contrastText: '#FFFFFF',
   },
 
@@ -111,7 +113,6 @@ const typography = {
     '-apple-system',
     'BlinkMacSystemFont',
     'system-ui',
-    'Roboto',
     '"Helvetica Neue"',
     '"Segoe UI"',
     '"Apple SD Gothic Neo"',
@@ -124,7 +125,7 @@ const typography = {
   ].join(','),
 
   // 헤딩 폰트 패밀리
-  headingFontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+  headingFontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
 
   // 폰트 크기 기준
   fontSize: 14,
@@ -138,28 +139,28 @@ const typography = {
 
   // 헤딩 스타일
   h1: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 900,
     fontSize: '2.5rem',      // 40px
     lineHeight: 1.2,
     letterSpacing: '-0.02em',
   },
   h2: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 900,
     fontSize: '2rem',        // 32px
     lineHeight: 1.2,
     letterSpacing: '-0.02em',
   },
   h3: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 800,
     fontSize: '1.75rem',     // 28px
     lineHeight: 1.3,
     letterSpacing: '-0.01em',
   },
   h4: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 700,
     fontSize: '1.5rem',      // 24px
     lineHeight: 1.3,
@@ -167,7 +168,7 @@ const typography = {
     fontVariantNumeric: 'tabular-nums', // KPI 숫자 자릿수 변경 시 레이아웃 고정
   },
   h5: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 700,
     fontSize: '1.25rem',     // 20px
     lineHeight: 1.4,
@@ -175,7 +176,7 @@ const typography = {
     fontVariantNumeric: 'tabular-nums', // 성과 지표 수치 레이아웃 고정
   },
   h6: {
-    fontFamily: '"Outfit", "Pretendard Variable", Pretendard, sans-serif',
+    fontFamily: '"Outfit Variable", "Pretendard Variable", Pretendard, sans-serif',
     fontWeight: 600,
     fontSize: '1.125rem',    // 18px
     lineHeight: 1.4,
