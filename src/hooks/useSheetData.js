@@ -20,12 +20,28 @@ const STORAGE_KEY = 'beautymaster:sheetConfig';
 // 관리자가 localStorage에 직접 설정을 저장한 적이 없으면 이 값을 그대로 사용하므로,
 // 최초 진입 시 설정 화면 없이 바로 대시보드가 보인다.
 const SHEET_ID = '1FEdoUfToSKGJ8oVyDIaj15Oo2YRLasj_kfhlsHkwFI4';
+
+// Links tab — per-store document links (Tier 1/2 Consent Form, Influencer List).
+// These change every time a new store opens, so they live in a sheet the team
+// can edit directly instead of a code deploy. Published separately from the
+// main GA/FL sheet, hence the different published-doc ID.
+const STORE_DOCS_PUBLISHED_ID = '2PACX-1vRSMqj2N_FR2RsX9_KMl9ZQzaSjL1HI9GwdDu4GoIh3_t2LGsBEs3JjPidf4hyVQMPdPEYO4HanQRjt';
+const STORE_DOCS_URL = `https://docs.google.com/spreadsheets/d/e/${STORE_DOCS_PUBLISHED_ID}/pub?output=csv&gid=1605380523`;
+
+// Influencer Tracking List — the one document link that does NOT vary by
+// store, so it's a fixed constant rather than a column in the Links tab.
+// Same underlying sheet as the GA/FL sources above (SHEET_ID, gid=0) — a
+// plain edit link, not a "Publish to web" link, so people with edit access
+// can actually edit it (Publish to web is always read-only for everyone).
+const INFLUENCER_TRACKING_LIST_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=0`;
+
 const DEFAULT_CONFIG = {
   sources: [
     { label: 'GA', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0` },
     { label: 'FL', processingCsvUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1776175069` },
   ],
   inviteCountsUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=778920622`,
+  storeDocsUrl: STORE_DOCS_URL,
   pollingIntervalMs: 30000,
   defaultStore: 'all',
 };
@@ -61,6 +77,7 @@ const EMPTY_STATE = {
   influencers: [],
   kpi: createKpiSummary(),
   inviteCounts: {},
+  storeDocs: {},
   lastSyncedAt: null,
   isSyncing: false,
   error: null,
@@ -74,12 +91,14 @@ const EMPTY_STATE = {
  *   influencers: Influencer[],
  *   kpi: KpiSummary,
  *   inviteCounts: Object,
+ *   storeDocs: Object,
  *   lastSyncedAt: Date|null,
  *   isSyncing: boolean,
  *   error: Error|null,
  *   refresh: function,
  *   config: object|null,
- *   saveConfig: (config: object) => void
+ *   saveConfig: (config: object) => void,
+ *   influencerTrackingListUrl: string
  * }}
  */
 export function useSheetData() {
@@ -97,14 +116,15 @@ export function useSheetData() {
   const pollingConfig = {
     sources: config?.sources ?? [],
     inviteCountsUrl: config?.inviteCountsUrl ?? '',
+    storeDocsUrl: config?.storeDocsUrl ?? '',
     pollingIntervalMs: config?.pollingIntervalMs ?? 30000,
   };
 
   const polling = useCsvPolling(pollingConfig);
 
   if (!config) {
-    return { ...EMPTY_STATE, config: null, saveConfig };
+    return { ...EMPTY_STATE, config: null, saveConfig, influencerTrackingListUrl: INFLUENCER_TRACKING_LIST_URL };
   }
 
-  return { ...polling, config, saveConfig };
+  return { ...polling, config, saveConfig, influencerTrackingListUrl: INFLUENCER_TRACKING_LIST_URL };
 }

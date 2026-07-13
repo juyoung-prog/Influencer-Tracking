@@ -6,6 +6,7 @@ import Select from '@mui/material/Select';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import AnalyticsDashboard from '../../components/templates/beautymaster/AnalyticsDashboard';
+import WorkflowGuide from '../../components/templates/beautymaster/WorkflowGuide';
 import InfluencerDrawer from '../../components/overlay-feedback/InfluencerDrawer';
 import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsModal';
 import DashboardHeader from '../../components/templates/beautymaster/DashboardHeader';
@@ -138,7 +139,7 @@ export const MOCK_INFLUENCERS = [
  * Props: (none — data is owned internally via useSheetData)
  */
 function BeautymasterDashboard() {
-  const { influencers, kpi, inviteCounts, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
+  const { influencers, kpi, inviteCounts, storeDocs, influencerTrackingListUrl, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
 
   const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
@@ -234,8 +235,9 @@ function BeautymasterDashboard() {
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 40 }}>
           <Tab label="Operations" sx={{ minHeight: 40, fontSize: 13 }} />
           <Tab label="Analytics" sx={{ minHeight: 40, fontSize: 13 }} />
+          <Tab label="Workflow" sx={{ minHeight: 40, fontSize: 13 }} />
         </Tabs>
-        {activeTab === 1 && stores.length > 0 && (
+        {(activeTab === 1 || activeTab === 2) && stores.length > 0 && (
           <Box sx={{ ml: 'auto', pr: 2 }}>
             <FormControl size="small">
               <Select
@@ -279,6 +281,16 @@ function BeautymasterDashboard() {
       {activeTab === 1 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
           <AnalyticsDashboard influencers={influencers} inviteCounts={inviteCounts} selectedStore={analyticsStore} />
+        </Box>
+      )}
+
+      {activeTab === 2 && (
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <WorkflowGuide
+            selectedStore={analyticsStore}
+            storeDocs={storeDocs}
+            influencerTrackingListUrl={influencerTrackingListUrl}
+          />
         </Box>
       )}
 

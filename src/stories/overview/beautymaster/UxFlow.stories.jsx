@@ -96,6 +96,61 @@ const SCENARIOS = [
     success: 'Drawer 한 화면에서 성과 지표와 콘텐츠 링크 동시 확인',
     exception: 'Opinion 미입력 상태는 "평가 대기" 뱃지로 표시',
   },
+  {
+    num: '05',
+    title: '새 팀원 온보딩 (Workflow 탭)',
+    badge: '핵심',
+    goal: '처음 인플루언서 업무를 맡은 팀원이 담당자 설명 없이 전체 프로세스를 스스로 파악',
+    steps: [
+      'Workflow 탭 진입 → 상단 통계(7 단계 · 5 파일 · 1 handoff)로 규모 파악',
+      '01 Prepare부터 순서대로 카드를 펼쳐보며 체크리스트 확인',
+      '각 단계의 "관련 파일 · 툴" 태그로 실제로 열어야 할 시트/툴 파악',
+      'Files & Systems 섹션에서 각 파일의 용도와 담당(내부용/공유용)을 재확인',
+    ],
+    success: '문서 하나로 처음 업무를 시작할 수 있음 — 담당자에게 구두로 다시 묻지 않아도 됨',
+    exception: '전체가 다 펼쳐져 있으면 처음 보는 사람에게는 부담 — 기본은 01 Prepare만 펼침, 나머지는 접힘',
+  },
+  {
+    num: '06',
+    title: '지금 하는 일이 어디에 기록되는지 확인',
+    badge: '핵심',
+    goal: '업무 도중 "이거 어느 시트에 적어야 하지?" 순간에 빠르게 답 찾기',
+    steps: [
+      '지금 하고 있는 작업과 일치하는 단계 카드를 펼침',
+      '체크리스트에서 지금 하는 작업 항목을 확인',
+      '옆의 "관련 파일 · 툴" 태그 확인 — 채워진 태그는 기록이 필요한 파일',
+      '태그의 파일명으로 Files & Systems에서 상세 설명 재확인',
+    ],
+    success: '3번 클릭 이내에 "어느 시트, 어느 컬럼"까지 도달',
+    exception: 'Find·Send 단계처럼 태그가 없는 경우 Wix/DM 안에서 끝나는 작업 — 태그가 없는 것 자체가 "시트 기록 불필요"라는 정보',
+  },
+  {
+    num: '07',
+    title: '담당자 부재 시 업무 커버',
+    badge: '핵심',
+    goal: '원래 담당자가 자리를 비웠을 때 다른 팀원이 중단된 지점부터 이어받기',
+    steps: [
+      'Influencer Tracking List에서 해당 인플루언서의 마지막 상태(Contact Status 등) 확인',
+      '그 상태에 대응하는 단계를 Workflow 탭에서 찾음 (예: pending-reply → 05 Follow Up)',
+      '해당 단계 체크리스트를 보고 다음 행동 결정',
+      'Store Manager handoff가 필요한 단계(06 Share)인지 배지로 확인',
+    ],
+    success: '담당자 본인의 설명 없이도 다음 행동을 스스로 판단 가능',
+    exception: '두 단계에 걸친 케이스(팔로업 중 + 공유 대기)는 두 카드를 모두 확인해야 함 — 향후 상태 기반 하이라이트로 개선 여지',
+  },
+  {
+    num: '08',
+    title: '프로세스 변경 논의',
+    badge: '',
+    goal: '팀 회의에서 특정 단계를 바꾸자는 논의가 나왔을 때 공통 기준점으로 사용',
+    steps: [
+      'Workflow 탭을 공유 화면에 띄우고 논의할 단계로 스크롤',
+      '체크리스트 항목 단위로 변경 지점을 지목',
+      '변경 확정 시 체크리스트 · 파일 태그를 함께 업데이트',
+    ],
+    success: '말로 설명하는 대신 문서를 함께 보며 논의 가능',
+    exception: '문서가 실제 운영과 어긋나면(stale) 오히려 혼란 — 콘텐츠 업데이트 오너가 필요 (미해결 과제)',
+  },
 ];
 
 /* ─── 데이터 모델 필드 ─────────────────────────────── */
@@ -175,10 +230,14 @@ const COMPONENTS = [
   { name: 'DashboardHeader', desc: '상단 섹션 — 타이틀 + SyncStatusBar + KpiBar 조합', type: '신규', path: 'components/templates/beautymaster/DashboardHeader.jsx' },
   { name: 'SchedulePanel', desc: '좌측 패널 — Visit Schedule 레이블 + ScheduleTimeline', type: '신규', path: 'components/templates/beautymaster/SchedulePanel.jsx' },
   { name: 'InfluencerPanel', desc: '우측 패널(스마트) — SearchBar + FilterBar + CategoryTab + 섹션별 InfluencerListRow', type: '신규', path: 'components/templates/beautymaster/InfluencerPanel.jsx' },
-  { name: 'useSheetData', desc: '구글시트 CSV fetch + localStorage 설정 + 60초 폴링 훅', type: '신규', path: 'src/hooks/useSheetData.js' },
+  { name: 'useSheetData', desc: '구글시트 CSV fetch + localStorage 설정 + 60초 폴링 훅. storeDocs(store별 문서 링크)·influencerTrackingListUrl(공통 고정 링크)도 함께 반환', type: '신규', path: 'src/hooks/useSheetData.js' },
   { name: 'parseInfluencerCsv', desc: 'CSV row → Influencer 객체 변환 유틸', type: '신규', path: 'src/utils/parseInfluencerCsv.js' },
   { name: 'InfluencerCard', desc: '초기 기획은 카드 그리드였으나 최종 UI는 리스트로 피벗됨. 컴포넌트는 남아있고 ComponentGalleryPage 데모에서만 사용, 실제 대시보드에는 미연결', type: '수정', path: 'components/card/InfluencerCard.jsx' },
   { name: 'AlertBanner', desc: '경보 배너로 계획했으나 실제로는 InfluencerPanel의 "ACTION REQUIRED" 섹션이 그 역할을 대체함. ComponentGalleryPage 데모 전용, 실제 대시보드에는 미연결', type: '수정', path: 'components/overlay-feedback/AlertBanner.jsx' },
+  { name: 'WorkflowGuide', desc: 'Workflow 탭 콘텐츠 — 구현 완료. 7단계 아코디언 + Files & Systems, `selectedStore`/`storeDocs`/`influencerTrackingListUrl` prop으로 스토어별 실제 문서 링크 렌더링(단계 안 파일 태그도 동일 로직으로 클릭 가능)', type: '신규', path: 'components/templates/beautymaster/WorkflowGuide.jsx' },
+  { name: 'parseStoreDocsCsv', desc: 'Links 탭 CSV → `{ [store]: { tier1ConsentFormUrl, tier2ConsentFormUrl, tier1InfluencerListUrl, tier2InfluencerListUrl } }` 변환 유틸', type: '신규', path: 'src/utils/parseStoreDocsCsv.js' },
+  { name: 'MUI Accordion', desc: 'Workflow 단계별 펼침/접힘. 기본값: 01 Prepare만 open', type: '신규', path: 'MUI' },
+  { name: 'FileTag / ToolTag / HandoffTag', desc: 'Workflow 전용 커스텀 태그(Box 기반, MUI Chip 아님). FileTag는 href 있으면 <a>로 렌더 — 관련 파일 · 툴 · Handoff 배지 구분', type: '신규', path: 'components/templates/beautymaster/WorkflowGuide.jsx (내부)' },
 ];
 
 const typeColor = (t) => t === '신규' ? 'error' : t === '수정' ? 'warning' : 'success';
@@ -189,10 +248,10 @@ export const Doc = {
       <DocumentTitle
         title="BeautyMaster — UX Flow"
         status="Available"
-        note="v3 구현 완료 — 컴포넌트 리스트는 최종 구현(리스트 UI, useSheetData)에 맞춰 동기화됨"
+        note="Operations · Analytics · Workflow 모두 구현 완료. Workflow는 Links 시트 기반 store별 실제 문서 링크까지 연동됨"
         brandName="BeautyMaster"
         systemName="Influencer Dashboard"
-        version="3.1"
+        version="3.3"
       />
       <PageContainer>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>UX Flow</Typography>
@@ -341,6 +400,56 @@ export const Doc = {
           </Table>
         </TableContainer>
 
+        {/* ④-1 정보 구조 (IA) — Workflow 탭 */}
+        <SectionTitle title="정보 구조 (IA) — Workflow 탭" description="Operations의 2컬럼 레이아웃과 달리 좌측 패널 없는 단일 컬럼 문서형 구성" />
+        <Box component="pre" sx={{ ...CODE_BLOCK, mb: 1 }}>
+{`┌───────────────────────────────────────────────────┐
+│  탭 바: Operations · Analytics · Workflow  [Store ▾] │
+├───────────────────────────────────────────────────┤
+│  헤더: 목적 한 줄 + 통계(7 단계 · 6 파일 · 1 handoff)   │
+├───────────────────────────────────────────────────┤
+│  ① 프로세스 아코디언 (7단계)                          │
+│    01 Prepare   ▾ (기본 open — 체크리스트 + 파일 태그) │
+│    02 Find      ▸ (collapsed)                       │
+│    03 Send      ▸ (collapsed)                       │
+│    04 Record    ▸ (collapsed)                       │
+│    05 Follow Up ▸ (collapsed)                       │
+│    06 Share     ▸ [Handoff → Store Manager]          │
+│    07 Report    ▸ (collapsed)                       │
+├───────────────────────────────────────────────────┤
+│  ② Files & Systems (6행 그리드, store별 실제 링크)     │
+└───────────────────────────────────────────────────┘`}
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 4, display: 'block' }}>
+          새 라우트 없음 — Operations · Analytics와 마찬가지로 BeautymasterDashboard.jsx의 activeTab 로컬 state에 세 번째 값(index 2)만 추가. 아래 라우팅 설계 표의 URL들과 달리 이 탭 전환 자체는 URL에 반영되지 않음.
+          우측 상단 store 셀렉터는 Analytics 탭과 완전히 같은 state(`analyticsStore`)를 공유 — 새 셀렉터를 만들지 않고 조건(`activeTab === 1 || activeTab === 2`)만 넓힘.
+        </Typography>
+
+        <SectionTitle
+          title="Links 시트 — 스토어별 문서 링크 데이터"
+          description="Tier1/2 Consent Form · Tier1/2 Influencer Tracking List(manager) 링크는 스토어가 열릴 때마다 바뀌므로, 메인 GA/FL 시트를 건드리지 않는 별도 구글시트에 'Links' 탭으로 관리 — 코드 배포 없이 시트에 한 줄만 추가하면 새 스토어 반영"
+        />
+        <Box component="pre" sx={{ ...CODE_BLOCK, mb: 1 }}>
+{`Store, Tier1 Consent Form Url, Tier2 Consent Form Url, Tier1 Influencer List Url, Tier2 Influencer List Url
+G10,    https://forms.gle/...,   https://forms.gle/...,   https://docs.google.com/...,     https://docs.google.com/...`}
+        </Box>
+        <TableContainer sx={{ mb: 4 }}>
+          <Table size="small">
+            <TableBody>
+              {[
+                ['Influencer Tracking List', '스토어 무관 고정 링크 — Links 시트에 없음, useSheetData.js에 SHEET_ID 재사용한 편집 링크로 하드코딩 (Publish to web 링크는 항상 읽기 전용이라 사용 안 함)'],
+                ['Tier1/2 Consent Form, Tier1/2 Influencer List', 'Links 탭 CSV를 polling(parseStoreDocsCsv.js) → storeDocs[store] 형태로 useSheetData가 반환'],
+                ['3가지 표시 상태', '① 링크 있음 → 클릭 가능 ② store 미선택("All Stores") → "스토어를 선택하세요" 안내 ③ store는 선택했는데 그 store에 값 없음 → "설정 필요" 안내. 셋 다 Files & Systems 카드와 단계 안 파일 태그에 동일하게 적용'],
+              ].map(([k, v]) => (
+                <TableRow key={k}>
+                  <TableCell sx={{ fontWeight: 600, width: '26%' }}>{k}</TableCell>
+                  <TableCell sx={{ fontSize: 12.5 }}>{v}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
         {/* ④ 인터랙션 원칙 */}
         <SectionTitle title="인터랙션 원칙" />
         <TableContainer sx={{ mb: 4 }}>
@@ -350,6 +459,11 @@ export const Doc = {
                 ['Drawer 진입점', '좌측 Schedule 행 클릭 OR 우측 그리드 카드 클릭 — 동일하게 Drawer 즉시 오픈'],
                 ['Schedule 행 클릭', '우측 그리드 스크롤 이동 없음. 스케줄은 빠른 접근 / 그리드는 전체 현황 파악'],
                 ['카드 위계 원칙', '"지금 이 사람이 누구고 언제 오는가"만 카드에서 전달. 나머지는 Drawer에서.'],
+                ['Workflow 기본 펼침 상태', '01 Prepare만 기본 open, 나머지는 collapsed — 7단계를 한 번에 다 보여주면 스캔 난이도 상승'],
+                ['Workflow 태그 구분', '채워진 태그 = 추적 파일(기록 필요) / 테두리 태그 = 외부 툴(Wix, DM) — "기록이 남는 일 vs 안 남는 일"을 시각적으로 구분'],
+                ['Workflow 파일 태그 클릭', '채워진 파일 태그는 Files & Systems 카드와 같은 링크 해석 로직(resolveFileHref)을 공유 — 링크가 있으면 그 자리에서 바로 열림, 없으면 지금처럼 클릭 안 되는 텍스트로 유지'],
+                ['Workflow Handoff 배지', 'Store Manager 등 외부 이해관계자가 개입하는 단계에만 표시 (현재 06 Share 1곳)'],
+                ['Workflow 클릭 진입점', '아코디언 헤더 클릭 = 펼침/접힘 토글만 수행. 파일 태그·Files & Systems 카드 클릭 = 새 탭에서 구글시트/폼 오픈(target="_blank")'],
               ].map(([k, v]) => (
                 <TableRow key={k}>
                   <TableCell sx={{ fontWeight: 600, width: '26%' }}>{k}</TableCell>
