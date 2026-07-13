@@ -74,6 +74,8 @@ const PHASES = [
         items: [
           'If they miss the scheduled date, ask when they can come; once confirmed, write it down in the Influencer Tracking List — Contact Reason, Contact Status, Last Contact Date, Requested Date',
           'Once they share the content collab, send the coupon',
+          'Download the content (Instagram/TikTok)',
+          'When you write down the collab, also add the collab video link and upload date to the Influencer Tracking List',
           "If they haven't shared yet, ask when they plan to",
         ],
       },
@@ -85,10 +87,10 @@ const PHASES = [
   {
     num: '06',
     title: 'Share',
-    summary: 'Exchange visit records with the Store Manager.',
+    summary: 'Exchange visit records with the Store Manager every morning.',
     steps: [
-      'Share the latest influencer list (PDF) with the Store Manager',
-      'Receive the actual-visit list back from the Store Manager and write it down',
+      'Every morning, share the latest influencer list (PDF) with the Store Manager as early as possible and let them know it\'s ready',
+      'Also in the morning, receive the actual-visit list back from the Store Manager and write it down',
     ],
     files: ['Tier 1 Influencer Tracking List (manager)', 'Tier 2 Influencer Tracking List (manager)'],
     tools: [],

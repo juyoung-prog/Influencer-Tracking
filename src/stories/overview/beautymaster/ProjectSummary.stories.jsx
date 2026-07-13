@@ -130,8 +130,8 @@ export const Doc = {
                 ['02', 'Find', 'Find influencers (AI-assisted or manual) · Add them to Wix', 'Wix'],
                 ['03', 'Send', 'Send invitations via Wix · Notify the team by DM once sent', 'Wix · DM'],
                 ['04', 'Record', 'Review submitted consent forms · Add the influencer to both lists', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
-                ['05', 'Follow Up', 'Message a reminder the day before their visit · Chase no-shows and reschedules · Write down Contact Reason/Status/Last Contact Date/Requested Date · Send coupon once content is shared', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
-                ['06', 'Share', 'Share the latest list (PDF) with the Store Manager · Write down the visit list received back', 'Tier 1/2 Influencer Tracking List (manager) · Handoff → Store Manager'],
+                ['05', 'Follow Up', 'Message a reminder the day before their visit · Chase no-shows and reschedules · Write down Contact Reason/Status/Last Contact Date/Requested Date · Send coupon and download content once shared · Write down collab video link and upload date', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
+                ['06', 'Share', 'Every morning: share the latest list (PDF) with the Store Manager early · Receive the visit list back and write it down', 'Tier 1/2 Influencer Tracking List (manager) · Handoff → Store Manager'],
                 ['07', 'Report', 'Write down credit usage and content performance (views/likes/shares) · Report results', 'Influencer Tracking List'],
               ].map(([num, name, desc, files]) => (
                 <TableRow key={num}>
