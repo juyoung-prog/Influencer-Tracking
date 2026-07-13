@@ -61,12 +61,22 @@ const PHASES = [
     num: '05',
     title: 'Follow Up',
     summary: 'Remind them before their visit, chase no-shows, handle reschedules, and gate coupons on delivered content.',
-    steps: [
-      "The day before their scheduled visit, message the influencer — mention the collaboration to the manager or staff when you arrive, and they'll guide you from there",
-      'If they miss the scheduled date, ask when they can come; once confirmed, write it down in both lists — Contact Reason, Contact Status, Last Contact Date, Requested Date',
-      'If they want to change their visit date, reschedule it and write the change down in both lists',
-      'Once they share the content collab, send the coupon',
-      "If they haven't shared yet, ask when they plan to",
+    stepGroups: [
+      {
+        heading: 'Before the visit',
+        items: [
+          "The day before their scheduled visit, message the influencer — mention the collaboration to the manager or staff when you arrive, and they'll guide you from there",
+          'If they want to change their visit date, reschedule it and write the change down in both lists',
+        ],
+      },
+      {
+        heading: 'After the visit',
+        items: [
+          'If they miss the scheduled date, ask when they can come; once confirmed, write it down in the Influencer Tracking List — Contact Reason, Contact Status, Last Contact Date, Requested Date',
+          'Once they share the content collab, send the coupon',
+          "If they haven't shared yet, ask when they plan to",
+        ],
+      },
     ],
     files: ['Influencer Tracking List', 'Tier 1 Influencer Tracking List (manager)', 'Tier 2 Influencer Tracking List (manager)'],
     tools: [],
@@ -167,6 +177,19 @@ const ToolTag = ({ label }) => (
     }}
   >
     {label}
+  </Box>
+);
+
+const StepList = ({ items }) => (
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    {items.map((step, si) => (
+      <Box key={si} sx={{ display: 'flex', gap: 1.25 }}>
+        <Box sx={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'text.disabled', flexShrink: 0, mt: '0.6em' }} />
+        <Typography variant="body2" sx={{ lineHeight: 1.55 }}>
+          {step}
+        </Typography>
+      </Box>
+    ))}
   </Box>
 );
 
@@ -339,16 +362,23 @@ function WorkflowGuide({ selectedStore = 'all', storeDocs = {}, influencerTracki
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
-                {phase.steps.map((step, si) => (
-                  <Box key={si} sx={{ display: 'flex', gap: 1.25 }}>
-                    <Box sx={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'text.disabled', flexShrink: 0, mt: '0.6em' }} />
-                    <Typography variant="body2" sx={{ lineHeight: 1.55 }}>
-                      {step}
+              {phase.stepGroups ? (
+                phase.stepGroups.map((group, gi) => (
+                  <Box key={group.heading} sx={{ mb: gi === phase.stepGroups.length - 1 ? 1.5 : 2 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'text.disabled', display: 'block', mb: 0.75 }}
+                    >
+                      {group.heading}
                     </Typography>
+                    <StepList items={group.items} />
                   </Box>
-                ))}
-              </Box>
+                ))
+              ) : (
+                <Box sx={{ mb: 1.5 }}>
+                  <StepList items={phase.steps} />
+                </Box>
+              )}
               {(phase.files.length > 0 || phase.tools.length > 0) && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                   {phase.files.map(f => (
