@@ -177,6 +177,29 @@ function normalizeSocialUrl(raw, platform) {
   return `https://www.instagram.com/${username}`;
 }
 
+/**
+ * Manual overrides keyed by lowercased "Full Name", for rows where the sheet's
+ * "Social Account" cell holds a bio-style display name (e.g. "Toni | Lifestyle
+ * + UGC Creator", "🍭Eden Era🎀") instead of a clean handle, so normalizeSocialUrl
+ * can't derive a working link from it. Verified against each creator's real profile.
+ */
+const SOCIAL_URL_OVERRIDES = {
+  'jakkah kebbay': 'https://www.tiktok.com/@oyastormm',
+  'toni ellis': 'https://www.tiktok.com/@itstimewithtoni',
+  'eden mbunwe': 'https://www.tiktok.com/@its_yourgurrl_eden',
+  'karima muhammadpoe': 'https://www.tiktok.com/@itskarimarima',
+  'maría josé galindez': 'https://www.tiktok.com/@soymarijolife',
+  'breana waynick': 'https://www.tiktok.com/@knotslater',
+  'chondra styles': 'https://www.tiktok.com/@chonieb_',
+  'zadie franklin': 'https://www.tiktok.com/@wellness.traveler?lang=en',
+};
+
+function resolveSocialUrl(fullName, raw, platform) {
+  const override = SOCIAL_URL_OVERRIDES[fullName.trim().toLowerCase()];
+  if (override) return override;
+  return normalizeSocialUrl(raw, platform);
+}
+
 function parseOpinion(val) {
   if (!val) return null;
   const upper = val.trim().toUpperCase();
@@ -255,7 +278,7 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       creditType: row['type'] || '',
       imageUrl: row['image'] || '',
       fullName,
-      socialAccountUrl: normalizeSocialUrl(row['social account'], row['platform'] || ''),
+      socialAccountUrl: resolveSocialUrl(fullName, row['social account'], row['platform'] || ''),
       email: row['email'] || '',
       scheduledTime,
       agreement: parseBool(row['agreement']),
