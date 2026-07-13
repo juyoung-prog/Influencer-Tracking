@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { parseInfluencerCsv } from '../utils/parseInfluencerCsv.js';
 import { parseInviteCountsCsv } from '../utils/parseInviteCountsCsv.js';
+import { parseStoreDocsCsv } from '../utils/parseStoreDocsCsv.js';
 import {
   deriveKpiSummary,
   createKpiSummary,
@@ -27,22 +28,25 @@ async function fetchCsvText(url) {
  * @param {object} config
  * @param {Array<{processingCsvUrl: string, doneCsvUrl: string}>} config.sources
  * @param {string} [config.inviteCountsUrl] - CSV URL for the "Number" tab (total invited per store/tier/category)
+ * @param {string} [config.storeDocsUrl] - CSV URL for the "Links" tab (per-store consent form / Influencer List links)
  * @param {number} config.pollingIntervalMs
  *
  * @returns {{
  *   influencers: Influencer[],
  *   kpi: KpiSummary,
  *   inviteCounts: Object,
+ *   storeDocs: Object,
  *   lastSyncedAt: Date|null,
  *   isSyncing: boolean,
  *   error: Error|null,
  *   refresh: function
  * }}
  */
-export function useCsvPolling({ sources = [], inviteCountsUrl = '', pollingIntervalMs = 30000 }) {
+export function useCsvPolling({ sources = [], inviteCountsUrl = '', storeDocsUrl = '', pollingIntervalMs = 30000 }) {
   const [influencers, setInfluencers] = useState([]);
   const [kpi, setKpi] = useState(createKpiSummary());
   const [inviteCounts, setInviteCounts] = useState({});
+  const [storeDocs, setStoreDocs] = useState({});
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
@@ -53,16 +57,19 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', pollingInter
   useEffect(() => { sourcesRef.current = sources; });
   const inviteCountsUrlRef = useRef(inviteCountsUrl);
   useEffect(() => { inviteCountsUrlRef.current = inviteCountsUrl; });
+  const storeDocsUrlRef = useRef(storeDocsUrl);
+  useEffect(() => { storeDocsUrlRef.current = storeDocsUrl; });
 
   // Stable key — sync is recreated only when URLs actually change
   const sourcesKey = sources
     .map(s => `${s.processingCsvUrl}|${s.doneCsvUrl || ''}`)
-    .join(';;') + `|${inviteCountsUrl}`;
+    .join(';;') + `|${inviteCountsUrl}|${storeDocsUrl}`;
 
   const sync = useCallback(async () => {
     const activeSources = sourcesRef.current.filter(s => s.processingCsvUrl);
     const activeInviteCountsUrl = inviteCountsUrlRef.current;
-    if (activeSources.length === 0 && !activeInviteCountsUrl) return;
+    const activeStoreDocsUrl = storeDocsUrlRef.current;
+    if (activeSources.length === 0 && !activeInviteCountsUrl && !activeStoreDocsUrl) return;
     setIsSyncing(true);
     setError(null);
     try {
@@ -81,16 +88,20 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', pollingInter
           );
         }
       }
-      const [results, inviteCountsResult] = await Promise.all([
+      const [results, inviteCountsResult, storeDocsResult] = await Promise.all([
         Promise.all(fetches),
         activeInviteCountsUrl
           ? fetchCsvText(activeInviteCountsUrl).then(parseInviteCountsCsv)
+          : Promise.resolve(null),
+        activeStoreDocsUrl
+          ? fetchCsvText(activeStoreDocsUrl).then(parseStoreDocsCsv)
           : Promise.resolve(null),
       ]);
       const merged = results.flat();
       setInfluencers(merged);
       setKpi(deriveKpiSummary(merged));
       if (inviteCountsResult) setInviteCounts(inviteCountsResult);
+      if (storeDocsResult) setStoreDocs(storeDocsResult);
       setLastSyncedAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -106,5 +117,5 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', pollingInter
     return () => clearInterval(intervalRef.current);
   }, [sync, pollingIntervalMs]);
 
-  return { influencers, kpi, inviteCounts, lastSyncedAt, isSyncing, error, refresh: sync };
+  return { influencers, kpi, inviteCounts, storeDocs, lastSyncedAt, isSyncing, error, refresh: sync };
 }
