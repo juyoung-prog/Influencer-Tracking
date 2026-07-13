@@ -127,12 +127,12 @@ export const Doc = {
             <TableBody>
               {[
                 ['01', 'Prepare', 'Design tier-based emails/coupons · Obtain coupon numbers & expiration dates · Prepare tier consent forms', 'Tier 1/2 Consent Form'],
-                ['02', 'Find', 'Find influencers (AI-assisted or manual) · Log them in Wix', 'Wix'],
+                ['02', 'Find', 'Find influencers (AI-assisted or manual) · Add them to Wix', 'Wix'],
                 ['03', 'Send', 'Send invitations via Wix · Notify the team by DM once sent', 'Wix · DM'],
-                ['04', 'Record', 'Review submitted consent forms · Log the influencer in both lists', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
-                ['05', 'Follow Up', 'Chase no-shows and reschedules · Record Contact Reason/Status/Last Contact Date/Requested Date · Send coupon once content is shared', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
-                ['06', 'Share', 'Share the latest list (PDF) with the Store Manager · Log the visit list received back', 'Tier 1/2 Influencer Tracking List (manager) · Handoff → Store Manager'],
-                ['07', 'Report', 'Log credit usage and content performance (views/likes/shares) · Report results', 'Influencer Tracking List'],
+                ['04', 'Record', 'Review submitted consent forms · Add the influencer to both lists', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
+                ['05', 'Follow Up', 'Chase no-shows and reschedules · Write down Contact Reason/Status/Last Contact Date/Requested Date · Send coupon once content is shared', 'Influencer Tracking List · Tier 1/2 Influencer Tracking List (manager)'],
+                ['06', 'Share', 'Share the latest list (PDF) with the Store Manager · Write down the visit list received back', 'Tier 1/2 Influencer Tracking List (manager) · Handoff → Store Manager'],
+                ['07', 'Report', 'Write down credit usage and content performance (views/likes/shares) · Report results', 'Influencer Tracking List'],
               ].map(([num, name, desc, files]) => (
                 <TableRow key={num}>
                   <TableCell sx={{ color: 'text.secondary' }}>{num}</TableCell>

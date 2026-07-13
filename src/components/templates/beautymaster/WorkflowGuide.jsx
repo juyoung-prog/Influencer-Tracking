@@ -27,7 +27,7 @@ const PHASES = [
     summary: 'Source candidates and get them into Wix.',
     steps: [
       'Find influencers (AI-assisted or manual)',
-      'Log found influencers in Wix',
+      'Add found influencers to Wix',
     ],
     files: [],
     tools: ['Wix'],
@@ -48,10 +48,10 @@ const PHASES = [
   {
     num: '04',
     title: 'Record',
-    summary: 'Verify signed consent and log the influencer into both lists.',
+    summary: 'Verify signed consent and add the influencer to both lists.',
     steps: [
       'When an influencer submits their consent form, review it',
-      'Log the influencer in the Influencer Tracking List and the Influencer List',
+      'Add the influencer to the Influencer Tracking List and the Influencer List',
     ],
     files: ['Influencer Tracking List', 'Tier 1 Influencer Tracking List (manager)', 'Tier 2 Influencer Tracking List (manager)'],
     tools: [],
@@ -62,8 +62,8 @@ const PHASES = [
     title: 'Follow Up',
     summary: 'Chase no-shows, handle reschedules, and gate coupons on delivered content.',
     steps: [
-      'If they miss the scheduled date, ask when they can come; once confirmed, log it in both lists — record Contact Reason, Contact Status, Last Contact Date, Requested Date',
-      'If they want to change their visit date, reschedule it and log the change in both lists',
+      'If they miss the scheduled date, ask when they can come; once confirmed, write it down in both lists — Contact Reason, Contact Status, Last Contact Date, Requested Date',
+      'If they want to change their visit date, reschedule it and write the change down in both lists',
       'Once they share the content collab, send the coupon',
       "If they haven't shared yet, ask when they plan to",
     ],
@@ -77,7 +77,7 @@ const PHASES = [
     summary: 'Exchange visit records with the Store Manager.',
     steps: [
       'Share the latest influencer list (PDF) with the Store Manager',
-      'Receive the actual-visit list back from the Store Manager and log it',
+      'Receive the actual-visit list back from the Store Manager and write it down',
     ],
     files: ['Tier 1 Influencer Tracking List (manager)', 'Tier 2 Influencer Tracking List (manager)'],
     tools: [],
@@ -88,8 +88,8 @@ const PHASES = [
     title: 'Report',
     summary: 'Close the loop with usage and performance numbers.',
     steps: [
-      'Log credit usage',
-      'Log content views, likes, shares, and other performance metrics',
+      'Write down credit usage',
+      'Write down content views, likes, shares, and other performance metrics',
       'Report the results',
     ],
     files: ['Influencer Tracking List'],
@@ -103,7 +103,7 @@ const PHASES = [
 const FILE_DEFS = [
   { linkKind: 'store', field: 'tier1ConsentFormUrl', kind: 'Google Form', name: 'Tier 1 Consent Form', desc: 'Consent capture for Tier 1 influencers' },
   { linkKind: 'store', field: 'tier2ConsentFormUrl', kind: 'Google Form', name: 'Tier 2 Consent Form', desc: 'Consent capture for Tier 2 influencers' },
-  { linkKind: 'common', kind: 'Internal sheet', name: 'Influencer Tracking List', desc: 'Our working record — every contact, status, and follow-up we log ourselves' },
+  { linkKind: 'common', kind: 'Internal sheet', name: 'Influencer Tracking List', desc: 'Our working record — every contact, status, and follow-up we write down ourselves' },
   { linkKind: 'store', field: 'tier1InfluencerListUrl', kind: 'Shared sheet', name: 'Tier 1 Influencer Tracking List (manager)', desc: 'The version we hand off — what the Store Manager sees and returns' },
   { linkKind: 'store', field: 'tier2InfluencerListUrl', kind: 'Shared sheet', name: 'Tier 2 Influencer Tracking List (manager)', desc: 'The version we hand off — what the Store Manager sees and returns' },
   { linkKind: 'app', kind: 'This app', name: 'Influencer Tracking Dashboard', desc: 'Overall schedule, pipeline visualization, and reminders — where this tab lives' },
