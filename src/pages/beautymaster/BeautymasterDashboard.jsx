@@ -139,7 +139,7 @@ export const MOCK_INFLUENCERS = [
  * Props: (none — data is owned internally via useSheetData)
  */
 function BeautymasterDashboard() {
-  const { influencers, kpi, inviteCounts, storeDocs, influencerTrackingListUrl, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
+  const { influencers, kpi, inviteCounts, storeDocs, messageTemplates, influencerTrackingListUrl, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
 
   const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
@@ -298,6 +298,7 @@ function BeautymasterDashboard() {
         influencer={selectedInfluencer}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        templates={messageTemplates}
       />
 
       <SheetSettingsModal

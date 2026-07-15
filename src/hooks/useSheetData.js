@@ -13,6 +13,7 @@
 import { useState, useCallback } from 'react';
 import { useCsvPolling } from './useCsvPolling.js';
 import { createKpiSummary } from '../data/beautymaster/schema.js';
+import { DEFAULT_MESSAGE_TEMPLATES } from '../data/beautymaster/messageTemplates.js';
 
 const STORAGE_KEY = 'beautymaster:sheetConfig';
 
@@ -42,6 +43,7 @@ const DEFAULT_CONFIG = {
   ],
   inviteCountsUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=778920622`,
   storeDocsUrl: STORE_DOCS_URL,
+  messageTemplatesUrl: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1261048521`,
   pollingIntervalMs: 30000,
   defaultStore: 'all',
 };
@@ -78,6 +80,7 @@ const EMPTY_STATE = {
   kpi: createKpiSummary(),
   inviteCounts: {},
   storeDocs: {},
+  messageTemplates: DEFAULT_MESSAGE_TEMPLATES,
   lastSyncedAt: null,
   isSyncing: false,
   error: null,
@@ -92,6 +95,7 @@ const EMPTY_STATE = {
  *   kpi: KpiSummary,
  *   inviteCounts: Object,
  *   storeDocs: Object,
+ *   messageTemplates: import('../data/beautymaster/messageTemplates.js').MessageTemplate[],
  *   lastSyncedAt: Date|null,
  *   isSyncing: boolean,
  *   error: Error|null,
@@ -117,6 +121,7 @@ export function useSheetData() {
     sources: config?.sources ?? [],
     inviteCountsUrl: config?.inviteCountsUrl ?? '',
     storeDocsUrl: config?.storeDocsUrl ?? '',
+    messageTemplatesUrl: config?.messageTemplatesUrl ?? '',
     pollingIntervalMs: config?.pollingIntervalMs ?? 30000,
   };
 

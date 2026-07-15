@@ -73,6 +73,7 @@ export const MultiSource = {
           doneCsvUrl: '',
         },
       ],
+      messageTemplatesUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRSMqj2N_FR2RsX9_KMl9ZQzaSjL1HI9GwdDu4GoIh3_t2LGsBEs3JjPidf4hyVQMPdPEYO4HanQRjt/pub?output=csv&gid=123456789',
       pollingIntervalMs: 60000,
       defaultStore: 'all',
     };

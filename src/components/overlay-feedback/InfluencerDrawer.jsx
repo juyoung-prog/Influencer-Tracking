@@ -11,6 +11,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import StatusIconRow from '../data-display/StatusIconRow';
+import MessageTemplateMenu from './MessageTemplateMenu';
 
 const CATEGORY_LABEL = { general: 'General', kbeauty: 'K-Beauty', specific: 'Specific' };
 
@@ -43,11 +44,12 @@ function formatNum(val) {
  * @param {Influencer|null} influencer - Influencer to display [Optional, default: null]
  * @param {boolean} open - Whether the Drawer is open [Required]
  * @param {function} onClose - Drawer close handler [Required]
+ * @param {MessageTemplate[]} templates - Outreach message templates for MessageTemplateMenu [Optional, default: []]
  *
  * Example usage:
- * <InfluencerDrawer influencer={selected} open={drawerOpen} onClose={handleClose} />
+ * <InfluencerDrawer influencer={selected} open={drawerOpen} onClose={handleClose} templates={messageTemplates} />
  */
-function InfluencerDrawer({ influencer = null, open = false, onClose }) {
+function InfluencerDrawer({ influencer = null, open = false, onClose, templates = [] }) {
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
       {influencer ? (
@@ -177,6 +179,9 @@ function InfluencerDrawer({ influencer = null, open = false, onClose }) {
                 <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                   Contact
                 </Typography>
+                <Box sx={{ mb: 1.5 }}>
+                  <MessageTemplateMenu influencer={influencer} templates={templates} />
+                </Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 2 }}>
                   {influencer.socialAccountUrl && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

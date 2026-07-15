@@ -88,6 +88,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
 
   const [sources, setSources] = useState(initialSources);
   const [inviteCountsUrl, setInviteCountsUrl] = useState(config?.inviteCountsUrl ?? '');
+  const [messageTemplatesUrl, setMessageTemplatesUrl] = useState(config?.messageTemplatesUrl ?? '');
   const [interval, setInterval] = useState(config?.pollingIntervalMs ?? 30000);
   const [defaultStore, setDefaultStore] = useState(config?.defaultStore ?? 'all');
   const [testStatuses, setTestStatuses] = useState({});  // { index: 'idle'|'testing'|'success'|'error' }
@@ -129,6 +130,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
   }
 
   const inviteCountsCsvUrl = toCsvUrl(inviteCountsUrl);
+  const messageTemplatesCsvUrl = toCsvUrl(messageTemplatesUrl);
 
   const validSources  = sources.filter(s => toCsvUrl(s.processingUrl));
   const hasTestError  = Object.values(testStatuses).some(s => s === 'error');
@@ -146,6 +148,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
     onSave?.({
       sources: processedSources,
       inviteCountsUrl: toCsvUrl(inviteCountsUrl) ?? '',
+      messageTemplatesUrl: toCsvUrl(messageTemplatesUrl) ?? '',
       pollingIntervalMs: interval,
       defaultStore,
     });
@@ -299,6 +302,22 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
             ? `→ ${inviteCountsCsvUrl}`
             : inviteCountsUrl ? 'URL 형식을 확인하세요' : '스토어×티어×카테고리별 초대 인원 "Number" 탭. 없으면 비워두세요'}
           error={Boolean(inviteCountsUrl && !inviteCountsCsvUrl)}
+          FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
+        />
+
+        {/* Message templates (Messages tab) */}
+        <TextField
+          label="Messages tab URL (optional)"
+          placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
+          value={messageTemplatesUrl}
+          onChange={e => setMessageTemplatesUrl(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{ mb: 2.5 }}
+          helperText={messageTemplatesCsvUrl
+            ? `→ ${messageTemplatesCsvUrl}`
+            : messageTemplatesUrl ? 'URL 형식을 확인하세요' : '편집 가능한 발신 메시지 템플릿 "Messages" 탭. 없으면 기본 템플릿 사용'}
+          error={Boolean(messageTemplatesUrl && !messageTemplatesCsvUrl)}
           FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
         />
 

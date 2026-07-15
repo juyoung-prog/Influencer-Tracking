@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import InfluencerDrawer from './InfluencerDrawer';
+import { DEFAULT_MESSAGE_TEMPLATES } from '../../data/beautymaster/messageTemplates.js';
 
 const fullInfluencer = {
   id: 'Processing_0',
@@ -68,6 +69,7 @@ export default {
     influencer: { control: 'object', description: 'Influencer data (null empties the Drawer)' },
     open: { control: 'boolean', description: 'Whether the Drawer is open' },
     onClose: { action: 'drawer closed', description: 'Close handler' },
+    templates: { control: 'object', description: 'Outreach message templates for MessageTemplateMenu' },
   },
 };
 
@@ -79,7 +81,7 @@ export const Default = {
         <Button variant="outlined" onClick={() => setOpen(true)}>
           Open Drawer (with performance data)
         </Button>
-        <InfluencerDrawer influencer={fullInfluencer} open={open} onClose={() => setOpen(false)} />
+        <InfluencerDrawer influencer={fullInfluencer} open={open} onClose={() => setOpen(false)} templates={DEFAULT_MESSAGE_TEMPLATES} />
       </Box>
     );
   },
@@ -94,7 +96,7 @@ export const Minimal = {
         <Button variant="outlined" onClick={() => setOpen(true)}>
           Open Drawer (no metrics)
         </Button>
-        <InfluencerDrawer influencer={minimalInfluencer} open={open} onClose={() => setOpen(false)} />
+        <InfluencerDrawer influencer={minimalInfluencer} open={open} onClose={() => setOpen(false)} templates={DEFAULT_MESSAGE_TEMPLATES} />
       </Box>
     );
   },
