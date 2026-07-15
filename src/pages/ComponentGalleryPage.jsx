@@ -20,6 +20,7 @@ import InfluencerPanel from '../components/templates/beautymaster/InfluencerPane
 import SchedulePanel from '../components/templates/beautymaster/SchedulePanel';
 import { MOCK_INFLUENCERS } from './beautymaster/BeautymasterDashboard';
 import { deriveKpiSummary } from '../data/beautymaster/schema';
+import { DEFAULT_MESSAGE_TEMPLATES } from '../data/beautymaster/messageTemplates';
 
 // ─── Section definitions (for sidebar nav) ───────────────────────────────────
 
@@ -371,6 +372,7 @@ export default function ComponentGalleryPage() {
         influencer={drawerInfluencer}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        templates={DEFAULT_MESSAGE_TEMPLATES}
       />
     </Box>
   );

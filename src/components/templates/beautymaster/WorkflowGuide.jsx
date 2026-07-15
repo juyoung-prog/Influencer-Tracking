@@ -87,9 +87,9 @@ const PHASES = [
   {
     num: '06',
     title: 'Share',
-    summary: 'Exchange visit records with the Store Manager every morning.',
+    summary: 'Exchange visit records with the Store Manager each day.',
     steps: [
-      'Every morning, share the latest influencer list (PDF) with the Store Manager as early as possible and let them know it\'s ready',
+      'Right after arriving in the morning, or before leaving for the day, share the latest influencer list (PDF) with the Store Manager and let them know it\'s ready',
       'Also in the morning, receive the actual-visit list back from the Store Manager and write it down',
     ],
     files: ['Tier 1 Influencer Tracking List (manager)', 'Tier 2 Influencer Tracking List (manager)'],
