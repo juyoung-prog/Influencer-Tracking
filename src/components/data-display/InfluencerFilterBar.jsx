@@ -6,7 +6,9 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 
-const CHIP_SX = { borderRadius: 0, height: 28, fontSize: 12 };
+// No borderRadius override here — inherits the theme's MuiChip default (4px)
+// instead of the flat 0 this bar used to force locally.
+const CHIP_SX = { height: 28, fontSize: 12 };
 
 const FILTER_GROUPS = [
   {

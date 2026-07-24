@@ -5,7 +5,7 @@
  * 직접 수정하지 마세요. 수정이 필요하면 스크립트를 수정하세요.
  *
  * 생성: pnpm generate-rules
- * 생성일: 2026-04-15
+ * 생성일: 2026-07-24
  */
 
 export const priorityMeta = {
@@ -58,7 +58,7 @@ export const ruleNodes = [
     "name": "component-work (Skill)",
     "priority": "Skill",
     "path": ".claude/skills/component-work/SKILL.md",
-    "description": "Creates, modifies, deletes UI components and their Storybook stories. Manages component taxonomy, design tokens, and interactive patterns for MUI-based design system."
+    "description": "ALWAYS invoke this skill when files under src/components/ are created, modified, or deleted. Do not edit component files directly. Use this skill first. Also trigger for any story file (.stories.jsx) work. Manages component taxonomy, design tokens, and interactive patterns for MUI-based design system."
   },
   {
     "id": "component-work--components",
@@ -117,6 +117,13 @@ export const ruleNodes = [
     "description": "---"
   },
   {
+    "id": "component-work--typography-criteria",
+    "name": "typography-criteria.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/component-work/resources/typography-criteria.md",
+    "description": "> 이 파일은 `scripts/extract-design-criteria.mjs` 가 `src/data/typographyTaxonomyData.js` 에서 추출한 파생 뷰입니다."
+  },
+  {
     "id": "convert-external",
     "name": "convert-external (Skill)",
     "priority": "Skill",
@@ -150,6 +157,118 @@ export const ruleNodes = [
     "priority": "Skill",
     "path": ".claude/skills/rule-visualization/SKILL.md",
     "description": "Syncs ruleRelationships.js data with actual .claude/ file structure and updates Storybook rule visualization. Run pnpm generate-rules instead for automated sync."
+  },
+  {
+    "id": "skill-creator",
+    "name": "skill-creator (Skill)",
+    "priority": "Skill",
+    "path": ".claude/skills/skill-creator/SKILL.md",
+    "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy."
+  },
+  {
+    "id": "stable-layout",
+    "name": "stable-layout (Skill)",
+    "priority": "Skill",
+    "path": ".claude/skills/stable-layout/SKILL.md",
+    "description": "안정된 레이아웃을 설계하는 스킬. 페이지·섹션·대시보드·폼·컴포넌트의 레이아웃 골격을 잡을 때, 레이아웃 택소노미(src/data/layoutTaxonomyData.js)를 지식 베이스로 삼아 공간 모델(유동/고정/혼합) 결정 → 아키타입 선택 → 영역 정책 → 공간 포화 → reflow → 컴포넌트 매핑 → 안정성 체크 순서로 진행하고, 넘침(overflow)·레이아웃 시프트(CLS)·유휴 구멍·불균형 같은 불안정을 차단한다. 사용자가 \"레이아웃 잡아줘\", \"이 화면 레이아웃 설계\", \"안정적인 레이아웃\", \"레이아웃이 깨진다/넘친다\", \"반응형 레이아웃 구성\", \"/layout\" 이라고 하거나 새 화면·섹션의 골격을 짤 때 반드시 사용한다."
+  },
+  {
+    "id": "sub-agent-generator",
+    "name": "sub-agent-generator (Skill)",
+    "priority": "Skill",
+    "path": ".claude/skills/sub-agent-generator/SKILL.md",
+    "description": "사용자의 의도와 조건을 받아 Claude Code subagent 파일(.claude/agents/<name>.md)을 자동 생성한다. \"subagent를 만들어줘\", \"에이전트 하나 만들자\", \"이 작업을 자동 위임하고 싶다\"는 요청이 나오면 PROACTIVELY 사용한다. .claude/agents/에 직접 파일을 쓰기 전에 MUST BE USED."
+  },
+  {
+    "id": "supabase-integration",
+    "name": "supabase-integration (Skill)",
+    "priority": "Skill",
+    "path": ".claude/skills/supabase-integration/SKILL.md",
+    "description": "Reads ux-flow's Entity ID Dictionary as the single input and produces data-bridge (main) plus appendix-* (db-schema / auth-design / rls-policies / api-integration / edge-functions). Read-only on ux-flow. Implementation constraints are reported back to the user, who must update ux-flow via /project-planning."
+  },
+  {
+    "id": "supabase-integration--auth-flows",
+    "name": "auth-flows.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/auth-flows.md",
+    "description": "Phase 2, 4에서 참조. Email+Password 표준 플로우 + OAuth 확장 가이드."
+  },
+  {
+    "id": "supabase-integration--client-templates",
+    "name": "client-templates.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/client-templates.md",
+    "description": "Phase 4에서 참조. 이 템플릿을 그대로 복사해 프로젝트에 맞게 엔티티명만 바꾼다."
+  },
+  {
+    "id": "supabase-integration--doc-templates",
+    "name": "doc-templates.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/doc-templates.md",
+    "description": "Phase 0.5 ~ 6 에서 산출할 문서 템플릿. 본문 1종 (`04-data-bridge.md`) + 부록 5종 (`appendix-*.md`)."
+  },
+  {
+    "id": "supabase-integration--edge-functions",
+    "name": "edge-functions.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/edge-functions.md",
+    "description": "> **핵심 원칙**: 외부 API(OpenAI, Stripe, 카카오, 결제, SMS 등)는 **로컬에서 기능을 먼저 검증**한 뒤, 검증이 끝나면 **Edge Function으로 반드시 옮긴다**. 프론트 번들에 비밀 키가 남으면 안 된다."
+  },
+  {
+    "id": "supabase-integration--error-catalog",
+    "name": "error-catalog.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/error-catalog.md",
+    "description": "Phase 4에서 `src/utils/errorMessages.js` 생성 시 사용. Supabase 에러 코드/메시지를 한국어로 매핑."
+  },
+  {
+    "id": "supabase-integration--mcp-cli-playbook",
+    "name": "mcp-cli-playbook.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/mcp-cli-playbook.md",
+    "description": "전 Phase에서 참조. Supabase MCP 서버와 Supabase CLI의 역할 분담 규칙."
+  },
+  {
+    "id": "supabase-integration--rls-patterns",
+    "name": "rls-patterns.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/rls-patterns.md",
+    "description": "Phase 3에서 참조. 사용자 답변을 아래 패턴 중 하나에 매핑한다."
+  },
+  {
+    "id": "supabase-integration--schema-patterns",
+    "name": "schema-patterns.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/schema-patterns.md",
+    "description": "Phase 1에서 반드시 참조. 모든 테이블에 공통 적용할 규칙과, 자주 쓰이는 엔티티 스키마 템플릿."
+  },
+  {
+    "id": "supabase-integration--storybook-mock",
+    "name": "storybook-mock.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/storybook-mock.md",
+    "description": "Phase 4에서 참조. 데이터 훅이 Supabase 서버를 실제로 호출하지 않도록 mock 주입."
+  },
+  {
+    "id": "supabase-integration--trigger-patterns",
+    "name": "trigger-patterns.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/trigger-patterns.md",
+    "description": "Phase 1, 2에서 참조. 반드시 생성해야 하는 트리거 템플릿."
+  },
+  {
+    "id": "supabase-integration--verification-checklist",
+    "name": "verification-checklist.md",
+    "priority": "Skill Resource",
+    "path": ".claude/skills/supabase-integration/resources/verification-checklist.md",
+    "description": "Phase 3(RLS 검증), Phase 5(최종 검증), Phase 6(Edge Functions)에서 실행."
+  },
+  {
+    "id": "visual-asset-prompt",
+    "name": "visual-asset-prompt (Skill)",
+    "priority": "Skill",
+    "path": ".claude/skills/visual-asset-prompt/SKILL.md",
+    "description": "막연한 비주얼 의도를 생성용 프롬프트로 재구성한다. 핵심은 Asset Template, 즉 FORMAT(비율·구도·배경·오브젝트 크기·프레임·여백)을 패턴으로 먼저 고정하고, 그 안에서 LOOK(매체·선·톤·색)을 잡은 뒤, SUBJECT만 가변으로 둔다. 시리즈는 FORMAT+LOOK 을 동결하고 마스터 이미지를 레퍼런스로 고정한 채 SUBJECT 만 순회한다. 먼저 호출 환경을 조사해 가용 생성기(Nano Banana / GPT)에 맞춰 최적화한다. 사용자가 명시한 제약(배경·색·매체·비율)은 잠그고 덮어쓰지 않는다. \"이런 느낌 이미지/일러스트/히어로/썸네일/다이어그램/3D/배경 만들어줘\", \"비주얼 프롬프트 짜줘\", \"메뉴 일러스트 시리즈\", \"/visual-asset\" 류 요청에 사용. 이미지를 직접 생성하지는 않고 spec 까지 만든 뒤 적합한 생성 스킬로 인계한다."
   }
 ];
 
@@ -237,6 +356,12 @@ export const ruleEdges = [
     "note": ""
   },
   {
+    "from": "component-work",
+    "to": "component-work--typography-criteria",
+    "type": "resources",
+    "note": ""
+  },
+  {
     "from": "claude-md",
     "to": "convert-external",
     "type": "activates",
@@ -263,6 +388,102 @@ export const ruleEdges = [
   {
     "from": "claude-md",
     "to": "rule-visualization",
+    "type": "activates",
+    "note": ""
+  },
+  {
+    "from": "claude-md",
+    "to": "skill-creator",
+    "type": "activates",
+    "note": ""
+  },
+  {
+    "from": "claude-md",
+    "to": "stable-layout",
+    "type": "activates",
+    "note": ""
+  },
+  {
+    "from": "claude-md",
+    "to": "sub-agent-generator",
+    "type": "activates",
+    "note": ""
+  },
+  {
+    "from": "claude-md",
+    "to": "supabase-integration",
+    "type": "activates",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--auth-flows",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--client-templates",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--doc-templates",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--edge-functions",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--error-catalog",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--mcp-cli-playbook",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--rls-patterns",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--schema-patterns",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--storybook-mock",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--trigger-patterns",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "supabase-integration",
+    "to": "supabase-integration--verification-checklist",
+    "type": "resources",
+    "note": ""
+  },
+  {
+    "from": "claude-md",
+    "to": "visual-asset-prompt",
     "type": "activates",
     "note": ""
   }

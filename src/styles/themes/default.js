@@ -5,7 +5,9 @@
  * 피그마의 Design Tokens / Variables와 동일한 역할입니다.
  *
  * ## 핵심 철학
- * - **Sharp Corners**: borderRadius 0 (날카로운 모서리)
+ * - **Flat by default**: shape.borderRadius 0 — Button/Card/Paper 등 구조 표면은 각짐
+ * - **Role-based radius**: 전역 shape을 올리지 않고 Input/Select/Chip(4px),
+ *   분석·참조 카드형 컨테이너(6px) 등 역할 단위로만 예외를 둠 (resources/mui-theme.md 참고)
  * - **Dimmed Shadow**: offset 없이 blur만 사용하는 은은한 그림자
  * - **Pure White**: 깔끔한 흰색 배경
  * - **Brand Blue**: Primary 색상 #0000FF
@@ -347,6 +349,16 @@ const components = {
     styleOverrides: {
       root: {
         borderRadius: 0,
+      },
+    },
+  },
+  // Input/Select get a small radius by role (not a shape.borderRadius change) —
+  // surfaces stay sharp (Button/Card/Paper at 0), form controls read as distinct
+  // interactive objects. Covers both TextField and Select (outlined variant).
+  MuiOutlinedInput: {
+    styleOverrides: {
+      root: {
+        borderRadius: 4,
       },
     },
   },

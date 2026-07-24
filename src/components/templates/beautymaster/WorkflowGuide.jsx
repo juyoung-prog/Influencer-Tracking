@@ -230,7 +230,7 @@ const HandoffTag = ({ label }) => (
  */
 function FileCard({ kind, name, desc, href = null, note = '' }) {
   return (
-    <Box sx={{ border: 1, borderColor: 'divider', p: 1.5 }}>
+    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: '6px', p: 1.5 }}>
       <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
         {kind}
       </Typography>
@@ -341,10 +341,28 @@ function WorkflowGuide({ selectedStore = 'all', storeDocs = {}, influencerTracki
 
           <Accordion
             disableGutters
-            square
             elevation={0}
             defaultExpanded={i === 0}
-            sx={{ border: 1, borderColor: 'divider', mb: 1, flex: 1, minWidth: 0, '&:before': { display: 'none' } }}
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              // Explicit px string bypasses the theme's shape.borderRadius:0 multiplier —
+              // phase accordions get a small radius while staying document-like, not
+              // consumer-card-like.
+              borderRadius: '4px',
+              // MUI's Accordion has its own :first-of-type/:last-of-type radius rules
+              // (for stacked-accordion lists) that otherwise win over the line above —
+              // each phase here is a lone Accordion in its own row, so it matches both
+              // and would get flattened back to theme.shape.borderRadius (0). Re-declare
+              // both explicitly so all four corners actually get 4px.
+              '&:first-of-type': { borderTopLeftRadius: '4px', borderTopRightRadius: '4px' },
+              '&:last-of-type': { borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' },
+              overflow: 'hidden',
+              mb: 1,
+              flex: 1,
+              minWidth: 0,
+              '&:before': { display: 'none' },
+            }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 1 }}>
