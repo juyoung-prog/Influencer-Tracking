@@ -104,7 +104,7 @@ const InfluencerPanel = forwardRef(function InfluencerPanel(
       {error && (
         <Alert
           severity="error"
-          sx={{ borderRadius: 0 }}
+          sx={{ borderRadius: '4px' }}
           action={
             onRetry && (
               <Button color="inherit" size="small" onClick={onRetry}>
@@ -154,7 +154,19 @@ const InfluencerPanel = forwardRef(function InfluencerPanel(
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ mt: 1, border: '1px solid', borderColor: 'divider', borderBottom: 'none' }}>
+          <Box
+            sx={{
+              mt: 1,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderBottom: 'none',
+              // Bottom stays sharp — it has no border stroke of its own (the
+              // last row's own borderBottom closes it off), so only the top
+              // corners (where a real border edge is visible) get rounded.
+              borderRadius: '4px 4px 0 0',
+              overflow: 'hidden',
+            }}
+          >
             {(() => {
               const sections = [
                 {

@@ -144,7 +144,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
           {timeLabel}
         </Typography>
         {categoryLabel && (
-          <Typography variant="caption" sx={{ display: 'inline-block', color: 'text.secondary', border: '1px solid', borderColor: 'divider', borderRadius: 0.5, px: 0.5, lineHeight: 1.4, mt: 0.25, ml: 0.75 }}>
+          <Typography variant="caption" sx={{ display: 'inline-block', color: 'text.secondary', border: '1px solid', borderColor: 'divider', borderRadius: '4px', px: 0.5, lineHeight: 1.4, mt: 0.25, ml: 0.75 }}>
             {categoryLabel}
           </Typography>
         )}

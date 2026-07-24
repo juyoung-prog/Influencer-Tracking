@@ -76,7 +76,11 @@ export function SearchBar({
       display: 'flex',
       alignItems: 'center',
       height: currentSize.height,
-      borderRadius: 2,
+      // Explicit px string bypasses the theme's shape.borderRadius:0 multiplier
+      // (a bare number like 2 would resolve to 2 * 0 = 0px) — matches the
+      // 4px Input/Select radius used elsewhere (minimal variant overrides
+      // this back to 0 below, since it's a bottom-border-only style).
+      borderRadius: '4px',
       transition: 'all 0.2s ease',
     };
 

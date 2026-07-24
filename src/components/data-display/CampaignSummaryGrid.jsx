@@ -12,7 +12,10 @@ function StatCard({ label, value, sub, accent = false }) {
       sx={{
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: 1,
+        // Explicit px string bypasses the theme's shape.borderRadius:0 multiplier —
+        // matches AnalyticsDashboard's SectionCard radius so every card on the
+        // Analytics tab reads consistently.
+        borderRadius: '6px',
         p: 2.5,
         height: '100%',
       }}
@@ -42,7 +45,10 @@ function RateCard({ label, rate, sub }) {
       sx={{
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: 1,
+        // Explicit px string bypasses the theme's shape.borderRadius:0 multiplier —
+        // matches AnalyticsDashboard's SectionCard radius so every card on the
+        // Analytics tab reads consistently.
+        borderRadius: '6px',
         p: 2.5,
         height: '100%',
       }}

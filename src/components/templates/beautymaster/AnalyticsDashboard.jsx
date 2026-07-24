@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
@@ -18,9 +17,9 @@ import FunnelSummaryTable from '../../data-display/FunnelSummaryTable';
 import TierMetricsTable from '../../data-display/TierMetricsTable';
 import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
 
-function SectionHeader({ title, id, action }) {
+function SectionHeader({ title, action }) {
   return (
-    <Box id={id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
       <Typography
         variant="overline"
         color="text.secondary"
@@ -29,6 +28,28 @@ function SectionHeader({ title, id, action }) {
         {title}
       </Typography>
       {action}
+    </Box>
+  );
+}
+
+// Shared card chrome for every Analytics widget — gives each section a scannable,
+// independently-bounded module (matches the stat-card idiom CampaignSummaryGrid
+// already uses) instead of one long divider-separated report flow.
+function SectionCard({ children, sx }) {
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        // Explicit px string bypasses the theme's shape.borderRadius:0 multiplier
+        // (a bare number like 1 resolves to 1 * 0 = 0px) — Analytics containers
+        // get a small radius so each module reads as one analytical object.
+        borderRadius: '6px',
+        p: 3,
+        ...sx,
+      }}
+    >
+      {children}
     </Box>
   );
 }
@@ -134,93 +155,101 @@ function AnalyticsDashboard({ influencers = [], inviteCounts = {}, selectedStore
 
       <Box sx={{ p: 3 }}>
 
-        {/* ① Campaign Summary */}
-        <SectionHeader title="Campaign Summary" id="analytics-summary" />
-        {campaignStatus && (
-          <Typography variant="body2" sx={{ mb: 2, mt: -1, color: campaignStatus.color }}>
-            {campaignStatus.text}
-          </Typography>
-        )}
-        <CampaignSummaryGrid summary={summary} />
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* ② Conversion Funnel — bar chart or table, same underlying data */}
-        <SectionHeader
-          title="Conversion Funnel"
-          id="analytics-funnel"
-          action={
-            <ToggleButtonGroup
-              size="small"
-              value={funnelView}
-              exclusive
-              onChange={(e, val) => val && setFunnelView(val)}
-            >
-              <ToggleButton value="bar" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>Bars</ToggleButton>
-              <ToggleButton value="table" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>Table</ToggleButton>
-            </ToggleButtonGroup>
-          }
-        />
-        <Box sx={{ maxWidth: funnelView === 'bar' ? 600 : 900 }}>
-          {funnelView === 'bar'
-            ? <InfluencerFunnel funnel={summary.funnel} />
-            : <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />}
+        {/* ① Campaign Summary — each stat is already its own card (CampaignSummaryGrid),
+            so this group stays a plain header + card row, same as the refs' top stat-tile rows. */}
+        <Box id="analytics-summary" sx={{ mb: 5 }}>
+          <SectionHeader title="Campaign Summary" />
+          {campaignStatus && (
+            <Typography variant="body2" sx={{ mb: 2, mt: -1, color: campaignStatus.color }}>
+              {campaignStatus.text}
+            </Typography>
+          )}
+          <CampaignSummaryGrid summary={summary} />
         </Box>
 
-        {(hasPerformance || hasOpinions) && (
-          <>
-            <Divider sx={{ my: 4 }} />
+        {/* ② Conversion Funnel — bar chart or table, same underlying data */}
+        <Box id="analytics-funnel" sx={{ mb: 5 }}>
+          <SectionCard sx={{ maxWidth: 700 }}>
+            <SectionHeader
+              title="Conversion Funnel"
+              action={
+                <ToggleButtonGroup
+                  size="small"
+                  value={funnelView}
+                  exclusive
+                  onChange={(e, val) => val && setFunnelView(val)}
+                >
+                  {/* borderRadius here only rounds the outer edges — ToggleButtonGroup's
+                      own CSS zeroes the inner connecting corners automatically. */}
+                  <ToggleButton value="bar" sx={{ px: 1.5, py: 0.25, fontSize: 12, borderRadius: '4px' }}>Bars</ToggleButton>
+                  <ToggleButton value="table" sx={{ px: 1.5, py: 0.25, fontSize: 12, borderRadius: '4px' }}>Table</ToggleButton>
+                </ToggleButtonGroup>
+              }
+            />
+            {funnelView === 'bar'
+              ? <InfluencerFunnel funnel={summary.funnel} />
+              : <FunnelSummaryTable funnel={summary.funnel} byTier={summary.byTier} />}
+          </SectionCard>
+        </Box>
 
-            {/* ③ Top Influencers + Opinion */}
-            <Box id="analytics-performance">
-              <Grid container spacing={3}>
-                {hasPerformance && (
-                  <Grid size={{ xs: 12, md: hasOpinions ? 8 : 12 }}>
+        {/* ③ Top Influencers + Opinion */}
+        {(hasPerformance || hasOpinions) && (
+          <Box id="analytics-performance" sx={{ mb: 5 }}>
+            <Grid container spacing={3}>
+              {hasPerformance && (
+                <Grid size={{ xs: 12, md: hasOpinions ? 8 : 12 }}>
+                  <SectionCard sx={{ height: '100%' }}>
                     <SectionHeader title="Top Influencers by Views" />
                     <TopInfluencersTable influencers={summary.topByViews} />
-                  </Grid>
-                )}
-                {hasOpinions && (
-                  <Grid size={{ xs: 12, md: hasPerformance ? 4 : 12 }}>
+                  </SectionCard>
+                </Grid>
+              )}
+              {hasOpinions && (
+                <Grid size={{ xs: 12, md: hasPerformance ? 4 : 12 }}>
+                  <SectionCard sx={{ height: '100%' }}>
                     <SectionHeader title="Opinion Breakdown" />
                     <OpinionBreakdown counts={summary.opinionCounts} />
-                  </Grid>
-                )}
-              </Grid>
-            </Box>
-          </>
+                  </SectionCard>
+                </Grid>
+              )}
+            </Grid>
+          </Box>
         )}
 
-        <Divider sx={{ my: 4 }} />
-
         {/* ④ Platform + Category */}
-        <Box id="analytics-breakdown">
+        <Box id="analytics-breakdown" sx={{ mb: 5 }}>
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <SectionHeader title="Platform Breakdown" />
-              <PlatformBreakdown byPlatform={summary.byPlatform} />
+              <SectionCard sx={{ height: '100%' }}>
+                <SectionHeader title="Platform Breakdown" />
+                <PlatformBreakdown byPlatform={summary.byPlatform} />
+              </SectionCard>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <SectionHeader title="Category Breakdown" />
-              <CategoryBreakdown byCategory={summary.byCategory} />
+              <SectionCard sx={{ height: '100%' }}>
+                <SectionHeader title="Category Breakdown" />
+                <CategoryBreakdown byCategory={summary.byCategory} />
+              </SectionCard>
             </Grid>
           </Grid>
         </Box>
-
-        <Divider sx={{ my: 4 }} />
 
         {/* ⑤ Tier Metrics + Store — single tier table (replaces the old column-form
             Tier Comparison, which duplicated these same numbers in a second layout) */}
         <Box id="analytics-tier">
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: hasStores ? 6 : 12 }}>
-              <SectionHeader title="Tier Metrics" />
-              <TierMetricsTable byTier={summary.byTier} />
+              <SectionCard sx={{ height: '100%' }}>
+                <SectionHeader title="Tier Metrics" />
+                <TierMetricsTable byTier={summary.byTier} />
+              </SectionCard>
             </Grid>
             {hasStores && (
               <Grid size={{ xs: 12, md: 6 }}>
-                <SectionHeader title="Store Breakdown" />
-                <StoreBreakdown byStore={summary.byStore} />
+                <SectionCard sx={{ height: '100%' }}>
+                  <SectionHeader title="Store Breakdown" />
+                  <StoreBreakdown byStore={summary.byStore} />
+                </SectionCard>
               </Grid>
             )}
           </Grid>
