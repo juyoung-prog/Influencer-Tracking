@@ -11,10 +11,12 @@ import InfluencerDrawer from '../../components/overlay-feedback/InfluencerDrawer
 import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsModal';
 import DashboardHeader from '../../components/templates/beautymaster/DashboardHeader';
 import InfluencerPanel from '../../components/templates/beautymaster/InfluencerPanel';
+import MentionsPanel from '../../components/templates/beautymaster/MentionsPanel';
 import SchedulePanel from '../../components/templates/beautymaster/SchedulePanel';
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
 import { deriveKpiSummary } from '../../data/beautymaster/schema.js';
+import { MOCK_MENTIONS } from '../../data/beautymaster/mentions.js';
 import { findSheetViewUrl } from '../../utils/googleSheetUrl.js';
 
 // ─── Mock data (Storybook / ComponentGallery only) ────────────────────────────
@@ -223,7 +225,7 @@ function BeautymasterDashboard() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <DashboardHeader
-        kpi={activeTab === 1 ? analyticsKpi : filteredKpi}
+        kpi={activeTab === 2 ? analyticsKpi : filteredKpi}
         isSyncing={isSyncing}
         lastSyncedAt={lastSyncedAt}
         onRefresh={refresh}
@@ -234,10 +236,11 @@ function BeautymasterDashboard() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 40 }}>
           <Tab label="Operations" sx={{ minHeight: 40, fontSize: 13 }} />
+          <Tab label="Mentions" sx={{ minHeight: 40, fontSize: 13 }} />
           <Tab label="Analytics" sx={{ minHeight: 40, fontSize: 13 }} />
           <Tab label="Workflow" sx={{ minHeight: 40, fontSize: 13 }} />
         </Tabs>
-        {(activeTab === 1 || activeTab === 2) && stores.length > 0 && (
+        {(activeTab === 2 || activeTab === 3) && stores.length > 0 && (
           <Box sx={{ ml: 'auto', pr: 2 }}>
             <FormControl size="small">
               <Select
@@ -279,12 +282,20 @@ function BeautymasterDashboard() {
       )}
 
       {activeTab === 1 && (
+        // 시안(mockup): 수집 파이프라인 연결 전까지 MOCK_MENTIONS로 렌더링
+        <MentionsPanel
+          mentions={MOCK_MENTIONS}
+          lastCrawledAt={MOCK_MENTIONS.reduce((max, m) => (m.capturedAt > max ? m.capturedAt : max), MOCK_MENTIONS[0]?.capturedAt ?? null)}
+        />
+      )}
+
+      {activeTab === 2 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
           <AnalyticsDashboard influencers={influencers} inviteCounts={inviteCounts} selectedStore={analyticsStore} />
         </Box>
       )}
 
-      {activeTab === 2 && (
+      {activeTab === 3 && (
         <Box sx={{ flex: 1, overflow: 'auto' }}>
           <WorkflowGuide
             selectedStore={analyticsStore}

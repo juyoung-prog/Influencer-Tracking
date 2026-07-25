@@ -143,6 +143,7 @@ Vibe Dictionary 텍소노미 v0.4 기반 분류. 번호는 텍소노미 카테�
 - CategoryBreakdown: 카테고리(General/K-Beauty/Specific)별 성과 비교 테이블. Count 옆 Invited 컬럼 (`components/data-display/CategoryBreakdown.jsx`)
 - FunnelSummaryTable: InfluencerFunnel과 같은 데이터의 표 형태 버전. Stage/Count/% of Invited 3컬럼, Invited 행 아래 Tier별 초대 인원 caption. AnalyticsDashboard에서 InfluencerFunnel과 토글로 전환(둘 다 항상 렌더링하지 않음) (`components/data-display/FunnelSummaryTable.jsx`)
 - TierMetricsTable: Tier가 행인 통합 지표 테이블. Invited/Agreement(%)/Visited(%)/Scheduled/Content(%), Total 행은 raw count 합산 후 재계산. 예전 컬럼형 TierComparison을 대체함(삭제됨, 중복 뷰 정리) (`components/data-display/TierMetricsTable.jsx`)
+- MentionListRow: 멘션(SNS 언급) 리스트 행. 핸들+수집경로 / 팔로워·ER·좋아요(tabular-nums, xs에서 숨김) / 게시일 / 상태 라벨 + 게시물 새탭 열기. 익명(unverified) 행은 ? 아바타 + 캡션 발췌 + Approve/Dismiss 버튼, below-threshold 행은 opacity 뮤트. 협업 인플루언서 매칭 시 secondary outline "Collab · 이름" 태그 (`components/data-display/MentionListRow.jsx`)
 
 ### Section / 섹션
 
@@ -150,6 +151,7 @@ Vibe Dictionary 텍소노미 v0.4 기반 분류. 번호는 텍소노미 카테�
 - SchedulePanel: 왼쪽 패널. Visit Schedule 레이블 + ScheduleTimeline. forwardRef(스크롤 싱크) (`components/templates/beautymaster/SchedulePanel.jsx`)
 - InfluencerPanel: 오른쪽 패널(스마트). SearchBar + FilterBar + CategoryTab + 섹션별 InfluencerListRow 목록. 탭·필터·검색 상태 소유. forwardRef(스크롤 싱크) (`components/templates/beautymaster/InfluencerPanel.jsx`)
 - AnalyticsDashboard: Analytics 탭 리포트 뷰. Funnel/Tier/Store/Category breakdown 조합, `inviteCounts` prop으로 초대 인원 데이터를 store 필터에 맞춰 반영. sticky 상단바(선택된 store chip + 섹션 점프 링크), Conversion Funnel은 바차트/표 토글. Campaign Summary를 제외한 각 섹션(Funnel/Top Influencers/Opinion/Platform/Category/Tier/Store)은 내부 `SectionCard`(outlined, 1px divider border, radius 1)로 감싸 독립된 카드 단위로 스캔되도록 함 — Divider로 이어붙인 리포트 흐름 대신 위젯 그리드 형태 (`components/templates/beautymaster/AnalyticsDashboard.jsx`)
+- MentionsPanel: Mentions 탭 콘텐츠(스마트). 일일 크롤로 수집된 영어 키워드 멘션 트래킹 시안. KPI 스트립(New Today·Qualified·Review Queue(warning)·Contacted·Avg ER) + 마지막 크롤 시각 캡션, SearchBar + 플랫폼/상태 Chip 필터, REVIEW QUEUE(수동 확인)/QUALIFIED(1만+ & ER 통과)/BELOW THRESHOLD 3개 섹션 리스트(MentionListRow). 상수·mock 데이터는 `data/beautymaster/mentions.js` (파이프라인 연결 전까지 MOCK_MENTIONS 사용) (`components/templates/beautymaster/MentionsPanel.jsx`)
 - WorkflowGuide: Workflow 탭 콘텐츠. 인플루언서 업무 7단계를 MUI Accordion으로 표시(01 Prepare만 기본 open, 번호 마커+연결선으로 순서 강조), 관련 파일(grey.100 filled 태그)·외부 툴(outline 태그)·Store Manager handoff(secondary 태그) 구분 — 파일 태그는 `resolveFileHref`로 Files & Systems와 같은 링크를 공유해 링크 있으면 그 자리에서 바로 클릭 가능. Divider+REFERENCE 라벨로 구분한 하단 Files & Systems 그리드는 `selectedStore`/`storeDocs`/`influencerTrackingListUrl` prop으로 실제 링크 렌더링 — Tier1/2 Consent Form·Tier1/2 Influencer Tracking List (manager)는 store별로 다른 값(Links 시트 탭에서 polling), Influencer Tracking List는 스토어 무관 고정 링크. 스토어 미선택/링크 미입력 시 클릭 대신 안내 문구 표시. success/warning/error 미사용 — 상태 화면이 아닌 참조 문서이기 때문 (`components/templates/beautymaster/WorkflowGuide.jsx`)
 - parseStoreDocsCsv: Links 탭 CSV 파서. Store별 Tier1/Tier2 Consent Form URL·Tier1/Tier2 Influencer List URL을 `{ [store]: {...} }` 형태로 반환 (`utils/parseStoreDocsCsv.js`)
 
