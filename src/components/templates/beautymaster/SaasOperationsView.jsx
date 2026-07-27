@@ -556,8 +556,9 @@ function SaasOperationsView({
             </Typography>
           </Box>
 
-          {/* 시트 상태 탭 — 툴바와 테이블 사이의 2차 내비게이션.
-              pill/카드 없이 텍스트 + 2px 하단 인디케이터로만 표현한다. */}
+          {/* 시트 상태 탭 — 필터 컨트롤과 결과 사이의 2차 내비게이션.
+              pill/카드 없이 텍스트 + 2px 하단 인디케이터로만 표현한다.
+              위쪽 여백(10px)으로 필터 툴바와 띄워 세 층(필터 → 상태 → 결과)을 갈라 보이게 한다. */}
           <Box
             sx={{
               flexShrink: 0,
@@ -565,6 +566,7 @@ function SaasOperationsView({
               alignItems: 'center',
               gap: 2.5,
               px: 3,
+              mt: 1.25,
               borderBottom: '1px solid',
               borderColor: 'divider',
             }}
