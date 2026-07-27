@@ -20,13 +20,27 @@ const NAV_ITEMS = [
   { key: 'workflow', label: 'Workflow', Icon: RouteOutlinedIcon },
 ];
 
+/** 접힌 레일 폭 — 아이콘만 보인다 */
+const RAIL_WIDTH = 56;
+/** hover/focus 시 펼쳐지는 폭 */
+const EXPANDED_WIDTH = 248;
+/**
+ * 항목 내용은 항상 펼친 폭 기준으로 배치하고 접힌 상태에서는 잘라낸다.
+ * 폭 전환 중에 라벨이 줄바꿈되거나 카운트가 튀는 걸 막기 위함이다.
+ */
+const ITEM_WIDTH = EXPANDED_WIDTH - 20;
+
 /**
  * SaasShell component
  *
- * flat-SaaS 시안의 셸 — 좌측 고정 사이드바(192px) + 유동 본문.
+ * flat-SaaS 시안의 셸 — 좌측 사이드바 + 유동 본문.
+ * 사이드바는 기본이 아이콘만 보이는 56px 레일이고, hover하거나 키보드 포커스가
+ * 안으로 들어오면 248px로 펼쳐지며 라벨이 페이드인된다(Meta Ads Manager 방식).
+ * 펼침은 본문 **위에 겹쳐서** 일어난다 — absolute로 띄우고 레일 폭만큼 spacer를
+ * 흐름에 남겨두므로 본문 폭·위치는 접힘/펼침과 무관하게 고정이다.
+ * md 미만에서는 레일과 spacer를 모두 숨긴다(기존과 동일).
  * 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS의 공간 포화 정책).
  * 스크롤은 셸이 아니라 각 뷰가 소유한다(본문은 overflow hidden + flex column).
- * 네비는 기존 대시보드 탭 구성(Operations/Analytics/Workflow)을 그대로 따르고,
  * 상단 header에는 global utility controls(sync status, refresh, settings)가 있다.
  *
  * Props:
@@ -60,6 +74,9 @@ function SaasShell({
         display: 'flex',
         height: '100%',
         minHeight: 0,
+        // 펼친 사이드바가 본문 위에 겹치도록 기준점을 잡고, z-index를 셸 안으로 가둔다
+        position: 'relative',
+        isolation: 'isolate',
         backgroundColor: 'background.paper',
         fontFamily: SAAS_FONT,
         '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiTableCell-root, & .MuiInputBase-root': {
@@ -68,24 +85,52 @@ function SaasShell({
         ...sx,
       }}
     >
-      {/* Sidebar — 고정 192px, md 미만 숨김 */}
+      {/* 레일 자리 확보 — 사이드바가 펼쳐져도 본문이 밀리지 않게 흐름에 폭만 남긴다 */}
+      <Box aria-hidden sx={{ width: RAIL_WIDTH, flexShrink: 0, display: { xs: 'none', md: 'block' } }} />
+
+      {/* Sidebar — 기본 아이콘 레일, hover/포커스 시 본문 위로 펼쳐짐. md 미만 숨김 */}
       <Box
         component="nav"
-        sx={{
-          width: 192,
-          flexShrink: 0,
+        sx={theme => ({
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          width: RAIL_WIDTH,
+          zIndex: theme.zIndex.appBar,
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
+          overflow: 'hidden',
           borderRight: '1px solid',
           borderColor: 'divider',
           backgroundColor: 'grey.50',
           px: 1.25,
           py: 1.75,
-        }}
+          transition: theme.transitions.create(
+            ['width', 'background-color', 'box-shadow'],
+            { duration: 180, easing: theme.transitions.easing.easeOut },
+          ),
+          '& .saas-nav-label': {
+            opacity: 0,
+            whiteSpace: 'nowrap',
+            transition: theme.transitions.create('opacity', { duration: 150 }),
+          },
+          '&:hover, &:focus-within': {
+            width: EXPANDED_WIDTH,
+            backgroundColor: 'background.paper',
+            boxShadow: '4px 0 12px rgba(0, 0, 0, 0.04)',
+            '& .saas-nav-label': { opacity: 1 },
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            transition: 'none',
+            '& .saas-nav-label': { transition: 'none' },
+          },
+        })}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, mb: 2.25 }}>
+        {/* 로고 — 좌측 여백을 아이콘과 맞춰 접힘/펼침에서 흔들리지 않게 한다 */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.125, mb: 2.25, width: ITEM_WIDTH, flexShrink: 0 }}>
           <Box sx={{ width: 18, height: 18, borderRadius: '5px', backgroundColor: 'primary.main', flexShrink: 0 }} />
-          <Typography sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          <Typography className="saas-nav-label" sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>
             BeautyMaster
           </Typography>
         </Box>
@@ -95,29 +140,40 @@ function SaasShell({
           return (
             <Box
               key={key}
+              component="button"
+              type="button"
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => onNavigate?.(key)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.25,
-                px: 1,
+                width: ITEM_WIDTH,
+                flexShrink: 0,
+                px: 1.25,
                 py: 0.75,
                 mb: 0.25,
                 borderRadius: '6px',
                 cursor: 'pointer',
-                backgroundColor: isActive ? 'background.paper' : 'transparent',
+                font: 'inherit',
+                textAlign: 'left',
+                // 펼쳤을 때 배경이 white가 되므로 active는 white 대신 grey.100으로 잡는다
+                backgroundColor: isActive ? 'grey.100' : 'transparent',
                 border: '1px solid',
                 borderColor: isActive ? 'divider' : 'transparent',
                 color: isActive ? 'text.primary' : 'text.secondary',
-                '&:hover': { backgroundColor: isActive ? 'background.paper' : 'grey.100' },
+                '&:hover': { backgroundColor: isActive ? 'grey.100' : 'grey.50' },
               }}
             >
-              <Icon sx={{ fontSize: 16 }} />
-              <Typography sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500, lineHeight: 1 }}>
+              <Icon sx={{ fontSize: 16, flexShrink: 0 }} />
+              <Typography className="saas-nav-label" sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500, lineHeight: 1 }}>
                 {label}
               </Typography>
               {key === 'operations' && influencerCount > 0 && (
-                <Typography sx={{ ml: 'auto', fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+                <Typography
+                  className="saas-nav-label"
+                  sx={{ ml: 'auto', fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
+                >
                   {influencerCount}
                 </Typography>
               )}
