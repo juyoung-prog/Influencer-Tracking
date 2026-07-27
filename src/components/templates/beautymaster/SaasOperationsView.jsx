@@ -168,10 +168,14 @@ function SaasOperationsView({
   const derivedStores = useMemo(() => deriveStores(influencers), [influencers]);
   const storeOptions = stores ?? derivedStores;
 
-  const kpi = useMemo(() => deriveKpiSummary(influencers), [influencers]);
-
-  const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+  /**
+   * KPI 모수 — 스토어/플랫폼/티어/카테고리까지만 적용한다.
+   * 검색어와 단계 필터는 "무엇을 보느냐"가 아니라 "지금 화면에서 어디를 찾느냐"라
+   * 모수에서 뺀다. 기존 대시보드의 filteredKpi와 같은 기준이다.
+   * (단계 필터를 넣으면 Needs attention의 Review를 누르는 순간 방금 본 경보 수가
+   *  바뀌어버려 오히려 읽기 어려워진다.)
+   */
+  const scoped = useMemo(() => {
     const { platform, tier, category } = activeFilters;
     return influencers.filter(inf => {
       if (selectedStore !== ALL_STORES && inf.store !== selectedStore) return false;
@@ -181,10 +185,17 @@ function SaasOperationsView({
       }
       if (tier && inf.tier !== tier) return false;
       if (category && inf.category !== category) return false;
-      if (q && !inf.fullName.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [influencers, selectedStore, activeFilters, searchQuery]);
+  }, [influencers, selectedStore, activeFilters]);
+
+  const kpi = useMemo(() => deriveKpiSummary(scoped), [scoped]);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return scoped;
+    return scoped.filter(inf => inf.fullName.toLowerCase().includes(q));
+  }, [scoped, searchQuery]);
 
   const sections = useMemo(() => {
     const byTime = (a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0);
