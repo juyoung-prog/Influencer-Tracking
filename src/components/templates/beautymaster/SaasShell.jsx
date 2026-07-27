@@ -1,6 +1,4 @@
 import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
@@ -29,6 +27,64 @@ const EXPANDED_WIDTH = 248;
  * 폭 전환 중에 라벨이 줄바꿈되거나 카운트가 튀는 걸 막기 위함이다.
  */
 const ITEM_WIDTH = EXPANDED_WIDTH - 20;
+/** 펼쳤을 때만 자리를 차지하는 sync 캡션 높이 — 접힘 상태에서 빈 틈이 생기지 않게 0으로 접는다 */
+const SYNC_ROW_HEIGHT = 22;
+
+/**
+ * NavRow — 사이드바의 한 줄 (아이콘 + 라벨).
+ *
+ * 네비 항목과 하단 유틸리티가 같은 아이콘 크기·행 높이를 쓰도록 공유한다.
+ * 접힘 상태에서는 라벨이 nav의 overflow로 잘려 아이콘만 보인다.
+ * `rest`로 component/href/onClick 등을 그대로 넘겨 button·anchor 어느 쪽으로도 쓴다.
+ *
+ * Props:
+ * @param {elementType} Icon - 좌측 아이콘 컴포넌트 [Required]
+ * @param {string} label - 펼쳤을 때 보이는 라벨 [Required]
+ * @param {boolean} isActive - 활성 상태 여부 [Optional, 기본값: false]
+ * @param {node} trailing - 라벨 우측에 붙일 요소(카운트 등) [Optional, 기본값: null]
+ *
+ * Example usage:
+ * <NavRow component="button" type="button" onClick={onRefresh} Icon={RefreshOutlinedIcon} label="Refresh" />
+ */
+function NavRow(props) {
+  // Icon은 JSX 엘리먼트명으로만 쓰인다. 이 저장소 eslint에는 eslint-plugin-react가 없어
+  // 인자 위치에서 구조분해하면 미사용으로 잡히므로, 변수로 받아 varsIgnorePattern(^[A-Z_])에 맡긴다.
+  const { Icon, label, isActive = false, trailing = null, ...rest } = props;
+
+  return (
+    <Box
+      {...rest}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        width: ITEM_WIDTH,
+        flexShrink: 0,
+        px: 1.25,
+        py: 0.75,
+        mb: 0.25,
+        borderRadius: '6px',
+        cursor: 'pointer',
+        font: 'inherit',
+        textAlign: 'left',
+        textDecoration: 'none',
+        // 펼치면 배경이 white가 되므로 active는 white 대신 grey.100으로 잡는다
+        backgroundColor: isActive ? 'grey.100' : 'transparent',
+        border: '1px solid',
+        borderColor: isActive ? 'divider' : 'transparent',
+        color: isActive ? 'text.primary' : 'text.secondary',
+        // action.hover는 반투명이라 접힘(grey.50)·펼침(white) 배경 양쪽에서 모두 보인다
+        '&:hover': { backgroundColor: isActive ? 'grey.100' : 'action.hover' },
+      }}
+    >
+      <Icon sx={{ fontSize: 16, flexShrink: 0 }} />
+      <Typography className="saas-nav-label" sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500, lineHeight: 1 }}>
+        {label}
+      </Typography>
+      {trailing}
+    </Box>
+  );
+}
 
 /**
  * SaasShell component
@@ -39,18 +95,22 @@ const ITEM_WIDTH = EXPANDED_WIDTH - 20;
  * 펼침은 본문 **위에 겹쳐서** 일어난다 — absolute로 띄우고 레일 폭만큼 spacer를
  * 흐름에 남겨두므로 본문 폭·위치는 접힘/펼침과 무관하게 고정이다.
  * md 미만에서는 레일과 spacer를 모두 숨긴다(기존과 동일).
+ *
+ * 전역 유틸리티(sync 시각 / Refresh / Open Google Sheet / Settings)는 상단 헤더가
+ * 아니라 사이드바 하단에 있다 — 본문 상단을 비워 목록·표에 세로 공간을 더 준다.
+ * 유틸리티는 네비와 divider로 나뉘고, 네비 목록이 남는 높이를 차지해 항상 하단에 붙는다.
+ *
  * 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS의 공간 포화 정책).
  * 스크롤은 셸이 아니라 각 뷰가 소유한다(본문은 overflow hidden + flex column).
- * 상단 header에는 global utility controls(sync status, refresh, settings)가 있다.
  *
  * Props:
  * @param {string} activeNav - 활성 네비 키 (operations|analytics|workflow) [Required]
  * @param {number} influencerCount - Operations 항목 옆 카운트 [Optional, 기본값: 0]
- * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (상단 header에 표시) [Optional, 기본값: null]
+ * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (사이드바 하단, 펼침 시 표시) [Optional, 기본값: null]
  * @param {function} onNavigate - 네비 항목 클릭 핸들러 (key) => void [Optional]
- * @param {function} onRefresh - Refresh 아이콘 클릭 핸들러 [Optional]
- * @param {string} sheetUrl - Google Sheet 원본 링크. 없으면 해당 아이콘을 숨긴다 [Optional, 기본값: '']
- * @param {function} onOpenSettings - 설정 아이콘 클릭 핸들러 [Optional]
+ * @param {function} onRefresh - Refresh 클릭 핸들러 [Optional]
+ * @param {string} sheetUrl - Google Sheet 원본 링크. 없으면 해당 줄을 숨긴다 [Optional, 기본값: '']
+ * @param {function} onOpenSettings - Settings 클릭 핸들러 [Optional]
  * @param {node} children - 본문 뷰 [Required]
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
  *
@@ -115,15 +175,24 @@ function SaasShell({
             whiteSpace: 'nowrap',
             transition: theme.transitions.create('opacity', { duration: 150 }),
           },
+          // sync 캡션은 접힘 상태에서 높이까지 0으로 접어 유틸리티 위에 빈 틈을 남기지 않는다
+          '& .saas-nav-sync': {
+            opacity: 0,
+            height: 0,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            transition: theme.transitions.create(['opacity', 'height'], { duration: 150 }),
+          },
           '&:hover, &:focus-within': {
             width: EXPANDED_WIDTH,
             backgroundColor: 'background.paper',
             boxShadow: '4px 0 12px rgba(0, 0, 0, 0.04)',
             '& .saas-nav-label': { opacity: 1 },
+            '& .saas-nav-sync': { opacity: 1, height: SYNC_ROW_HEIGHT },
           },
           '@media (prefers-reduced-motion: reduce)': {
             transition: 'none',
-            '& .saas-nav-label': { transition: 'none' },
+            '& .saas-nav-label, & .saas-nav-sync': { transition: 'none' },
           },
         })}
       >
@@ -134,52 +203,67 @@ function SaasShell({
             BeautyMaster
           </Typography>
         </Box>
-        {NAV_ITEMS.map(item => {
-          const { key, label, Icon } = item;
-          const isActive = key === activeNav;
-          return (
-            <Box
-              key={key}
-              component="button"
-              type="button"
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => onNavigate?.(key)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
-                width: ITEM_WIDTH,
-                flexShrink: 0,
-                px: 1.25,
-                py: 0.75,
-                mb: 0.25,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                font: 'inherit',
-                textAlign: 'left',
-                // 펼쳤을 때 배경이 white가 되므로 active는 white 대신 grey.100으로 잡는다
-                backgroundColor: isActive ? 'grey.100' : 'transparent',
-                border: '1px solid',
-                borderColor: isActive ? 'divider' : 'transparent',
-                color: isActive ? 'text.primary' : 'text.secondary',
-                '&:hover': { backgroundColor: isActive ? 'grey.100' : 'grey.50' },
-              }}
-            >
-              <Icon sx={{ fontSize: 16, flexShrink: 0 }} />
-              <Typography className="saas-nav-label" sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500, lineHeight: 1 }}>
-                {label}
-              </Typography>
-              {key === 'operations' && influencerCount > 0 && (
-                <Typography
-                  className="saas-nav-label"
-                  sx={{ ml: 'auto', fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {influencerCount}
-                </Typography>
-              )}
-            </Box>
-          );
-        })}
+
+        {/* 네비 — 남는 높이를 차지해 아래 유틸리티를 하단에 붙인다 */}
+        <Box sx={{ flex: 1, minHeight: 0 }}>
+          {NAV_ITEMS.map(({ key, label, Icon }) => {
+            const isActive = key === activeNav;
+            return (
+              <NavRow
+                key={key}
+                component="button"
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => onNavigate?.(key)}
+                Icon={Icon}
+                label={label}
+                isActive={isActive}
+                trailing={key === 'operations' && influencerCount > 0 ? (
+                  <Typography
+                    className="saas-nav-label"
+                    sx={{ ml: 'auto', fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {influencerCount}
+                  </Typography>
+                ) : null}
+              />
+            );
+          })}
+        </Box>
+
+        {/* 전역 유틸리티 — 네비와 divider로 분리, 항상 사이드바 하단 */}
+        <Box sx={{ flexShrink: 0, width: ITEM_WIDTH, pt: 1, mt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Typography
+            className="saas-nav-sync"
+            sx={{ display: 'block', px: 1.25, fontSize: 11, lineHeight: `${SYNC_ROW_HEIGHT}px`, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
+          >
+            Last synced {lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+          </Typography>
+          <NavRow
+            component="button"
+            type="button"
+            onClick={onRefresh}
+            Icon={RefreshOutlinedIcon}
+            label="Refresh"
+          />
+          {sheetUrl && (
+            <NavRow
+              component="a"
+              href={sheetUrl}
+              target="_blank"
+              rel="noopener"
+              Icon={OpenInNewOutlinedIcon}
+              label="Open Google Sheet"
+            />
+          )}
+          <NavRow
+            component="button"
+            type="button"
+            onClick={onOpenSettings}
+            Icon={SettingsOutlinedIcon}
+            label="Settings"
+          />
+        </Box>
       </Box>
 
       {/* Main — 중앙 정렬 없이 프레임 가득. 스크롤은 각 뷰가 소유 */}
@@ -187,48 +271,6 @@ function SaasShell({
         component="main"
         sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
-        {/* Global Header — Last synced, Refresh, Dashboard, Settings */}
-        <Box
-          sx={{
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 2,
-            px: 3,
-            py: 1.5,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Typography sx={{ fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-            Last synced {lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-          </Typography>
-          <Tooltip title="Refresh">
-            <IconButton size="small" onClick={onRefresh} sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}>
-              <RefreshOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-          {sheetUrl && (
-            <Tooltip title="Open Google Sheet">
-              <IconButton
-                size="small"
-                component="a"
-                href={sheetUrl}
-                target="_blank"
-                rel="noopener"
-                sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}
-              >
-                <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-          )}
-          <Tooltip title="Sheet settings">
-            <IconButton size="small" onClick={onOpenSettings} sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}>
-              <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
         {children}
       </Box>
     </Box>
