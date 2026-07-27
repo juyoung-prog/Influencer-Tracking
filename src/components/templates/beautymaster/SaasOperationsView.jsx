@@ -74,6 +74,13 @@ function formatContact(inf) {
   return `${reason} · ${status}`;
 }
 
+/**
+ * Visit schedule 레일의 시간 컬럼 폭.
+ * "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가 달라지고
+ * 이름 컬럼 시작점이 행마다 어긋난다.
+ */
+const TIME_COL_WIDTH = 62;
+
 /** 좌측 레일용 날짜 그룹 — Today / 날짜별 / Past */
 function buildScheduleGroups(influencers) {
   const today = { key: 'today', label: 'Today', items: [] };
@@ -370,7 +377,7 @@ function SaasOperationsView({
                 <Box key={grp.key} sx={{ mb: 1 }}>
                   {/* 라벨과 인원수를 붙여 하나의 정보 묶음으로 읽히게 한다.
                       우측 정렬하면 둘 사이가 멀어져 관계가 끊긴다. */}
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.875, px: 1, pt: 0.75, pb: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.125, px: 1, pt: 0.75, pb: 0.5 }}>
                     <Typography
                       sx={{
                         fontSize: 11,
@@ -408,8 +415,17 @@ function SaasOperationsView({
                         '&:hover': { backgroundColor: 'grey.50' },
                       }}
                     >
+                      {/* 고정 폭 + nowrap — "11:00 AM"이 두 줄로 접히면 행 높이가 들쭉날쭉해지고
+                          이름 시작 위치도 어긋난다. 폭은 가장 긴 "12:00 PM" 기준. */}
                       <Typography
-                        sx={{ width: 52, flexShrink: 0, fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                        sx={{
+                          width: TIME_COL_WIDTH,
+                          flexShrink: 0,
+                          whiteSpace: 'nowrap',
+                          fontSize: 12,
+                          color: 'text.secondary',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
                       >
                         {formatTime(inf.scheduledTime)}
                       </Typography>
