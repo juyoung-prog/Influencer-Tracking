@@ -26,7 +26,12 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // 대문자로 시작하는 식별자는 컴포넌트로 보고 미사용 검사에서 제외한다.
+      // 이 설정에는 eslint-plugin-react가 없어 JSX 안에서만 쓰이는 식별자
+      // (<Story />, <Icon />)를 "사용됨"으로 인식하지 못하기 때문 —
+      // args까지 같은 규칙을 적용해야 Storybook 데코레이터와 컴포넌트 prop이
+      // 오탐으로 잡히지 않는다.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
     },
   },
 ])

@@ -46,11 +46,7 @@ const SYNC_ROW_HEIGHT = 22;
  * Example usage:
  * <NavRow component="button" type="button" onClick={onRefresh} Icon={RefreshOutlinedIcon} label="Refresh" />
  */
-function NavRow(props) {
-  // Icon은 JSX 엘리먼트명으로만 쓰인다. 이 저장소 eslint에는 eslint-plugin-react가 없어
-  // 인자 위치에서 구조분해하면 미사용으로 잡히므로, 변수로 받아 varsIgnorePattern(^[A-Z_])에 맡긴다.
-  const { Icon, label, isActive = false, trailing = null, ...rest } = props;
-
+function NavRow({ Icon, label, isActive = false, trailing = null, ...rest }) {
   return (
     <Box
       {...rest}
