@@ -14,6 +14,7 @@ import TextField from '@mui/material/TextField';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import SaasKpiItem from './SaasKpiItem';
 import SaasStoreSelect from './SaasStoreSelect';
@@ -161,6 +162,11 @@ function SaasOperationsView({
 }) {
   /** 검색어·단계는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
   const [stageFilter, setStageFilter] = useState('all');
+  /**
+   * 접힌 섹션 키. Action required만 펼친 채로 시작한다 — 손댈 게 있는 쪽이 먼저 보여야 하고,
+   * 긴 섹션을 접어 아래 섹션으로 바로 갈 수 있어야 한다.
+   */
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'completed']));
   const [searchQuery, setSearchQuery] = useState('');
   const [internalFilters, setInternalFilters] = useState(DEFAULT_INFLUENCER_FILTERS);
 
@@ -199,6 +205,13 @@ function SaasOperationsView({
   }, [influencers, selectedStore, activeFilters]);
 
   const kpi = useMemo(() => deriveKpiSummary(scoped), [scoped]);
+
+  const toggleSection = key => setCollapsedSections(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -615,19 +628,49 @@ function SaasOperationsView({
                     </TableCell>
                   </TableRow>
                 )}
-                {!showSkeleton && sections.map(section => [
+                {!showSkeleton && sections.map(section => {
+                const isCollapsed = collapsedSections.has(section.key);
+                return [
                   <TableRow key={`${section.key}-head`}>
+                    {/* 셀 자체는 패딩 0 — 헤더 전체가 버튼이라 hover 배경이 행 끝까지 닿아야 한다 */}
                     <TableCell
                       colSpan={6}
                       sx={{
                         borderColor: 'divider',
                         backgroundColor: 'grey.50',
-                        py: 0.625,
-                        pl: 3,
-                        pr: 3,
+                        p: 0,
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={() => toggleSection(section.key)}
+                        aria-expanded={!isCollapsed}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          width: '100%',
+                          px: 3,
+                          py: 0.625,
+                          border: 'none',
+                          backgroundColor: 'transparent',
+                          font: 'inherit',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          '&:hover': { backgroundColor: 'action.hover' },
+                        }}
+                      >
+                        <ChevronRightIcon
+                          sx={theme => ({
+                            fontSize: 14,
+                            flexShrink: 0,
+                            color: 'text.disabled',
+                            transform: isCollapsed ? 'none' : 'rotate(90deg)',
+                            transition: theme.transitions.create('transform', { duration: 150 }),
+                            '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+                          })}
+                        />
                         <Typography
                           component="span"
                           sx={{
@@ -645,7 +688,7 @@ function SaasOperationsView({
                       </Box>
                     </TableCell>
                   </TableRow>,
-                  ...section.items.map(inf => {
+                  ...(isCollapsed ? [] : section.items.map(inf => {
                     const stage = STAGES[deriveStage(inf)];
                     const contact = formatContact(inf);
                     return (
@@ -716,8 +759,9 @@ function SaasOperationsView({
                         </TableCell>
                       </TableRow>
                     );
-                  }),
-                ])}
+                  })),
+                ];
+                })}
               </TableBody>
             </Table>
           </Box>
