@@ -324,9 +324,11 @@ function SaasOperationsView({
         )}
       </Box>
 
-      {/* 본문 — Visit schedule 레일 + 목록, 한 화면에 나란히 */}
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        {/* Visit schedule — 좌측 고정 레일, 자체 스크롤 */}
+      {/* 본문 — Visit schedule 레일 + 목록, 한 화면에 나란히.
+          gap으로 16px 거터를 둬 두 영역이 하나의 표처럼 붙어 보이지 않게 한다.
+          구분은 거터(여백) + 레일 우측의 얇은 divider가 함께 만든다. */}
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>
+        {/* Visit schedule — 좌측 고정 레일(보조 패널), 자체 스크롤 */}
         <Box
           sx={{
             width: 236,
