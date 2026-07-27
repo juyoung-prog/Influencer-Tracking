@@ -25,11 +25,14 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  * @param {function} onSelect - 인플루언서 행 클릭 핸들러 (influencer) => void [Optional]
  * @param {function} onRefresh - 헤더 새로고침 핸들러 [Optional]
  * @param {function} onOpenSettings - 헤더 설정 아이콘 클릭 핸들러 [Optional]
+ * @param {string} sheetUrl - Google Sheet 원본 링크 (헤더 아이콘) [Optional, 기본값: '']
  * @param {string|null} selectedId - 현재 선택된 인플루언서 ID [Optional, 기본값: null]
  * @param {boolean} isLoading - 최초 로딩 여부 [Optional, 기본값: false]
  * @param {Error|null} error - 조회 실패 에러 [Optional, 기본값: null]
  * @param {function} onRetry - 에러 배너 Retry 핸들러 [Optional]
- * @param {string} defaultStore - 최초 선택 스토어 ('all'이면 전체) [Optional, 기본값: 'all']
+ * @param {string} defaultStore - 최초 선택 스토어 ('all'이면 전체). uncontrolled일 때만 쓰임 [Optional, 기본값: 'all']
+ * @param {string|null} selectedStore - 선택된 스토어. 주면 controlled, 안 주면 내부 상태 [Optional, 기본값: null]
+ * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
  * @param {object} storeDocs - Workflow 뷰의 store별 문서 링크 맵 [Optional, 기본값: {}]
  * @param {string} influencerTrackingListUrl - Workflow 뷰의 스토어 무관 고정 링크 [Optional, 기본값: '']
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
@@ -47,18 +50,29 @@ function SaasDashboardMockup({
   onSelect,
   onRefresh,
   onOpenSettings,
+  sheetUrl = '',
   selectedId = null,
   isLoading = false,
   error = null,
   onRetry,
   defaultStore = ALL_STORES,
+  selectedStore = null,
+  onStoreChange,
   storeDocs = {},
   influencerTrackingListUrl = '',
   sx,
 }) {
   const [activeView, setActiveView] = useState(defaultView);
-  /** 스토어는 세 뷰가 공유한다 — 뷰를 옮겨도 보던 스토어가 유지되도록 셸이 소유 */
-  const [selectedStore, setSelectedStore] = useState(defaultStore);
+  /** 스토어는 세 뷰가 공유한다 — 뷰를 옮겨도 보던 스토어가 유지되도록 셸이 소유.
+   *  페이지가 config.defaultStore로 시딩해야 하는 경우를 위해 controlled도 지원한다 */
+  const [internalStore, setInternalStore] = useState(defaultStore);
+  const isStoreControlled = selectedStore !== null;
+  const activeStore = isStoreControlled ? selectedStore : internalStore;
+
+  const handleStoreChange = store => {
+    if (!isStoreControlled) setInternalStore(store);
+    onStoreChange?.(store);
+  };
 
   const stores = useMemo(() => deriveStores(influencers), [influencers]);
 
@@ -69,6 +83,7 @@ function SaasDashboardMockup({
       lastSyncedAt={lastSyncedAt}
       onNavigate={setActiveView}
       onRefresh={onRefresh}
+      sheetUrl={sheetUrl}
       onOpenSettings={onOpenSettings}
       sx={sx}
     >
@@ -81,8 +96,8 @@ function SaasDashboardMockup({
           error={error}
           onRetry={onRetry}
           stores={stores}
-          selectedStore={selectedStore}
-          onStoreChange={setSelectedStore}
+          selectedStore={activeStore}
+          onStoreChange={handleStoreChange}
         />
       )}
       {activeView === 'mentions' && (
@@ -99,15 +114,15 @@ function SaasDashboardMockup({
           influencers={influencers}
           inviteCounts={inviteCounts}
           stores={stores}
-          selectedStore={selectedStore}
-          onStoreChange={setSelectedStore}
+          selectedStore={activeStore}
+          onStoreChange={handleStoreChange}
         />
       )}
       {activeView === 'workflow' && (
         <SaasWorkflowView
           stores={stores}
-          selectedStore={selectedStore}
-          onStoreChange={setSelectedStore}
+          selectedStore={activeStore}
+          onStoreChange={handleStoreChange}
           storeDocs={storeDocs}
           influencerTrackingListUrl={influencerTrackingListUrl}
         />

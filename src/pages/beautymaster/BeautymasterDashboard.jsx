@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
@@ -6,6 +7,7 @@ import Select from '@mui/material/Select';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import AnalyticsDashboard from '../../components/templates/beautymaster/AnalyticsDashboard';
+import SaasDashboardMockup from '../../components/templates/beautymaster/SaasDashboardMockup';
 import WorkflowGuide from '../../components/templates/beautymaster/WorkflowGuide';
 import InfluencerDrawer from '../../components/overlay-feedback/InfluencerDrawer';
 import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsModal';
@@ -138,10 +140,19 @@ export const MOCK_INFLUENCERS = [
  * Reads data from Google Sheets via useSheetData.
  * Shows SheetSetupScreen when no config is saved.
  *
+ * UI 리뉴얼 진행 중 — `?ui=saas`를 붙이면 flat-SaaS 셸(사이드바 + 글로벌 헤더)로,
+ * 아무것도 안 붙이면 기존 탭 레이아웃으로 렌더한다. 두 UI가 같은 useSheetData
+ * 데이터와 같은 오버레이(Drawer/Settings)를 공유하므로 나란히 놓고 비교할 수 있다.
+ * 리뉴얼이 확정되면 기존 레이아웃과 이 플래그를 함께 제거한다.
+ *
  * Props: (none — data is owned internally via useSheetData)
  */
 function BeautymasterDashboard() {
   const { influencers, kpi, inviteCounts, storeDocs, messageTemplates, influencerTrackingListUrl, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
+
+  /** UI 리뉴얼 플래그 — ?ui=saas면 flat-SaaS 셸, 아니면 기존 탭 레이아웃 */
+  const [searchParams] = useSearchParams();
+  const isSaasUi = searchParams.get('ui') === 'saas';
 
   const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
@@ -149,6 +160,8 @@ function BeautymasterDashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filters, setFilters] = useState({ store: config?.defaultStore || 'all', platform: null, tier: null, category: null });
   const [analyticsStore, setAnalyticsStore] = useState(config?.defaultStore || 'all');
+  /** flat-SaaS 셸은 세 뷰가 스토어 하나를 공유한다 — 기존 UI의 filters.store/analyticsStore 분리와 다름 */
+  const [saasStore, setSaasStore] = useState(config?.defaultStore || 'all');
 
   const timelinePanelRef = useRef(null);
   const listPanelRef = useRef(null);
@@ -185,6 +198,12 @@ function BeautymasterDashboard() {
 
   const sheetUrl = findSheetViewUrl(config);
 
+  /** 멘션 수집 파이프라인 연결 전까지 MOCK_MENTIONS 기준 — 가장 최근 수집 시각 */
+  const lastCrawledAt = useMemo(
+    () => MOCK_MENTIONS.reduce((max, m) => (m.capturedAt > max ? m.capturedAt : max), MOCK_MENTIONS[0]?.capturedAt ?? null),
+    [],
+  );
+
   const handleSelect = inf => {
     setSelectedId(inf.id);
     setDrawerOpen(true);
@@ -194,9 +213,29 @@ function BeautymasterDashboard() {
     saveConfig(newConfig);
     if (newConfig.defaultStore) {
       setFilters(prev => ({ ...prev, store: newConfig.defaultStore }));
+      setSaasStore(newConfig.defaultStore);
     }
     setSettingsOpen(false);
   };
+
+  /** 두 UI가 공유하는 오버레이 — 어느 레이아웃이든 같은 Drawer/Settings를 쓴다 */
+  const overlays = (
+    <>
+      <InfluencerDrawer
+        influencer={selectedInfluencer}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        templates={messageTemplates}
+      />
+      <SheetSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        config={config}
+        onSave={handleSaveConfig}
+        stores={stores}
+      />
+    </>
+  );
 
   // ── Setup screen (no config saved yet) ──────────────────────────────────────
   if (!config) {
@@ -217,6 +256,34 @@ function BeautymasterDashboard() {
           onSave={handleSaveConfig}
           stores={stores}
         />
+      </Box>
+    );
+  }
+
+  // ── flat-SaaS 셸 (?ui=saas) — 리뉴얼 후보 UI ─────────────────────────────────
+  if (isSaasUi) {
+    return (
+      <Box sx={{ height: '100vh', overflow: 'hidden' }}>
+        <SaasDashboardMockup
+          influencers={influencers}
+          mentions={MOCK_MENTIONS}
+          inviteCounts={inviteCounts}
+          lastSyncedAt={lastSyncedAt}
+          lastCrawledAt={lastCrawledAt}
+          onSelect={handleSelect}
+          selectedId={selectedId}
+          onRefresh={refresh}
+          onOpenSettings={() => setSettingsOpen(true)}
+          sheetUrl={sheetUrl}
+          isLoading={isSyncing}
+          error={error}
+          onRetry={refresh}
+          selectedStore={saasStore}
+          onStoreChange={setSaasStore}
+          storeDocs={storeDocs}
+          influencerTrackingListUrl={influencerTrackingListUrl}
+        />
+        {overlays}
       </Box>
     );
   }
@@ -305,20 +372,7 @@ function BeautymasterDashboard() {
         </Box>
       )}
 
-      <InfluencerDrawer
-        influencer={selectedInfluencer}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        templates={messageTemplates}
-      />
-
-      <SheetSettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        config={config}
-        onSave={handleSaveConfig}
-        stores={stores}
-      />
+      {overlays}
     </Box>
   );
 }

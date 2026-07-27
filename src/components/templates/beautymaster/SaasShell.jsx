@@ -37,6 +37,7 @@ const NAV_ITEMS = [
  * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (상단 header에 표시) [Optional, 기본값: null]
  * @param {function} onNavigate - 네비 항목 클릭 핸들러 (key) => void [Optional]
  * @param {function} onRefresh - Refresh 아이콘 클릭 핸들러 [Optional]
+ * @param {string} sheetUrl - Google Sheet 원본 링크. 없으면 해당 아이콘을 숨긴다 [Optional, 기본값: '']
  * @param {function} onOpenSettings - 설정 아이콘 클릭 핸들러 [Optional]
  * @param {node} children - 본문 뷰 [Required]
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
@@ -50,6 +51,7 @@ function SaasShell({
   lastSyncedAt = null,
   onNavigate,
   onRefresh,
+  sheetUrl = '',
   onOpenSettings,
   children,
   sx,
@@ -153,11 +155,20 @@ function SaasShell({
               <RefreshOutlinedIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Open Google Sheet">
-            <IconButton size="small" sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}>
-              <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          {sheetUrl && (
+            <Tooltip title="Open Google Sheet">
+              <IconButton
+                size="small"
+                component="a"
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener"
+                sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}
+              >
+                <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Sheet settings">
             <IconButton size="small" onClick={onOpenSettings} sx={{ color: 'text.secondary', '&:hover': { backgroundColor: 'grey.100' } }}>
               <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
