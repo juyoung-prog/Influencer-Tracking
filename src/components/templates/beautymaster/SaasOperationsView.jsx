@@ -21,6 +21,7 @@ import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALL_STORES,
   DEFAULT_INFLUENCER_FILTERS,
+  SHEET_STATUS,
   deriveKpiSummary,
   deriveStores,
 } from '../../../data/beautymaster/schema.js';
@@ -74,6 +75,16 @@ function formatContact(inf) {
     : inf.contactStatus === 'no-response' ? 'no reply' : 'pending';
   return `${reason} · ${status}`;
 }
+
+/**
+ * 시트 상태 탭. 기존 InfluencerPanel의 TABS를 그대로 옮긴 것으로,
+ * id는 Influencer.sheetStatus와 정확히 일치 비교한다('all'만 예외).
+ */
+const STATUS_TABS = [
+  { id: 'all', label: 'All' },
+  { id: SHEET_STATUS.PROCESSING, label: 'Processing' },
+  { id: SHEET_STATUS.DONE, label: 'Done' },
+];
 
 /**
  * Visit schedule 레일의 시간 컬럼 폭.
@@ -162,6 +173,8 @@ function SaasOperationsView({
 }) {
   /** 검색어·단계는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
   const [stageFilter, setStageFilter] = useState('all');
+  /** 시트 상태 탭 — 기존 InfluencerPanel의 tab 상태를 그대로 복원한 것 */
+  const [statusFilter, setStatusFilter] = useState('all');
   /**
    * 접힌 섹션 키. Action required만 펼친 채로 시작한다 — 손댈 게 있는 쪽이 먼저 보여야 하고,
    * 긴 섹션을 접어 아래 섹션으로 바로 갈 수 있어야 한다.
@@ -215,9 +228,13 @@ function SaasOperationsView({
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return scoped;
-    return scoped.filter(inf => inf.fullName.toLowerCase().includes(q));
-  }, [scoped, searchQuery]);
+    return scoped.filter(inf => {
+      // 기존 InfluencerPanel과 같은 판정 — sheetStatus 정확히 일치
+      if (statusFilter !== 'all' && inf.sheetStatus !== statusFilter) return false;
+      if (q && !inf.fullName.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [scoped, statusFilter, searchQuery]);
 
   const sections = useMemo(() => {
     const byTime = (a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0);
@@ -248,6 +265,7 @@ function SaasOperationsView({
   const hasScheduledVisit = scheduleGroups.some(g => g.items.length > 0);
   const visibleCount = sections.reduce((n, s) => n + s.items.length, 0);
   const hasFilter = stageFilter !== 'all'
+    || statusFilter !== 'all'
     || selectedStore !== ALL_STORES
     || activeFilters.platform !== null
     || activeFilters.tier !== null
@@ -258,6 +276,7 @@ function SaasOperationsView({
 
   const resetFilters = () => {
     setStageFilter('all');
+    setStatusFilter('all');
     setSearchQuery('');
     if (!isFiltersControlled) setInternalFilters(DEFAULT_INFLUENCER_FILTERS);
     onFiltersChange?.(DEFAULT_INFLUENCER_FILTERS);
@@ -571,6 +590,51 @@ function SaasOperationsView({
             <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
               {visibleCount} of {influencers.length}
             </Typography>
+          </Box>
+
+          {/* 시트 상태 탭 — 툴바와 테이블 사이의 2차 내비게이션.
+              pill/카드 없이 텍스트 + 2px 하단 인디케이터로만 표현한다. */}
+          <Box
+            sx={{
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2.5,
+              px: 3,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {STATUS_TABS.map(t => {
+              const isActive = statusFilter === t.id;
+              return (
+                <Box
+                  key={t.id}
+                  component="button"
+                  type="button"
+                  aria-current={isActive ? 'true' : undefined}
+                  onClick={() => setStatusFilter(t.id)}
+                  sx={{
+                    border: 'none',
+                    borderBottom: '2px solid',
+                    borderBottomColor: isActive ? 'primary.main' : 'transparent',
+                    // 컨테이너의 1px 보더 위에 인디케이터를 겹쳐 선이 두 줄로 보이지 않게 한다
+                    mb: '-1px',
+                    px: 0,
+                    py: 1,
+                    backgroundColor: 'transparent',
+                    font: 'inherit',
+                    fontSize: 12,
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'primary.main' : 'text.secondary',
+                    cursor: 'pointer',
+                    '&:hover': { color: isActive ? 'primary.main' : 'text.primary' },
+                  }}
+                >
+                  {t.label}
+                </Box>
+              );
+            })}
           </Box>
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
