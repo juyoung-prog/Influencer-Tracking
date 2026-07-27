@@ -82,20 +82,24 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', storeDocsUrl
     setError(null);
     try {
       const fetches = [];
-      for (const source of activeSources) {
+      activeSources.forEach((source, i) => {
+        // 소스별 행 번호가 겹치므로 id에 소스 구분자를 붙인다.
+        // 안 붙이면 GA의 Processing_33과 FL의 Processing_33이 같은 id가 되어
+        // 목록 key가 중복되고, selectedId 조회가 엉뚱한 인플루언서를 집는다.
+        const idPrefix = `${source.label || `s${i}`}_`;
         fetches.push(
           fetchCsvText(source.processingCsvUrl).then(text =>
-            parseInfluencerCsv(text, SHEET_STATUS.PROCESSING)
+            parseInfluencerCsv(text, SHEET_STATUS.PROCESSING, idPrefix)
           )
         );
         if (source.doneCsvUrl) {
           fetches.push(
             fetchCsvText(source.doneCsvUrl).then(text =>
-              parseInfluencerCsv(text, SHEET_STATUS.DONE)
+              parseInfluencerCsv(text, SHEET_STATUS.DONE, idPrefix)
             )
           );
         }
-      }
+      });
       const [results, inviteCountsResult, storeDocsResult, messageTemplatesResult] = await Promise.all([
         Promise.all(fetches),
         activeInviteCountsUrl

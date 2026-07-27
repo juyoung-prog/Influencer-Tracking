@@ -237,9 +237,11 @@ function parseContactStatus(val) {
  *
  * @param {string} csvText
  * @param {'Processing'|'Done'} [defaultStatus]
+ * @param {string} [idPrefix] - 소스 구분자. 여러 시트를 병합할 때 행 번호가 겹쳐
+ *   같은 id가 생기는 걸 막는다 (예: 'GA_' → 'GA_Processing_0')
  * @returns {Influencer[]}
  */
-export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESSING) {
+export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESSING, idPrefix = '') {
   const rows = csvTextToObjects(csvText);
 
   const TIME_KEYS = ['time', 'aprox. visit date', 'approx. visit date', 'visit date', 'scheduled time', 'visit time'];
@@ -267,7 +269,7 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
     const scheduledTime = parseDate(rawTime);
 
     const partial = {
-      id: `${currentStatus}_${result.length}`,
+      id: `${idPrefix}${currentStatus}_${result.length}`,
       sheetStatus: currentStatus,
       store: row['store'] || '',
       month: parseMonth(row['month']),
