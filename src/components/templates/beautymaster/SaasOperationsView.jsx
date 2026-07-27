@@ -375,30 +375,47 @@ function SaasOperationsView({
                 const isToday = grp.key === 'today';
                 return (
                 <Box key={grp.key} sx={{ mb: 1 }}>
-                  {/* 라벨과 인원수를 붙여 하나의 정보 묶음으로 읽히게 한다.
-                      우측 정렬하면 둘 사이가 멀어져 관계가 끊긴다. */}
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.125, px: 1, pt: 0.75, pb: 0.5 }}>
+                  {/* 본 테이블의 섹션 헤더(ACTION REQUIRED 등)와 같은 표면·타이포를 쓴다 —
+                      grey.50 배경, 위아래 1px divider, 11px/600/0.04em uppercase, muted 카운트.
+                      레일은 폭이 좁아 카운트를 우측 정렬해도 라벨과 멀어지지 않는다. */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      // 스크롤 컨테이너의 px:1을 상쇄해 헤더가 레일 전체 폭을 쓰게 한다
+                      mx: -1,
+                      px: 2,
+                      py: 0.625,
+                      backgroundColor: 'grey.50',
+                      borderTop: '1px solid',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
                     <Typography
+                      component="span"
                       sx={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: isToday ? 'primary.main' : 'text.disabled',
+                        letterSpacing: '0.04em',
+                        color: isToday ? 'primary.main' : 'text.secondary',
                       }}
                     >
-                      {grp.label}
+                      {grp.label.toUpperCase()}
                     </Typography>
-                    {/* 라벨보다 한 단계 진하게 — 실제로 읽어야 하는 값은 숫자다 */}
                     <Typography
+                      component="span"
                       sx={{
+                        ml: 'auto',
                         fontSize: 11,
-                        fontWeight: 600,
-                        color: isToday ? 'primary.main' : 'text.secondary',
+                        color: 'text.disabled',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
                       {grp.items.length}
                     </Typography>
                   </Box>
+                  <Box sx={{ pt: 0.5 }}>
                   {grp.items.map(inf => (
                     <Box
                       key={inf.id}
@@ -439,6 +456,7 @@ function SaasOperationsView({
                       )}
                     </Box>
                   ))}
+                  </Box>
                 </Box>
                 );
               })
