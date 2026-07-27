@@ -1,13 +1,8 @@
 import Box from '@mui/material/Box';
 import SaasDashboard from './SaasDashboard';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
-import { MOCK_MENTIONS } from '../../../data/beautymaster/mentions.js';
 
 const LAST_SYNCED_AT = new Date('2026-07-27T09:56:00');
-const LAST_CRAWLED_AT = MOCK_MENTIONS.reduce(
-  (max, m) => (m.capturedAt > max ? m.capturedAt : max),
-  MOCK_MENTIONS[0]?.capturedAt ?? null,
-);
 
 export default {
   title: 'BeautyMaster/Page/SaasDashboard',
@@ -16,13 +11,11 @@ export default {
   parameters: { layout: 'fullscreen' },
   argTypes: {
     influencers: { control: 'object', description: '전체 인플루언서 목록 (Influencer[] typedef)' },
-    mentions: { control: 'object', description: '멘션 목록 (Mention[] typedef)' },
     inviteCounts: { control: 'object', description: '"Number" 탭 초대 인원 데이터 (store→tier→count)' },
     lastSyncedAt: { control: 'date', description: '마지막 시트 동기화 시각' },
-    lastCrawledAt: { control: 'date', description: '마지막 멘션 크롤 시각' },
     defaultView: {
       control: 'radio',
-      options: ['operations', 'mentions', 'analytics', 'workflow'],
+      options: ['operations', 'analytics', 'workflow'],
       description: '최초 활성 뷰',
     },
     selectedId: { control: 'text', description: '현재 선택된 인플루언서 ID' },
@@ -47,18 +40,8 @@ export default {
 export const Default = {
   args: {
     influencers: MOCK_INFLUENCERS,
-    mentions: MOCK_MENTIONS,
     lastSyncedAt: LAST_SYNCED_AT,
-    lastCrawledAt: LAST_CRAWLED_AT,
     defaultView: 'operations',
-  },
-};
-
-/** Mentions — Review queue / Qualified / Below threshold 3개 섹션 */
-export const Mentions = {
-  args: {
-    ...Default.args,
-    defaultView: 'mentions',
   },
 };
 
@@ -86,9 +69,7 @@ export const Workflow = {
 export const Empty = {
   args: {
     influencers: [],
-    mentions: [],
     lastSyncedAt: null,
-    lastCrawledAt: null,
     defaultView: 'operations',
   },
 };
@@ -97,9 +78,7 @@ export const Empty = {
 export const Loading = {
   args: {
     influencers: [],
-    mentions: [],
     lastSyncedAt: null,
-    lastCrawledAt: null,
     defaultView: 'operations',
     isLoading: true,
   },

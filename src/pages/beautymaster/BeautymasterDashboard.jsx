@@ -6,7 +6,6 @@ import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsM
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
 import { ALL_STORES, deriveStores } from '../../data/beautymaster/schema.js';
-import { MOCK_MENTIONS } from '../../data/beautymaster/mentions.js';
 import { findSheetViewUrl } from '../../utils/googleSheetUrl.js';
 
 // ─── Mock data (Storybook / ComponentGallery only) ────────────────────────────
@@ -147,12 +146,6 @@ function BeautymasterDashboard() {
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
   const sheetUrl = findSheetViewUrl(config);
 
-  /** 멘션 수집 파이프라인 연결 전까지 MOCK_MENTIONS 기준 — 가장 최근 수집 시각 */
-  const lastCrawledAt = useMemo(
-    () => MOCK_MENTIONS.reduce((max, m) => (m.capturedAt > max ? m.capturedAt : max), MOCK_MENTIONS[0]?.capturedAt ?? null),
-    [],
-  );
-
   const handleSelect = inf => {
     setSelectedId(inf.id);
     setDrawerOpen(true);
@@ -189,10 +182,8 @@ function BeautymasterDashboard() {
     <Box sx={{ height: '100vh', overflow: 'hidden' }}>
       <SaasDashboard
         influencers={influencers}
-        mentions={MOCK_MENTIONS}
         inviteCounts={inviteCounts}
         lastSyncedAt={lastSyncedAt}
-        lastCrawledAt={lastCrawledAt}
         onSelect={handleSelect}
         selectedId={selectedId}
         onRefresh={refresh}

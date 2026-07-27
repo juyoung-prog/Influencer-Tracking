@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import SaasShell from './SaasShell';
 import SaasOperationsView from './SaasOperationsView';
-import SaasMentionsView from './SaasMentionsView';
 import SaasAnalyticsView from './SaasAnalyticsView';
 import SaasWorkflowView from './SaasWorkflowView';
 import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
@@ -9,8 +8,7 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
 /**
  * SaasDashboard component
  *
- * BeautyMaster 대시보드의 본체 조립부. Operations / Mentions / Analytics / Workflow
- * 4개 뷰를 사이드바(SaasShell)로 전환한다.
+ * BeautyMaster 대시보드의 본체 조립부. Operations / Analytics / Workflow 3개 뷰를 사이드바(SaasShell)로 전환한다.
  * 표면 문법은 modern_saas_design_core_features.md 기반 — White 배경, thin 1px border,
  * 8px radius, 섀도 없음, Inter, accent는 theme primary 1색. 카드를 쓰지 않고
  * border + spacing + typography로 구획하고, 본문은 중앙 정렬 없이 프레임을 가득 채운다.
@@ -20,11 +18,9 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  *
  * Props:
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 (data/beautymaster/schema.js typedef) [Required]
- * @param {Mention[]} mentions - 멘션 목록 (data/beautymaster/mentions.js typedef) [Optional, 기본값: []]
  * @param {object} inviteCounts - "Number" 탭 초대 인원 데이터 (store→tier→count) [Optional, 기본값: {}]
  * @param {Date|null} lastSyncedAt - 마지막 시트 동기화 시각 [Optional, 기본값: null]
- * @param {Date|null} lastCrawledAt - 마지막 멘션 크롤 시각 [Optional, 기본값: null]
- * @param {string} defaultView - 최초 활성 뷰 (operations|mentions|analytics|workflow) [Optional, 기본값: 'operations']
+ * @param {string} defaultView - 최초 활성 뷰 (operations|analytics|workflow) [Optional, 기본값: 'operations']
  * @param {function} onSelect - 인플루언서 행 클릭 핸들러 (influencer) => void [Optional]
  * @param {function} onRefresh - 헤더 새로고침 핸들러 [Optional]
  * @param {function} onOpenSettings - 헤더 설정 아이콘 클릭 핸들러 [Optional]
@@ -45,10 +41,8 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  */
 function SaasDashboard({
   influencers,
-  mentions = [],
   inviteCounts = {},
   lastSyncedAt = null,
-  lastCrawledAt = null,
   defaultView = 'operations',
   onSelect,
   onRefresh,
@@ -101,15 +95,6 @@ function SaasDashboard({
           stores={stores}
           selectedStore={activeStore}
           onStoreChange={handleStoreChange}
-        />
-      )}
-      {activeView === 'mentions' && (
-        <SaasMentionsView
-          mentions={mentions}
-          lastCrawledAt={lastCrawledAt}
-          isLoading={isLoading}
-          error={error}
-          onRetry={onRetry}
         />
       )}
       {activeView === 'analytics' && (
