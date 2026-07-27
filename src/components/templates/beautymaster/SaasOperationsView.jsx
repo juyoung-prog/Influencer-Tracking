@@ -5,17 +5,13 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import InputAdornment from '@mui/material/InputAdornment';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import InfluencerListRow from '../../data-display/InfluencerListRow';
 import SaasKpiItem from './SaasKpiItem';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
@@ -25,16 +21,6 @@ import {
   deriveKpiSummary,
   deriveStores,
 } from '../../../data/beautymaster/schema.js';
-
-/** 파이프라인 단계 → Status-first 표현 (dot + label) */
-const STAGES = {
-  attention: { label: 'Needs attention', dot: 'warning.main' },
-  completed: { label: 'Completed', dot: 'success.main' },
-  posted: { label: 'Posted', dot: 'primary.main' },
-  visited: { label: 'Visited', dot: 'primary.main' },
-  scheduled: { label: 'Scheduled', dot: 'grey.400' },
-  invited: { label: 'Invited', dot: 'grey.400' },
-};
 
 const PLATFORM_OPTIONS = ['Instagram', 'TikTok'];
 const TIER_OPTIONS = [
@@ -47,33 +33,8 @@ const CATEGORY_OPTIONS = [
   { value: 'specific', label: 'Specific' },
 ];
 
-/** @param {Influencer} inf */
-function deriveStage(inf) {
-  if (inf.alertFlags.length > 0) return 'attention';
-  if (inf.creditShared) return 'completed';
-  if (inf.collaboShared) return 'posted';
-  if (inf.attend) return 'visited';
-  if (inf.agreement) return 'scheduled';
-  return 'invited';
-}
-
 function formatTime(date) {
   return date ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
-}
-
-function formatVisit(date) {
-  if (!date) return '—';
-  return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${formatTime(date)}`;
-}
-
-/** 재연락 상태 요약 — 없으면 null */
-function formatContact(inf) {
-  if (!inf.contactReason) return null;
-  const reason = inf.contactReason === 'no-show' ? 'No-show' : 'Reschedule';
-  const status = inf.contactStatus === 'replied'
-    ? 'replied'
-    : inf.contactStatus === 'no-response' ? 'no reply' : 'pending';
-  return `${reason} · ${status}`;
 }
 
 /**
@@ -137,8 +98,9 @@ function buildScheduleGroups(influencers) {
  * flat-SaaS 시안 Operations 뷰 — 기존 대시보드 Operations 탭(SchedulePanel + InfluencerPanel)과
  * 같은 구성: Visit schedule 레일과 인플루언서 목록이 한 화면에 나란히 있고, 각자 스크롤한다.
  * 상단은 KPI 스트립(배경 직접 배치) + Needs attention 배너(Review 클릭 시 목록을 attention으로 필터).
- * 목록은 섹션 헤더 행으로 Action required / Upcoming / Completed를 구분한 단일 테이블 —
- * 그룹을 나눠도 컬럼 정렬이 유지돼 스캔이 끊기지 않는다. 폭은 프레임을 가득 채운다.
+ * 목록은 Action required / Upcoming / Completed 섹션으로 나뉘고, 각 섹션은 접을 수 있다.
+ * 행은 컬럼으로 흩뿌리지 않고 InfluencerListRow의 요약 행(아바타+이름·시간·카테고리 /
+ * 티어·플랫폼 / 상태·overdue·연락사유)으로 한 사람 정보를 한 덩어리로 읽게 한다.
  *
  * Props:
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 (data/beautymaster/schema.js typedef) [Required]
@@ -638,196 +600,102 @@ function SaasOperationsView({
           </Box>
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <Table size="small" stickyHeader sx={{ minWidth: 720 }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    '& th': {
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: 'text.secondary',
+            {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
+              <Box
+                key={`skeleton-${i}`}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1, minHeight: 48, borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Skeleton variant="circular" width={28} height={28} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Skeleton variant="text" width={140} />
+                  <Skeleton variant="text" width={90} />
+                </Box>
+                <Skeleton variant="text" sx={{ flex: '0 0 100px' }} />
+                <Skeleton variant="text" sx={{ flex: '0 0 140px' }} />
+              </Box>
+            ))}
+
+            {!showSkeleton && sections.length === 0 && (
+              <Box sx={{ py: 8, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: hasFilter ? 1 : 0 }}>
+                  {hasFilter ? 'No influencers match the current filters' : 'No influencers yet'}
+                </Typography>
+                {hasFilter && (
+                  <Button size="small" onClick={resetFilters} sx={{ textTransform: 'none', fontSize: 13, fontWeight: 500 }}>
+                    Clear filters
+                  </Button>
+                )}
+              </Box>
+            )}
+
+            {!showSkeleton && sections.map(section => {
+              const isCollapsed = collapsedSections.has(section.key);
+              return (
+                <Box key={section.key}>
+                  {/* 섹션 헤더 — 스크롤해도 어느 구간을 보고 있는지 남도록 sticky */}
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                    aria-expanded={!isCollapsed}
+                    sx={{
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      width: '100%',
+                      px: 2,
+                      py: 0.625,
+                      border: 'none',
+                      borderTop: '1px solid',
+                      borderBottom: '1px solid',
                       borderColor: 'divider',
                       backgroundColor: 'grey.50',
-                      py: 0.875,
-                    },
-                    '& th:first-of-type': { pl: 3 },
-                    '& th:last-of-type': { pr: 3 },
-                  }}
-                >
-                  <TableCell>Name</TableCell>
-                  <TableCell>Platform</TableCell>
-                  <TableCell>Tier</TableCell>
-                  <TableCell>Stage</TableCell>
-                  <TableCell>Visit</TableCell>
-                  <TableCell>Contact</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
-                  <TableRow key={`skeleton-${i}`} sx={{ '& td': { borderColor: 'divider', py: 0.875 }, '& td:first-of-type': { pl: 3 }, '& td:last-of-type': { pr: 3 } }}>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                        <Skeleton variant="circular" width={24} height={24} />
-                        <Skeleton variant="text" width={120} sx={{ fontSize: 13 }} />
-                      </Box>
-                    </TableCell>
-                    <TableCell><Skeleton variant="text" width={60} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={40} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={70} /></TableCell>
-                  </TableRow>
-                ))}
-                {!showSkeleton && sections.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} sx={{ border: 'none', py: 8, textAlign: 'center' }}>
-                      <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: hasFilter ? 1 : 0 }}>
-                        {hasFilter ? 'No influencers match the current filters' : 'No influencers yet'}
-                      </Typography>
-                      {hasFilter && (
-                        <Button size="small" onClick={resetFilters} sx={{ textTransform: 'none', fontSize: 13, fontWeight: 500 }}>
-                          Clear filters
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!showSkeleton && sections.map(section => {
-                const isCollapsed = collapsedSections.has(section.key);
-                return [
-                  <TableRow key={`${section.key}-head`}>
-                    {/* 셀 자체는 패딩 0 — 헤더 전체가 버튼이라 hover 배경이 행 끝까지 닿아야 한다 */}
-                    <TableCell
-                      colSpan={6}
+                      font: 'inherit',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      '&:hover': { backgroundColor: 'action.hover' },
+                    }}
+                  >
+                    <ChevronRightIcon
+                      sx={theme => ({
+                        fontSize: 14,
+                        flexShrink: 0,
+                        color: 'text.disabled',
+                        transform: isCollapsed ? 'none' : 'rotate(90deg)',
+                        transition: theme.transitions.create('transform', { duration: 150 }),
+                        '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+                      })}
+                    />
+                    <Typography
+                      component="span"
                       sx={{
-                        borderColor: 'divider',
-                        backgroundColor: 'grey.50',
-                        p: 0,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.04em',
+                        color: section.key === 'attention' ? 'warning.main' : 'text.secondary',
                       }}
                     >
-                      <Box
-                        component="button"
-                        type="button"
-                        onClick={() => toggleSection(section.key)}
-                        aria-expanded={!isCollapsed}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1,
-                          width: '100%',
-                          px: 3,
-                          py: 0.625,
-                          border: 'none',
-                          backgroundColor: 'transparent',
-                          font: 'inherit',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          '&:hover': { backgroundColor: 'action.hover' },
-                        }}
-                      >
-                        <ChevronRightIcon
-                          sx={theme => ({
-                            fontSize: 14,
-                            flexShrink: 0,
-                            color: 'text.disabled',
-                            transform: isCollapsed ? 'none' : 'rotate(90deg)',
-                            transition: theme.transitions.create('transform', { duration: 150 }),
-                            '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-                          })}
-                        />
-                        <Typography
-                          component="span"
-                          sx={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: '0.04em',
-                            color: section.key === 'attention' ? 'warning.main' : 'text.secondary',
-                          }}
-                        >
-                          {section.label.toUpperCase()}
-                        </Typography>
-                        <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
-                          {section.items.length}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>,
-                  ...(isCollapsed ? [] : section.items.map(inf => {
-                    const stage = STAGES[deriveStage(inf)];
-                    const contact = formatContact(inf);
-                    return (
-                      <TableRow
-                        key={inf.id}
-                        onClick={() => onSelect?.(inf)}
-                        sx={{
-                          cursor: onSelect ? 'pointer' : 'default',
-                          backgroundColor: selectedId === inf.id ? 'grey.100' : 'transparent',
-                          '& td': { fontSize: 13, borderColor: 'divider', py: 0.875 },
-                          '& td:first-of-type': { pl: 3 },
-                          '& td:last-of-type': { pr: 3 },
-                          '&:hover': { backgroundColor: 'grey.50' },
-                        }}
-                      >
-                        <TableCell sx={{ maxWidth: 260 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-                            <Box
-                              sx={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                backgroundColor: 'grey.100',
-                                color: 'text.secondary',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {(inf.fullName || '?').charAt(0).toUpperCase()}
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography sx={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {inf.fullName || '—'}
-                              </Typography>
-                              <Typography sx={{ fontSize: 11, color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {inf.store}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{inf.platform}</TableCell>
-                        <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                          {inf.tier === 'tier1' ? 'Tier 1' : 'Tier 2'}
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: stage.dot, flexShrink: 0 }} />
-                            <Typography component="span" sx={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                              {stage.label}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                          {formatVisit(inf.scheduledTime)}
-                        </TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                          {contact ? (
-                            <Typography component="span" sx={{ fontSize: 12, color: 'warning.main', fontWeight: 500 }}>
-                              {contact}
-                            </Typography>
-                          ) : (
-                            <Typography component="span" sx={{ fontSize: 13, color: 'text.disabled' }}>—</Typography>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })),
-                ];
-                })}
-              </TableBody>
-            </Table>
+                      {section.label.toUpperCase()}
+                    </Typography>
+                    <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+                      {section.items.length}
+                    </Typography>
+                  </Box>
+
+                  {!isCollapsed && section.items.map(inf => (
+                    <InfluencerListRow
+                      key={inf.id}
+                      influencer={inf}
+                      onClick={() => onSelect?.(inf)}
+                      isSelected={selectedId === inf.id}
+                    />
+                  ))}
+                </Box>
+              );
+            })}
           </Box>
         </Box>
       </Box>
