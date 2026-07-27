@@ -5,8 +5,6 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import InputAdornment from '@mui/material/InputAdornment';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -18,7 +16,13 @@ import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import SaasKpiItem from './SaasKpiItem';
-import { deriveKpiSummary } from '../../../data/beautymaster/schema.js';
+import SaasStoreSelect from './SaasStoreSelect';
+import {
+  ALL_STORES,
+  DEFAULT_INFLUENCER_FILTERS,
+  deriveKpiSummary,
+  deriveStores,
+} from '../../../data/beautymaster/schema.js';
 
 /** 파이프라인 단계 → Status-first 표현 (dot + label) */
 const STAGES = {
@@ -122,9 +126,16 @@ function buildScheduleGroups(influencers) {
  * @param {boolean} isLoading - 최초 로딩 여부 (목록이 비었을 때만 스켈레톤) [Optional, 기본값: false]
  * @param {Error|null} error - 시트 조회 실패 에러 (상단 배너로 표시) [Optional, 기본값: null]
  * @param {function} onRetry - 에러 배너의 Retry 핸들러 [Optional]
+ * @param {object|null} filters - 플랫폼/티어/카테고리 필터 ({ platform, tier, category }).
+ *   주면 controlled, 안 주면 내부 상태로 동작 [Optional, 기본값: null]
+ * @param {function} onFiltersChange - 필터 변경 핸들러 (nextFilters) => void [Optional]
+ * @param {string[]} stores - 스토어 선택 옵션 목록. 없으면 influencers에서 파생 [Optional]
+ * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
+ * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
  *
  * Example usage:
  * <SaasOperationsView influencers={influencers} onSelect={handleSelect} />
+ * <SaasOperationsView influencers={influencers} filters={filters} onFiltersChange={setFilters} />
  */
 function SaasOperationsView({
   influencers,
@@ -133,35 +144,47 @@ function SaasOperationsView({
   isLoading = false,
   error = null,
   onRetry,
+  filters = null,
+  onFiltersChange,
+  stores = null,
+  selectedStore = ALL_STORES,
+  onStoreChange,
 }) {
+  /** 검색어·단계는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
   const [stageFilter, setStageFilter] = useState('all');
-  const [storeFilter, setStoreFilter] = useState(null);
-  const [platformFilter, setPlatformFilter] = useState(null);
-  const [tierFilter, setTierFilter] = useState(null);
-  const [categoryFilter, setCategoryFilter] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [internalFilters, setInternalFilters] = useState(DEFAULT_INFLUENCER_FILTERS);
 
-  const stores = useMemo(() => {
-    const unique = new Set(influencers.map(inf => inf.store).filter(Boolean));
-    return Array.from(unique).sort();
-  }, [influencers]);
+  /** filters를 주면 controlled, 안 주면 내부 상태 — 스토리·목업은 그대로 uncontrolled로 쓴다 */
+  const isFiltersControlled = filters !== null;
+  const activeFilters = isFiltersControlled ? filters : internalFilters;
+
+  const setFilter = (key, value) => {
+    const next = { ...activeFilters, [key]: value };
+    if (!isFiltersControlled) setInternalFilters(next);
+    onFiltersChange?.(next);
+  };
+
+  const derivedStores = useMemo(() => deriveStores(influencers), [influencers]);
+  const storeOptions = stores ?? derivedStores;
 
   const kpi = useMemo(() => deriveKpiSummary(influencers), [influencers]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    const { platform, tier, category } = activeFilters;
     return influencers.filter(inf => {
-      if (storeFilter && inf.store !== storeFilter) return false;
-      if (platformFilter) {
+      if (selectedStore !== ALL_STORES && inf.store !== selectedStore) return false;
+      if (platform) {
         const platforms = inf.platform.split(',').map(p => p.trim().toLowerCase());
-        if (!platforms.includes(platformFilter.toLowerCase())) return false;
+        if (!platforms.includes(platform.toLowerCase())) return false;
       }
-      if (tierFilter && inf.tier !== tierFilter) return false;
-      if (categoryFilter && inf.category !== categoryFilter) return false;
+      if (tier && inf.tier !== tier) return false;
+      if (category && inf.category !== category) return false;
       if (q && !inf.fullName.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [influencers, storeFilter, platformFilter, tierFilter, categoryFilter, searchQuery]);
+  }, [influencers, selectedStore, activeFilters, searchQuery]);
 
   const sections = useMemo(() => {
     const byTime = (a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0);
@@ -189,17 +212,21 @@ function SaasOperationsView({
 
   const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
   const visibleCount = sections.reduce((n, s) => n + s.items.length, 0);
-  const hasFilter = stageFilter !== 'all' || storeFilter !== null || platformFilter !== null || tierFilter !== null || categoryFilter !== null || searchQuery.trim() !== '';
+  const hasFilter = stageFilter !== 'all'
+    || selectedStore !== ALL_STORES
+    || activeFilters.platform !== null
+    || activeFilters.tier !== null
+    || activeFilters.category !== null
+    || searchQuery.trim() !== '';
   /** 최초 로딩만 스켈레톤 — 이미 데이터가 있으면 폴링 중에도 목록을 유지한다 */
   const showSkeleton = isLoading && influencers.length === 0;
 
   const resetFilters = () => {
     setStageFilter('all');
-    setStoreFilter(null);
-    setPlatformFilter(null);
-    setTierFilter(null);
-    setCategoryFilter(null);
     setSearchQuery('');
+    if (!isFiltersControlled) setInternalFilters(DEFAULT_INFLUENCER_FILTERS);
+    onFiltersChange?.(DEFAULT_INFLUENCER_FILTERS);
+    onStoreChange?.(ALL_STORES);
   };
 
   const chipSx = isOn => ({
@@ -427,38 +454,20 @@ function SaasOperationsView({
                 '& .MuiInputBase-input::placeholder': { color: 'text.disabled', opacity: 1 },
               }}
             />
-            {stores.length > 0 && (
-              <Select
-                value={storeFilter || ''}
-                onChange={e => setStoreFilter(e.target.value || null)}
-                displayEmpty
-                size="small"
-                sx={{
-                  width: 'auto',
-                  height: 36,
-                  fontSize: 12,
-                  borderRadius: '6px',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-                  '& .MuiSelect-icon': { fontSize: 18, right: 6 },
-                }}
-              >
-                <MenuItem value="" sx={{ fontSize: 12 }}>All stores</MenuItem>
-                {stores.map(store => (
-                  <MenuItem key={store} value={store} sx={{ fontSize: 12 }}>
-                    {store}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
+            <SaasStoreSelect
+              stores={storeOptions}
+              value={selectedStore}
+              onChange={onStoreChange}
+            />
             <Divider orientation="vertical" flexItem />
             {PLATFORM_OPTIONS.map(p => (
               <Chip
                 key={p}
                 label={p}
                 size="small"
-                onClick={() => setPlatformFilter(prev => (prev === p ? null : p))}
-                variant={platformFilter === p ? 'filled' : 'outlined'}
-                sx={chipSx(platformFilter === p)}
+                onClick={() => setFilter('platform', activeFilters.platform === p ? null : p)}
+                variant={activeFilters.platform === p ? 'filled' : 'outlined'}
+                sx={chipSx(activeFilters.platform === p)}
               />
             ))}
             <Divider orientation="vertical" flexItem />
@@ -467,9 +476,9 @@ function SaasOperationsView({
                 key={t.value}
                 label={t.label}
                 size="small"
-                onClick={() => setTierFilter(prev => (prev === t.value ? null : t.value))}
-                variant={tierFilter === t.value ? 'filled' : 'outlined'}
-                sx={chipSx(tierFilter === t.value)}
+                onClick={() => setFilter('tier', activeFilters.tier === t.value ? null : t.value)}
+                variant={activeFilters.tier === t.value ? 'filled' : 'outlined'}
+                sx={chipSx(activeFilters.tier === t.value)}
               />
             ))}
             <Divider orientation="vertical" flexItem />
@@ -478,9 +487,9 @@ function SaasOperationsView({
                 key={c.value}
                 label={c.label}
                 size="small"
-                onClick={() => setCategoryFilter(prev => (prev === c.value ? null : c.value))}
-                variant={categoryFilter === c.value ? 'filled' : 'outlined'}
-                sx={chipSx(categoryFilter === c.value)}
+                onClick={() => setFilter('category', activeFilters.category === c.value ? null : c.value)}
+                variant={activeFilters.category === c.value ? 'filled' : 'outlined'}
+                sx={chipSx(activeFilters.category === c.value)}
               />
             ))}
             {stageFilter !== 'all' && (

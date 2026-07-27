@@ -69,6 +69,19 @@ export const ALERT_FLAGS = Object.freeze({
   RESCHEDULE_PENDING: 'reschedule-pending',
 });
 
+/** 스토어 미선택(전체)을 뜻하는 센티넬. 기존 대시보드 filters.store 규약과 같은 값 */
+export const ALL_STORES = 'all';
+
+/**
+ * 인플루언서 필터 초기값 (미선택은 null).
+ * 스토어는 여기에 없다 — 뷰 사이를 오갈 때 유지돼야 하는 값이라 페이지가 따로 소유한다.
+ */
+export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
+  platform: null,
+  tier: null,
+  category: null,
+});
+
 // ─── JSDoc Typedefs ──────────────────────────────────────────────────────────
 
 /**
@@ -193,6 +206,17 @@ export function deriveAlertFlags(influencer, today = new Date()) {
   if (contactReason === CONTACT_REASONS.RESCHEDULE_REQUEST && contactUnresolved) flags.push(ALERT_FLAGS.RESCHEDULE_PENDING);
 
   return flags;
+}
+
+/**
+ * Collect the distinct store names present in an Influencer array.
+ *
+ * @param {Influencer[]} influencers
+ * @returns {string[]} 중복 제거·정렬된 스토어 이름 목록
+ */
+export function deriveStores(influencers) {
+  const unique = new Set((influencers || []).map(inf => inf.store).filter(Boolean));
+  return Array.from(unique).sort();
 }
 
 /**

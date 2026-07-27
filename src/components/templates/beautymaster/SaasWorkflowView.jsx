@@ -6,6 +6,8 @@ import Divider from '@mui/material/Divider';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Typography from '@mui/material/Typography';
+import SaasStoreSelect from './SaasStoreSelect';
+import { ALL_STORES } from '../../../data/beautymaster/schema.js';
 
 /**
  * 인플루언서 업무 7단계 — WorkflowGuide의 PHASES와 같은 내용.
@@ -217,22 +219,37 @@ function TagRow({ files, tools, handoff }) {
 }
 
 /**
- * Helper to resolve FILE_DEFS item to href, or null if not available.
+ * FILE_DEFS 항목의 실제 링크를 찾는다. 스토어별로 다른 문서는 storeDocs에서 꺼낸다.
+ *
+ * @param {object} file - FILE_DEFS 항목
+ * @param {string} selectedStore - 선택된 스토어 ('all'이면 미지정)
+ * @param {object} storeDocs - store별 문서 링크 맵 (utils/parseStoreDocsCsv 결과)
+ * @param {string} trackingListUrl - 스토어 무관 고정 링크
+ * @returns {string|null} 링크가 없으면 null
  */
-function resolveHref(file) {
+function resolveHref(file, selectedStore, storeDocs, trackingListUrl) {
+  if (file.linkKind === 'common') return trackingListUrl || null;
+  if (file.linkKind === 'store') {
+    if (!selectedStore || selectedStore === ALL_STORES) return null;
+    return storeDocs?.[selectedStore]?.[file.field] || null;
+  }
   return null;
 }
 
 /**
- * Helper to generate note text for FILE_DEFS items when href is unavailable.
+ * 링크를 못 찾았을 때 대신 보여줄 안내 문구.
+ *
+ * @param {object} file - FILE_DEFS 항목
+ * @param {string} selectedStore - 선택된 스토어 ('all'이면 미지정)
+ * @returns {string} 안내 문구 (없으면 빈 문자열)
  */
-function getFileNote(file) {
+function getFileNote(file, selectedStore) {
   if (file.linkKind === 'store') {
-    return 'Select a store in dashboard';
+    return !selectedStore || selectedStore === ALL_STORES
+      ? 'Select a store to see this link'
+      : `Not set for ${selectedStore} — add it to the Links sheet`;
   }
-  if (file.linkKind === 'common') {
-    return 'Common to all stores';
-  }
+  if (file.linkKind === 'common') return 'Common to all stores';
   return '';
 }
 
@@ -241,18 +258,49 @@ function getFileNote(file) {
  *
  * flat-SaaS 시안 Workflow 뷰 — 기존 WorkflowGuide와 같은 7단계 아코디언 구조.
  * 표면 문법만 flat-SaaS (white bg + thin border, no shadow).
+ * 하단 Files & systems는 선택된 스토어에 따라 동의서·목록 링크가 달라진다 —
+ * 스토어 선택은 Operations·Analytics와 공유하는 상태다.
  *
  * Props:
  * @param {string} defaultExpanded - 최초 펼친 단계 (num, 예: '01') [Optional, 기본값: '01']
+ * @param {string[]} stores - 스토어 선택 옵션 목록 [Optional, 기본값: []]
+ * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
+ * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
+ * @param {object} storeDocs - store별 문서 링크 맵 [Optional, 기본값: {}]
+ * @param {string} influencerTrackingListUrl - 스토어 무관 고정 링크 [Optional, 기본값: '']
  *
  * Example usage:
- * <SaasWorkflowView />
+ * <SaasWorkflowView stores={stores} selectedStore={selectedStore} onStoreChange={setSelectedStore} />
  */
-function SaasWorkflowView({ defaultExpanded = '01' }) {
+function SaasWorkflowView({
+  defaultExpanded = '01',
+  stores = [],
+  selectedStore = ALL_STORES,
+  onStoreChange,
+  storeDocs = {},
+  influencerTrackingListUrl = '',
+}) {
   const externalHandoffCount = PHASES.filter(p => p.handoff).length;
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+    <>
+      {/* 스토어 선택 — Operations·Analytics와 공유하는 상태 */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 3,
+          py: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <SaasStoreSelect stores={stores} value={selectedStore} onChange={onStoreChange} />
+      </Box>
+
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Typography component="h1" sx={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
           Influencer workflow
@@ -265,9 +313,9 @@ function SaasWorkflowView({ defaultExpanded = '01' }) {
       {/* Stats bar — 7 Phases / 6 Files & systems / 1 External handoff */}
       <Box sx={{ display: 'flex', gap: 3, py: 1.5, borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider', mb: 3 }}>
         {[
-          ['7', 'Phases'],
-          ['6', 'Files & systems'],
-          ['1', 'External handoff'],
+          [PHASES.length, 'Phases'],
+          [FILE_DEFS.length, 'Files & systems'],
+          [externalHandoffCount, externalHandoffCount === 1 ? 'External handoff' : 'External handoffs'],
         ].map(([num, label]) => (
           <Box key={label} sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography sx={{ fontSize: 18, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
@@ -363,7 +411,9 @@ function SaasWorkflowView({ defaultExpanded = '01' }) {
         Files & Systems
       </Typography>
       <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 2, display: 'block' }}>
-        Reference links for the 7-step workflow process
+        {selectedStore === ALL_STORES
+          ? 'Select a store to see its consent form and list links'
+          : `Showing links for ${selectedStore}`}
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
         {FILE_DEFS.map(file => (
@@ -372,12 +422,13 @@ function SaasWorkflowView({ defaultExpanded = '01' }) {
             kind={file.kind}
             name={file.name}
             desc={file.desc}
-            href={resolveHref(file)}
-            note={getFileNote(file)}
+            href={resolveHref(file, selectedStore, storeDocs, influencerTrackingListUrl)}
+            note={getFileNote(file, selectedStore)}
           />
         ))}
       </Box>
-    </Box>
+      </Box>
+    </>
   );
 }
 

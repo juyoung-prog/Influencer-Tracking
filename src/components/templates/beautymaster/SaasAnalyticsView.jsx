@@ -9,7 +9,8 @@ import TableRow from '@mui/material/TableRow';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import { deriveAnalyticsSummary } from '../../../data/beautymaster/schema.js';
+import SaasStoreSelect from './SaasStoreSelect';
+import { ALL_STORES, deriveAnalyticsSummary, deriveStores } from '../../../data/beautymaster/schema.js';
 import { formatCompact } from '../../../data/beautymaster/mentions.js';
 
 const pct = rate => `${Math.round((rate || 0) * 100)}%`;
@@ -173,15 +174,37 @@ function BreakdownTable({ groupHeader, rows }) {
  * Props:
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 [Required]
  * @param {object} inviteCounts - 초대 인원 데이터 [Optional, 기본값: {}]
+ * @param {string[]} stores - 스토어 선택 옵션 목록. 없으면 influencers에서 파생 [Optional]
+ * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
+ * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
  *
  * Example usage:
  * <SaasAnalyticsView influencers={influencers} inviteCounts={inviteCounts} />
  */
-function SaasAnalyticsView({ influencers, inviteCounts = {} }) {
+function SaasAnalyticsView({
+  influencers,
+  inviteCounts = {},
+  stores = null,
+  selectedStore = ALL_STORES,
+  onStoreChange,
+}) {
   const [funnelView, setFunnelView] = useState('bar');
 
-  const filtered = useMemo(() => influencers, [influencers]);
-  const filteredInviteCounts = useMemo(() => inviteCounts, [inviteCounts]);
+  const derivedStores = useMemo(() => deriveStores(influencers), [influencers]);
+  const storeOptions = stores ?? derivedStores;
+
+  const filtered = useMemo(
+    () => (selectedStore === ALL_STORES
+      ? influencers
+      : influencers.filter(inf => inf.store === selectedStore)),
+    [influencers, selectedStore],
+  );
+
+  /** 초대 인원도 같은 스토어로 좁힌다 — 퍼널 Invited 단계가 목록과 어긋나지 않도록 */
+  const filteredInviteCounts = useMemo(() => {
+    if (selectedStore === ALL_STORES) return inviteCounts;
+    return inviteCounts[selectedStore] ? { [selectedStore]: inviteCounts[selectedStore] } : {};
+  }, [inviteCounts, selectedStore]);
 
   const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
 
@@ -198,13 +221,39 @@ function SaasAnalyticsView({ influencers, inviteCounts = {} }) {
     [summary],
   );
 
+  /** 스토어 선택은 Operations·Workflow와 공유하는 상태라 데이터가 없을 때도 계속 보인다 */
+  const toolbar = (
+    <Box
+      sx={{
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        px: 3,
+        py: 2,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
+      <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+        {filtered.length} tracked
+      </Typography>
+    </Box>
+  );
+
   if (filtered.length === 0) {
     return (
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 8, textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          No data yet — select a store to see campaign analytics
-        </Typography>
-      </Box>
+      <>
+        {toolbar}
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 8, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            {selectedStore === ALL_STORES
+              ? 'No data yet — campaign analytics appear once the sheet has rows'
+              : `No data for ${selectedStore}`}
+          </Typography>
+        </Box>
+      </>
     );
   }
 
@@ -213,7 +262,9 @@ function SaasAnalyticsView({ influencers, inviteCounts = {} }) {
   const uploadRate = f.attended > 0 ? f.uploaded / f.attended : 0;
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+    <>
+      {toolbar}
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
       {/* Summary — KPI 카드 행 */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Campaign Summary" />
@@ -276,7 +327,8 @@ function SaasAnalyticsView({ influencers, inviteCounts = {} }) {
           </Box>
         </Box>
       </Box>
-    </Box>
+      </Box>
+    </>
   );
 }
 

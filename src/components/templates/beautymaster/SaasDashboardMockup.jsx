@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import SaasShell from './SaasShell';
 import SaasOperationsView from './SaasOperationsView';
 import SaasMentionsView from './SaasMentionsView';
 import SaasAnalyticsView from './SaasAnalyticsView';
 import SaasWorkflowView from './SaasWorkflowView';
+import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
 
 /**
  * SaasDashboardMockup component
@@ -28,6 +29,9 @@ import SaasWorkflowView from './SaasWorkflowView';
  * @param {boolean} isLoading - 최초 로딩 여부 [Optional, 기본값: false]
  * @param {Error|null} error - 조회 실패 에러 [Optional, 기본값: null]
  * @param {function} onRetry - 에러 배너 Retry 핸들러 [Optional]
+ * @param {string} defaultStore - 최초 선택 스토어 ('all'이면 전체) [Optional, 기본값: 'all']
+ * @param {object} storeDocs - Workflow 뷰의 store별 문서 링크 맵 [Optional, 기본값: {}]
+ * @param {string} influencerTrackingListUrl - Workflow 뷰의 스토어 무관 고정 링크 [Optional, 기본값: '']
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
  *
  * Example usage:
@@ -47,9 +51,16 @@ function SaasDashboardMockup({
   isLoading = false,
   error = null,
   onRetry,
+  defaultStore = ALL_STORES,
+  storeDocs = {},
+  influencerTrackingListUrl = '',
   sx,
 }) {
   const [activeView, setActiveView] = useState(defaultView);
+  /** 스토어는 세 뷰가 공유한다 — 뷰를 옮겨도 보던 스토어가 유지되도록 셸이 소유 */
+  const [selectedStore, setSelectedStore] = useState(defaultStore);
+
+  const stores = useMemo(() => deriveStores(influencers), [influencers]);
 
   return (
     <SaasShell
@@ -69,6 +80,9 @@ function SaasDashboardMockup({
           isLoading={isLoading}
           error={error}
           onRetry={onRetry}
+          stores={stores}
+          selectedStore={selectedStore}
+          onStoreChange={setSelectedStore}
         />
       )}
       {activeView === 'mentions' && (
@@ -84,9 +98,20 @@ function SaasDashboardMockup({
         <SaasAnalyticsView
           influencers={influencers}
           inviteCounts={inviteCounts}
+          stores={stores}
+          selectedStore={selectedStore}
+          onStoreChange={setSelectedStore}
         />
       )}
-      {activeView === 'workflow' && <SaasWorkflowView />}
+      {activeView === 'workflow' && (
+        <SaasWorkflowView
+          stores={stores}
+          selectedStore={selectedStore}
+          onStoreChange={setSelectedStore}
+          storeDocs={storeDocs}
+          influencerTrackingListUrl={influencerTrackingListUrl}
+        />
+      )}
     </SaasShell>
   );
 }
