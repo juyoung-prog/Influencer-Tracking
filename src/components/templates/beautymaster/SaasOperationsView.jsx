@@ -101,7 +101,9 @@ function buildScheduleGroups(influencers) {
   }
 
   const groups = [];
-  if (today.items.length) groups.push(today);
+  // Today는 0명이어도 항상 넣는다 — "오늘 방문 없음"을 빈 자리가 아니라 숫자로 보여주기 위함.
+  // 나머지 그룹은 비면 생략한다.
+  groups.push(today);
   groups.push(...Object.values(byDate).sort((a, b) => a.sortDate - b.sortDate));
   if (past.items.length) groups.push(past);
   for (const grp of groups) {
@@ -222,6 +224,8 @@ function SaasOperationsView({
   }, [filtered, stageFilter]);
 
   const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
+  /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
+  const hasScheduledVisit = scheduleGroups.some(g => g.items.length > 0);
   const visibleCount = sections.reduce((n, s) => n + s.items.length, 0);
   const hasFilter = stageFilter !== 'all'
     || selectedStore !== ALL_STORES
@@ -355,7 +359,7 @@ function SaasOperationsView({
                   <Skeleton variant="text" width={90} />
                 </Box>
               ))
-            ) : scheduleGroups.length === 0 ? (
+            ) : !hasScheduledVisit ? (
               <Typography sx={{ fontSize: 13, color: 'text.disabled', px: 1, py: 2 }}>
                 No visits scheduled
               </Typography>
