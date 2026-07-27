@@ -155,6 +155,8 @@ Vibe Dictionary 텍소노미 v0.4 기반 분류. 번호는 텍소노미 카테�
 
 ### Page / 대시보드 본체 (flat-SaaS)
 
+> 스토리: 이 절의 컴포넌트는 모두 `{ComponentName}.stories.jsx`를 같은 폴더에 둔다. `SaasShell`/`SaasOperationsView`는 인터랙션(사이드바 펼침, 섹션 접기, 상태 탭)이 핵심이라 `play` 함수로 검증한다 — 다만 CSS `:hover`는 합성 이벤트로 발동하지 않으므로 사이드바 펼침은 같은 규칙의 `:focus-within` 쪽으로 단언한다.
+
 **현재 운영 중인 대시보드 UI다** (2026-07-27 리뉴얼, 기존 탭 레이아웃 DashboardHeader/SchedulePanel/InfluencerPanel/AnalyticsDashboard/MentionsPanel/WorkflowGuide를 대체하고 삭제함. Mentions는 수집 파이프라인을 만들지 않기로 해 탭째 제외했다(2026-07-27) — `data/beautymaster/mentions.js`는 남아 있으나 이제 `formatCompact`와 라운드카드 시안·MentionListRow 계열만 쓴다).
 
 modern_saas_design_core_features.md 기반 — Linear/Vercel/Stripe 방향. White 배경 + thin 1px border + 8px radius + 섀도 없음 + Inter, 카드 최소화(KPI 배경 직접 배치·border/spacing 구획), Table 중심, dot+label Status-first, accent는 theme `primary.main`(#0000FF) 1색. 3분할(Operations/Analytics/Workflow)을 탭이 아닌 사이드바로 전환한다. 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS 공간 포화).
