@@ -601,7 +601,7 @@ function SaasOperationsView({
             })}
           </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}
@@ -633,8 +633,20 @@ function SaasOperationsView({
             {!showSkeleton && sections.map(section => {
               const isCollapsed = collapsedSections.has(section.key);
               return (
-                <Box key={section.key}>
-                  {/* 섹션 헤더 — 스크롤해도 어느 구간을 보고 있는지 남도록 sticky */}
+                <Box
+                  key={section.key}
+                  sx={{
+                    // 섹션 하나가 하나의 운영 단위로 읽히도록 테두리로 묶는다.
+                    // 카드가 아니다 — 섀도 없음, radius 6px, 얇은 중립 보더.
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '6px',
+                    mt: 2,
+                    // 마지막 행의 하단 divider는 컨테이너 보더와 겹치므로 지운다
+                    '& > [data-influencer-id]:last-of-type': { borderBottom: 'none' },
+                  }}
+                >
+                  {/* 섹션 헤더 — 스크롤해도 어느 구간인지 남도록 sticky. 컨테이너 안쪽이라 radius를 맞춘다 */}
                   <Box
                     component="button"
                     type="button"
@@ -651,9 +663,9 @@ function SaasOperationsView({
                       px: 2,
                       py: 0.625,
                       border: 'none',
-                      borderTop: '1px solid',
-                      borderBottom: '1px solid',
+                      borderBottom: isCollapsed ? 'none' : '1px solid',
                       borderColor: 'divider',
+                      borderRadius: isCollapsed ? '5px' : '5px 5px 0 0',
                       backgroundColor: 'grey.50',
                       font: 'inherit',
                       textAlign: 'left',
