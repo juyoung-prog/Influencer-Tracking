@@ -149,19 +149,21 @@ Vibe Dictionary 텍소노미 v0.4 기반 분류. 번호는 텍소노미 카테�
 
 ### Section / 섹션
 
-- DashboardHeader: 대시보드 상단 섹션. 타이틀 + SyncStatusBar + KpiBar 조합. `sheetUrl` prop이 있으면 Settings 아이콘 옆에 연동된 구글시트를 새 탭으로 여는 아이콘 노출(없으면 숨김) (`components/templates/beautymaster/DashboardHeader.jsx`)
-- SchedulePanel: 왼쪽 패널. Visit Schedule 레이블 + ScheduleTimeline. forwardRef(스크롤 싱크) (`components/templates/beautymaster/SchedulePanel.jsx`)
-- InfluencerPanel: 오른쪽 패널(스마트). SearchBar + FilterBar + CategoryTab + 섹션별 InfluencerListRow 목록. 탭·필터·검색 상태 소유. forwardRef(스크롤 싱크) (`components/templates/beautymaster/InfluencerPanel.jsx`)
-- AnalyticsDashboard: Analytics 탭 리포트 뷰. Funnel/Tier/Store/Category breakdown 조합, `inviteCounts` prop으로 초대 인원 데이터를 store 필터에 맞춰 반영. sticky 상단바(선택된 store chip + 섹션 점프 링크), Conversion Funnel은 바차트/표 토글. Campaign Summary를 제외한 각 섹션(Funnel/Top Influencers/Opinion/Platform/Category/Tier/Store)은 내부 `SectionCard`(outlined, 1px divider border, radius 1)로 감싸 독립된 카드 단위로 스캔되도록 함 — Divider로 이어붙인 리포트 흐름 대신 위젯 그리드 형태 (`components/templates/beautymaster/AnalyticsDashboard.jsx`)
-- MentionsPanel: Mentions 탭 콘텐츠(스마트). 일일 크롤로 수집된 영어 키워드 멘션 트래킹 시안. KPI 스트립(New Today·Qualified·Review Queue(warning)·Contacted·Avg ER) + 마지막 크롤 시각 캡션, SearchBar + 플랫폼/상태 Chip 필터, REVIEW QUEUE(수동 확인)/QUALIFIED(1만+ & ER 통과)/BELOW THRESHOLD 3개 섹션 리스트(MentionListRow). 상수·mock 데이터는 `data/beautymaster/mentions.js` (파이프라인 연결 전까지 MOCK_MENTIONS 사용) (`components/templates/beautymaster/MentionsPanel.jsx`)
 - MentionsPanelSaas: MentionsPanel의 모던 SaaS 문법 시안 변형(비교·검토용, 대시보드 미연결). 로직 동일, 표면만 다름 — grey.50 캔버스 위 라운드 카드(radius 16px) + 레이어드 소프트 섀도 + Inter Variable(@fontsource, 컴포넌트에서 import), KPI는 개별 스탯 카드 5장, 섹션은 헤더(제목+부제+카운트 pill) 있는 카드 단위로 분리(MentionListRowSaas). 프로젝트 기본 flat 문법과 의도적으로 다른 시안임 (`components/templates/beautymaster/MentionsPanelSaas.jsx`)
 - OperationsPanelSaas: Operations 뷰(DashboardHeader+SchedulePanel+InfluencerPanel 조합)의 모던 SaaS 문법 시안 변형(비교·검토용, 대시보드 미연결). 같은 데이터 규칙, 표면만 다름 — grey.50 캔버스 위 라운드 카드(16px) + 레이어드 소프트 섀도 + Inter Variable, KPI는 개별 스탯 카드 5장(Total/Agreement/Visit/Upload/Credit, deriveKpiSummary 내부 파생), 왼쪽 Visit schedule 카드(오늘·날짜별·과거 그룹) + 오른쪽 SearchBar·플랫폼/티어 Chip 필터 + Action required/Upcoming/Completed 섹션 카드(InfluencerListRowSaas). MentionsPanelSaas와 같은 시안 문법 공유 (`components/templates/beautymaster/OperationsPanelSaas.jsx`)
-- WorkflowGuide: Workflow 탭 콘텐츠. 인플루언서 업무 7단계를 MUI Accordion으로 표시(01 Prepare만 기본 open, 번호 마커+연결선으로 순서 강조), 관련 파일(grey.100 filled 태그)·외부 툴(outline 태그)·Store Manager handoff(secondary 태그) 구분 — 파일 태그는 `resolveFileHref`로 Files & Systems와 같은 링크를 공유해 링크 있으면 그 자리에서 바로 클릭 가능. Divider+REFERENCE 라벨로 구분한 하단 Files & Systems 그리드는 `selectedStore`/`storeDocs`/`influencerTrackingListUrl` prop으로 실제 링크 렌더링 — Tier1/2 Consent Form·Tier1/2 Influencer Tracking List (manager)는 store별로 다른 값(Links 시트 탭에서 polling), Influencer Tracking List는 스토어 무관 고정 링크. 스토어 미선택/링크 미입력 시 클릭 대신 안내 문구 표시. success/warning/error 미사용 — 상태 화면이 아닌 참조 문서이기 때문 (`components/templates/beautymaster/WorkflowGuide.jsx`)
 - parseStoreDocsCsv: Links 탭 CSV 파서. Store별 Tier1/Tier2 Consent Form URL·Tier1/Tier2 Influencer List URL을 `{ [store]: {...} }` 형태로 반환 (`utils/parseStoreDocsCsv.js`)
 
-### Page / 페이지 시안 (flat-SaaS)
+### Page / 대시보드 본체 (flat-SaaS)
 
-전형적 모던 SaaS 문법(modern_saas_design_core_features.md 기반) 대시보드 시안(비교·검토용, 대시보드 미연결). Linear/Vercel/Stripe 방향 — White 배경 + thin 1px border + 8px radius + 섀도 없음 + Inter, 카드 최소화(KPI 배경 직접 배치·border/spacing 구획), Table 중심, dot+label Status-first, accent는 theme `primary.main`(#0000FF) 1색. 기존 대시보드와 **같은 4분할(Operations/Mentions/Analytics/Workflow)**을 따르고 표면 문법만 다름 — 라운드 카드+소프트 섀도 시안(MentionsPanelSaas/OperationsPanelSaas)과 대비됨. 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS 공간 포화). 컨트롤 문법 공통: 검색 input·Select는 높이 36px, 필터 chip은 32px, 모두 radius 6px에 섀도 없음(pill 금지), 필터 그룹은 vertical Divider로 구분하고 Reset은 chip이 아닌 저강도 text action.
+**현재 운영 중인 대시보드 UI다** (2026-07-27 리뉴얼, 기존 탭 레이아웃 DashboardHeader/SchedulePanel/InfluencerPanel/AnalyticsDashboard/MentionsPanel/WorkflowGuide를 대체하고 삭제함).
+
+modern_saas_design_core_features.md 기반 — Linear/Vercel/Stripe 방향. White 배경 + thin 1px border + 8px radius + 섀도 없음 + Inter, 카드 최소화(KPI 배경 직접 배치·border/spacing 구획), Table 중심, dot+label Status-first, accent는 theme `primary.main`(#0000FF) 1색. 4분할(Operations/Mentions/Analytics/Workflow)을 탭이 아닌 사이드바로 전환한다. 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS 공간 포화).
+
+컨트롤 문법 공통: 검색 input·Select는 높이 36px, 필터 chip은 32px, 모두 radius 6px에 섀도 없음(pill 금지), 필터 그룹은 vertical Divider로 구분하고 Reset은 chip이 아닌 저강도 text action.
+
+결손 상태 규약: error는 목록을 지우지 않고 상단 배너 + Retry(직전 데이터 유지), isLoading은 목록이 비었을 때만 스켈레톤(폴링 중 깜빡임 방지), 빈 상태는 필터 유무에 따라 문구와 Clear filters를 분기한다.
+
+> 라운드 카드 + 소프트 섀도 방향(MentionsPanelSaas / OperationsPanelSaas)은 채택되지 않은 대안 시안이며 비교용으로만 남아 있다.
 
 - SaasShell: flat-SaaS 시안 셸. 좌측 고정 사이드바 192px(grey.50, 활성 항목 white+border, Operations 카운트) + 유동 본문(flex column, overflow hidden — 스크롤은 각 뷰가 소유). 본문 최상단에 글로벌 헤더 행(우측 정렬: Last synced 시각 + Refresh / Open Google Sheet / Settings 아이콘 18px, 배경·섀도 없이 hover만) — 기존 DashboardHeader의 유틸리티 자리. `sheetUrl`을 주면 Open Google Sheet가 새 탭 링크가 되고, 없으면 아이콘 자체를 숨긴다. 네비는 기존 탭 구성 Operations/Mentions/Analytics/Workflow. SAAS_FONT 상수 export. `sidebar-nav-shell` 아키타입 (`components/templates/beautymaster/SaasShell.jsx`)
 - SaasDashboardMockup: flat-SaaS 조립 진입점. activeView를 소유하고 SaasShell + 4개 뷰를 조합. 스토어는 Operations/Analytics/Workflow가 공유하므로 여기서 한 번만 들고 세 뷰에 내려보낸다 — 뷰를 옮겨도 보던 스토어가 유지된다. selectedStore는 controlled/uncontrolled 둘 다 지원(페이지가 config.defaultStore로 시딩하는 경우 때문). isLoading/error/onRetry/sheetUrl도 각 뷰·셸로 전달. **실서비스 BeautymasterDashboard가 `?ui=saas`일 때 이걸 렌더한다** — 이름은 mockup이지만 더 이상 목업 전용이 아니며, 레거시 제거 시 개명 예정 (`components/templates/beautymaster/SaasDashboardMockup.jsx`)

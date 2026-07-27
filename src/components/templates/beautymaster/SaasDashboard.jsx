@@ -7,13 +7,16 @@ import SaasWorkflowView from './SaasWorkflowView';
 import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
 
 /**
- * SaasDashboardMockup component
+ * SaasDashboard component
  *
- * 전형적 모던 SaaS 문법(modern_saas_design_core_features.md) 대시보드 시안 (비교·검토용 mockup, 대시보드 미연결).
- * 기존 대시보드와 같은 구성 — Operations / Mentions / Analytics / Workflow 4개 뷰이며, 탭 대신 사이드바로 전환한다.
- * 표면 문법만 다르다: White 배경, thin 1px border, 8px radius, 섀도 없음, Inter, accent는 theme primary 1색.
- * 카드를 쓰지 않고 border + spacing + typography로 구획하고, 본문은 중앙 정렬 없이 프레임을 가득 채운다.
- * 기존 라운드 카드 + 소프트 섀도 시안(MentionsPanelSaas / OperationsPanelSaas)과 대비되는 flat-SaaS 시안.
+ * BeautyMaster 대시보드의 본체 조립부. Operations / Mentions / Analytics / Workflow
+ * 4개 뷰를 사이드바(SaasShell)로 전환한다.
+ * 표면 문법은 modern_saas_design_core_features.md 기반 — White 배경, thin 1px border,
+ * 8px radius, 섀도 없음, Inter, accent는 theme primary 1색. 카드를 쓰지 않고
+ * border + spacing + typography로 구획하고, 본문은 중앙 정렬 없이 프레임을 가득 채운다.
+ *
+ * 데이터는 소유하지 않는다 — BeautymasterDashboard 페이지가 useSheetData로 받아 내려준다.
+ * 여기서 소유하는 건 화면 상태(활성 뷰, 선택 스토어)뿐이다.
  *
  * Props:
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 (data/beautymaster/schema.js typedef) [Required]
@@ -38,9 +41,9 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
  *
  * Example usage:
- * <SaasDashboardMockup influencers={influencers} lastSyncedAt={lastSyncedAt} onSelect={handleSelect} />
+ * <SaasDashboard influencers={influencers} lastSyncedAt={lastSyncedAt} onSelect={handleSelect} />
  */
-function SaasDashboardMockup({
+function SaasDashboard({
   influencers,
   mentions = [],
   inviteCounts = {},
@@ -131,4 +134,4 @@ function SaasDashboardMockup({
   );
 }
 
-export default SaasDashboardMockup;
+export default SaasDashboard;

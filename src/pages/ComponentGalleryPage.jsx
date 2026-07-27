@@ -15,9 +15,7 @@ import KpiBar from '../components/data-display/KpiBar';
 import ScheduleTimeline from '../components/data-display/ScheduleTimeline';
 import StatusIconRow from '../components/data-display/StatusIconRow';
 import SyncStatusBar from '../components/layout/SyncStatusBar';
-import DashboardHeader from '../components/templates/beautymaster/DashboardHeader';
-import InfluencerPanel from '../components/templates/beautymaster/InfluencerPanel';
-import SchedulePanel from '../components/templates/beautymaster/SchedulePanel';
+import SaasOperationsView from '../components/templates/beautymaster/SaasOperationsView';
 import { MOCK_INFLUENCERS } from './beautymaster/BeautymasterDashboard';
 import { deriveKpiSummary } from '../data/beautymaster/schema';
 import { DEFAULT_MESSAGE_TEMPLATES } from '../data/beautymaster/messageTemplates';
@@ -281,40 +279,13 @@ export default function ComponentGalleryPage() {
         <SectionHeading id="sections">Sections</SectionHeading>
 
         <ComponentBlock
-          title="DashboardHeader"
-          note="Title + SyncStatusBar row + KpiBar row. Composes KpiBar and SyncStatusBar."
+          title="SaasOperationsView"
+          note="Operations 뷰 전체. Visit schedule 레일 + 필터 툴바 + 섹션 구분 테이블을 한 화면에. 행을 클릭하면 Drawer가 열린다."
         >
-          <Box sx={{ border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-            <DashboardHeader
-              kpi={kpi}
-              isSyncing={false}
-              lastSyncedAt={new Date('2026-07-05T10:28:00')}
-            />
-          </Box>
-        </ComponentBlock>
-
-        <ComponentBlock
-          title="SchedulePanel"
-          note="Left panel with 'VISIT SCHEDULE' label and ScheduleTimeline. forwardRef for scroll sync."
-        >
-          <Box sx={{ height: 460, border: '1px solid', borderColor: 'divider', display: 'flex', overflow: 'hidden' }}>
-            <SchedulePanel
-              influencers={MOCK_INFLUENCERS}
-              onSelect={inf => setPanelSelectedId(inf.id)}
-              selectedId={panelSelectedId}
-            />
-          </Box>
-        </ComponentBlock>
-
-        <ComponentBlock
-          title="InfluencerPanel"
-          note="Smart right panel. Owns tab / filter / search state. Click a row to open the Drawer."
-        >
-          <Box sx={{ height: 560, border: '1px solid', borderColor: 'divider', display: 'flex', overflow: 'hidden' }}>
-            <InfluencerPanel
+          <Box sx={{ height: 560, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <SaasOperationsView
               influencers={MOCK_INFLUENCERS}
               stores={stores}
-              months={months}
               onSelect={inf => {
                 setPanelSelectedId(inf.id);
                 setDrawerInfluencer(inf);

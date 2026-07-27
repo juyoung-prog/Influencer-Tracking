@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import SaasDashboardMockup from './SaasDashboardMockup';
+import SaasDashboard from './SaasDashboard';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
 import { MOCK_MENTIONS } from '../../../data/beautymaster/mentions.js';
 
@@ -10,8 +10,8 @@ const LAST_CRAWLED_AT = MOCK_MENTIONS.reduce(
 );
 
 export default {
-  title: 'BeautyMaster/Page/SaasDashboardMockup',
-  component: SaasDashboardMockup,
+  title: 'BeautyMaster/Page/SaasDashboard',
+  component: SaasDashboard,
   tags: ['autodocs'],
   parameters: { layout: 'fullscreen' },
   argTypes: {

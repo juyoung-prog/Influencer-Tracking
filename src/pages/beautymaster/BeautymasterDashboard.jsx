@@ -1,23 +1,11 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
-import FormControl from '@mui/material/FormControl';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import AnalyticsDashboard from '../../components/templates/beautymaster/AnalyticsDashboard';
-import SaasDashboardMockup from '../../components/templates/beautymaster/SaasDashboardMockup';
-import WorkflowGuide from '../../components/templates/beautymaster/WorkflowGuide';
+import SaasDashboard from '../../components/templates/beautymaster/SaasDashboard';
 import InfluencerDrawer from '../../components/overlay-feedback/InfluencerDrawer';
 import SheetSettingsModal from '../../components/overlay-feedback/SheetSettingsModal';
-import DashboardHeader from '../../components/templates/beautymaster/DashboardHeader';
-import InfluencerPanel from '../../components/templates/beautymaster/InfluencerPanel';
-import MentionsPanel from '../../components/templates/beautymaster/MentionsPanel';
-import SchedulePanel from '../../components/templates/beautymaster/SchedulePanel';
 import SheetSetupScreen from '../../components/templates/beautymaster/SheetSetupScreen';
 import { useSheetData } from '../../hooks/useSheetData.js';
-import { deriveKpiSummary } from '../../data/beautymaster/schema.js';
+import { ALL_STORES, deriveStores } from '../../data/beautymaster/schema.js';
 import { MOCK_MENTIONS } from '../../data/beautymaster/mentions.js';
 import { findSheetViewUrl } from '../../utils/googleSheetUrl.js';
 
@@ -137,65 +125,26 @@ export const MOCK_INFLUENCERS = [
  * BeautymasterDashboard page component
  *
  * Full-screen influencer management dashboard.
- * Reads data from Google Sheets via useSheetData.
+ * Reads data from Google Sheets via useSheetData and hands it to SaasDashboard,
+ * which owns only the screen state (active view, selected store).
  * Shows SheetSetupScreen when no config is saved.
- *
- * UI 리뉴얼 진행 중 — `?ui=saas`를 붙이면 flat-SaaS 셸(사이드바 + 글로벌 헤더)로,
- * 아무것도 안 붙이면 기존 탭 레이아웃으로 렌더한다. 두 UI가 같은 useSheetData
- * 데이터와 같은 오버레이(Drawer/Settings)를 공유하므로 나란히 놓고 비교할 수 있다.
- * 리뉴얼이 확정되면 기존 레이아웃과 이 플래그를 함께 제거한다.
  *
  * Props: (none — data is owned internally via useSheetData)
  */
 function BeautymasterDashboard() {
-  const { influencers, kpi, inviteCounts, storeDocs, messageTemplates, influencerTrackingListUrl, isSyncing, lastSyncedAt, error, refresh, config, saveConfig } = useSheetData();
+  const {
+    influencers, inviteCounts, storeDocs, messageTemplates, influencerTrackingListUrl,
+    isSyncing, lastSyncedAt, error, refresh, config, saveConfig,
+  } = useSheetData();
 
-  /** UI 리뉴얼 플래그 — ?ui=saas면 flat-SaaS 셸, 아니면 기존 탭 레이아웃 */
-  const [searchParams] = useSearchParams();
-  const isSaasUi = searchParams.get('ui') === 'saas';
-
-  const [activeTab, setActiveTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [filters, setFilters] = useState({ store: config?.defaultStore || 'all', platform: null, tier: null, category: null });
-  const [analyticsStore, setAnalyticsStore] = useState(config?.defaultStore || 'all');
-  /** flat-SaaS 셸은 세 뷰가 스토어 하나를 공유한다 — 기존 UI의 filters.store/analyticsStore 분리와 다름 */
-  const [saasStore, setSaasStore] = useState(config?.defaultStore || 'all');
+  /** 스토어는 Operations/Analytics/Workflow가 공유한다 — 뷰를 옮겨도 유지된다 */
+  const [selectedStore, setSelectedStore] = useState(config?.defaultStore || ALL_STORES);
 
-  const timelinePanelRef = useRef(null);
-  const listPanelRef = useRef(null);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const selector = `[data-influencer-id="${selectedId}"]`;
-    timelinePanelRef.current?.querySelector(selector)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    listPanelRef.current?.querySelector(selector)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [selectedId]);
-
-  const stores = useMemo(() => [...new Set(influencers.map(i => i.store))].sort(), [influencers]);
-  const months = useMemo(() => [...new Set(influencers.map(i => i.month))].sort((a, b) => a - b), [influencers]);
-
-  const filteredInfluencers = useMemo(() => influencers.filter(inf => {
-    if (filters.store !== 'all' && inf.store !== filters.store) return false;
-    if (filters.platform) {
-      const platforms = inf.platform.split(',').map(p => p.trim().toLowerCase());
-      if (!platforms.includes(filters.platform.toLowerCase())) return false;
-    }
-    if (filters.tier && inf.tier !== filters.tier) return false;
-    if (filters.category && inf.category !== filters.category) return false;
-    return true;
-  }), [influencers, filters]);
-
-  const filteredKpi = useMemo(() => deriveKpiSummary(filteredInfluencers), [filteredInfluencers]);
-
-  const analyticsFilteredInfluencers = useMemo(() => (
-    analyticsStore === 'all' ? influencers : influencers.filter(i => i.store === analyticsStore)
-  ), [influencers, analyticsStore]);
-  const analyticsKpi = useMemo(() => deriveKpiSummary(analyticsFilteredInfluencers), [analyticsFilteredInfluencers]);
-
+  const stores = useMemo(() => deriveStores(influencers), [influencers]);
   const selectedInfluencer = influencers.find(i => i.id === selectedId) || null;
-
   const sheetUrl = findSheetViewUrl(config);
 
   /** 멘션 수집 파이프라인 연결 전까지 MOCK_MENTIONS 기준 — 가장 최근 수집 시각 */
@@ -209,170 +158,61 @@ function BeautymasterDashboard() {
     setDrawerOpen(true);
   };
 
-  const handleSaveConfig = (newConfig) => {
+  const handleSaveConfig = newConfig => {
     saveConfig(newConfig);
-    if (newConfig.defaultStore) {
-      setFilters(prev => ({ ...prev, store: newConfig.defaultStore }));
-      setSaasStore(newConfig.defaultStore);
-    }
+    if (newConfig.defaultStore) setSelectedStore(newConfig.defaultStore);
     setSettingsOpen(false);
   };
 
-  /** 두 UI가 공유하는 오버레이 — 어느 레이아웃이든 같은 Drawer/Settings를 쓴다 */
-  const overlays = (
-    <>
-      <InfluencerDrawer
-        influencer={selectedInfluencer}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        templates={messageTemplates}
-      />
-      <SheetSettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        config={config}
-        onSave={handleSaveConfig}
-        stores={stores}
-      />
-    </>
+  const settingsModal = (
+    <SheetSettingsModal
+      open={settingsOpen}
+      onClose={() => setSettingsOpen(false)}
+      config={config}
+      onSave={handleSaveConfig}
+      stores={stores}
+    />
   );
 
   // ── Setup screen (no config saved yet) ──────────────────────────────────────
   if (!config) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <DashboardHeader
-          kpi={kpi}
-          isSyncing={false}
-          lastSyncedAt={null}
-          onRefresh={() => {}}
-          onSettingsClick={() => setSettingsOpen(true)}
-        />
         <SheetSetupScreen onSetup={() => setSettingsOpen(true)} />
-        <SheetSettingsModal
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          config={config}
-          onSave={handleSaveConfig}
-          stores={stores}
-        />
+        {settingsModal}
       </Box>
     );
   }
 
-  // ── flat-SaaS 셸 (?ui=saas) — 리뉴얼 후보 UI ─────────────────────────────────
-  if (isSaasUi) {
-    return (
-      <Box sx={{ height: '100vh', overflow: 'hidden' }}>
-        <SaasDashboardMockup
-          influencers={influencers}
-          mentions={MOCK_MENTIONS}
-          inviteCounts={inviteCounts}
-          lastSyncedAt={lastSyncedAt}
-          lastCrawledAt={lastCrawledAt}
-          onSelect={handleSelect}
-          selectedId={selectedId}
-          onRefresh={refresh}
-          onOpenSettings={() => setSettingsOpen(true)}
-          sheetUrl={sheetUrl}
-          isLoading={isSyncing}
-          error={error}
-          onRetry={refresh}
-          selectedStore={saasStore}
-          onStoreChange={setSaasStore}
-          storeDocs={storeDocs}
-          influencerTrackingListUrl={influencerTrackingListUrl}
-        />
-        {overlays}
-      </Box>
-    );
-  }
-
-  // ── Dashboard (config saved, data polling active) ────────────────────────────
+  // ── Dashboard (config saved, data polling active) ───────────────────────────
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <DashboardHeader
-        kpi={activeTab === 2 ? analyticsKpi : filteredKpi}
-        isSyncing={isSyncing}
+    <Box sx={{ height: '100vh', overflow: 'hidden' }}>
+      <SaasDashboard
+        influencers={influencers}
+        mentions={MOCK_MENTIONS}
+        inviteCounts={inviteCounts}
         lastSyncedAt={lastSyncedAt}
+        lastCrawledAt={lastCrawledAt}
+        onSelect={handleSelect}
+        selectedId={selectedId}
         onRefresh={refresh}
-        onSettingsClick={() => setSettingsOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         sheetUrl={sheetUrl}
+        isLoading={isSyncing}
+        error={error}
+        onRetry={refresh}
+        selectedStore={selectedStore}
+        onStoreChange={setSelectedStore}
+        storeDocs={storeDocs}
+        influencerTrackingListUrl={influencerTrackingListUrl}
       />
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 40 }}>
-          <Tab label="Operations" sx={{ minHeight: 40, fontSize: 13 }} />
-          <Tab label="Mentions" sx={{ minHeight: 40, fontSize: 13 }} />
-          <Tab label="Analytics" sx={{ minHeight: 40, fontSize: 13 }} />
-          <Tab label="Workflow" sx={{ minHeight: 40, fontSize: 13 }} />
-        </Tabs>
-        {(activeTab === 2 || activeTab === 3) && stores.length > 0 && (
-          <Box sx={{ ml: 'auto', pr: 2 }}>
-            <FormControl size="small">
-              <Select
-                value={analyticsStore}
-                onChange={e => setAnalyticsStore(e.target.value)}
-                displayEmpty
-                sx={{ fontSize: 13, height: 32, minWidth: 140 }}
-              >
-                <MenuItem value="all">All Stores</MenuItem>
-                {stores.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Box>
-        )}
-      </Box>
-
-      {activeTab === 0 && (
-        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <SchedulePanel
-            ref={timelinePanelRef}
-            influencers={filteredInfluencers}
-            onSelect={handleSelect}
-            selectedId={selectedId}
-          />
-          <InfluencerPanel
-            ref={listPanelRef}
-            influencers={filteredInfluencers}
-            stores={stores}
-            months={months}
-            filters={filters}
-            onFiltersChange={setFilters}
-            onSelect={handleSelect}
-            selectedId={selectedId}
-            isLoading={isSyncing && influencers.length === 0}
-            error={error}
-            onRetry={refresh}
-          />
-        </Box>
-      )}
-
-      {activeTab === 1 && (
-        // 시안(mockup): 수집 파이프라인 연결 전까지 MOCK_MENTIONS로 렌더링
-        <MentionsPanel
-          mentions={MOCK_MENTIONS}
-          lastCrawledAt={MOCK_MENTIONS.reduce((max, m) => (m.capturedAt > max ? m.capturedAt : max), MOCK_MENTIONS[0]?.capturedAt ?? null)}
-        />
-      )}
-
-      {activeTab === 2 && (
-        <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <AnalyticsDashboard influencers={influencers} inviteCounts={inviteCounts} selectedStore={analyticsStore} />
-        </Box>
-      )}
-
-      {activeTab === 3 && (
-        <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <WorkflowGuide
-            selectedStore={analyticsStore}
-            storeDocs={storeDocs}
-            influencerTrackingListUrl={influencerTrackingListUrl}
-          />
-        </Box>
-      )}
-
-      {overlays}
+      <InfluencerDrawer
+        influencer={selectedInfluencer}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        templates={messageTemplates}
+      />
+      {settingsModal}
     </Box>
   );
 }
