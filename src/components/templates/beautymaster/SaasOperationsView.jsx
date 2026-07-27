@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -12,9 +13,11 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import SaasKpiItem from './SaasKpiItem';
 import { deriveKpiSummary } from '../../../data/beautymaster/schema.js';
 
 /** 파이프라인 단계 → Status-first 표현 (dot + label) */
@@ -104,46 +107,6 @@ function buildScheduleGroups(influencers) {
 }
 
 /**
- * KpiItem — 배경 위 직접 배치되는 KPI 수치 (카드 없음, 좌측 1px border로 구분)
- *
- * Props:
- * @param {string} label - 지표 이름 [Required]
- * @param {number|string} value - 지표 값 [Required]
- * @param {number|null} total - "of N" 분모 [Optional, 기본값: null]
- * @param {boolean} isFirst - 첫 항목 여부 (구분선 생략) [Optional, 기본값: false]
- */
-function KpiItem({ label, value, total = null, isFirst = false }) {
-  return (
-    <Box
-      sx={{
-        pl: isFirst ? 0 : 2.5,
-        pr: 2.5,
-        borderLeft: isFirst ? 'none' : '1px solid',
-        borderColor: 'divider',
-        minWidth: 84,
-      }}
-    >
-      <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'text.secondary', mb: 0.5, lineHeight: 1 }}>
-        {label}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.625 }}>
-        <Typography
-          component="span"
-          sx={{ fontSize: 22, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}
-        >
-          {value}
-        </Typography>
-        {total !== null && total > 0 && (
-          <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
-            of {total}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-/**
  * SaasOperationsView component
  *
  * flat-SaaS 시안 Operations 뷰 — 기존 대시보드 Operations 탭(SchedulePanel + InfluencerPanel)과
@@ -156,11 +119,21 @@ function KpiItem({ label, value, total = null, isFirst = false }) {
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 (data/beautymaster/schema.js typedef) [Required]
  * @param {function} onSelect - 행 클릭 핸들러 (influencer) => void [Optional]
  * @param {string|null} selectedId - 현재 선택된 인플루언서 ID [Optional, 기본값: null]
+ * @param {boolean} isLoading - 최초 로딩 여부 (목록이 비었을 때만 스켈레톤) [Optional, 기본값: false]
+ * @param {Error|null} error - 시트 조회 실패 에러 (상단 배너로 표시) [Optional, 기본값: null]
+ * @param {function} onRetry - 에러 배너의 Retry 핸들러 [Optional]
  *
  * Example usage:
  * <SaasOperationsView influencers={influencers} onSelect={handleSelect} />
  */
-function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
+function SaasOperationsView({
+  influencers,
+  onSelect,
+  selectedId = null,
+  isLoading = false,
+  error = null,
+  onRetry,
+}) {
   const [stageFilter, setStageFilter] = useState('all');
   const [storeFilter, setStoreFilter] = useState(null);
   const [platformFilter, setPlatformFilter] = useState(null);
@@ -217,6 +190,8 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
   const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
   const visibleCount = sections.reduce((n, s) => n + s.items.length, 0);
   const hasFilter = stageFilter !== 'all' || storeFilter !== null || platformFilter !== null || tierFilter !== null || categoryFilter !== null || searchQuery.trim() !== '';
+  /** 최초 로딩만 스켈레톤 — 이미 데이터가 있으면 폴링 중에도 목록을 유지한다 */
+  const showSkeleton = isLoading && influencers.length === 0;
 
   const resetFilters = () => {
     setStageFilter('all');
@@ -240,6 +215,24 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
 
   return (
     <>
+      {/* 조회 실패 — 목록을 지우지 않고 상단 배너로만 알린다(직전 데이터 유지) */}
+      {error && (
+        <Alert
+          severity="error"
+          square
+          sx={{ flexShrink: 0, fontSize: 13, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
+          action={
+            onRetry && (
+              <Button color="inherit" size="small" onClick={onRetry} sx={{ textTransform: 'none', fontSize: 12 }}>
+                Retry
+              </Button>
+            )
+          }
+        >
+          Failed to load data — {error.message}
+        </Alert>
+      )}
+
       {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외) */}
       <Box
         sx={{
@@ -254,10 +247,10 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
           borderColor: 'divider',
         }}
       >
-        <KpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
-        <KpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
-        <KpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
-        <KpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
+        <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
+        <SaasKpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
+        <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
+        <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
 
         {kpi.alertCount > 0 && (
           <Box
@@ -317,7 +310,14 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
             VISIT SCHEDULE
           </Typography>
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 1, pb: 2 }}>
-            {scheduleGroups.length === 0 ? (
+            {showSkeleton ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <Box key={`rail-skeleton-${i}`} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5 }}>
+                  <Skeleton variant="text" width={44} />
+                  <Skeleton variant="text" width={90} />
+                </Box>
+              ))
+            ) : scheduleGroups.length === 0 ? (
               <Typography sx={{ fontSize: 13, color: 'text.disabled', px: 1, py: 2 }}>
                 No visits scheduled
               </Typography>
@@ -531,7 +531,22 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sections.length === 0 && (
+                {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={`skeleton-${i}`} sx={{ '& td': { borderColor: 'divider', py: 0.875 }, '& td:first-of-type': { pl: 3 }, '& td:last-of-type': { pr: 3 } }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <Skeleton variant="circular" width={24} height={24} />
+                        <Skeleton variant="text" width={120} sx={{ fontSize: 13 }} />
+                      </Box>
+                    </TableCell>
+                    <TableCell><Skeleton variant="text" width={60} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={40} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={70} /></TableCell>
+                  </TableRow>
+                ))}
+                {!showSkeleton && sections.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} sx={{ border: 'none', py: 8, textAlign: 'center' }}>
                       <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: hasFilter ? 1 : 0 }}>
@@ -545,7 +560,7 @@ function SaasOperationsView({ influencers, onSelect, selectedId = null }) {
                     </TableCell>
                   </TableRow>
                 )}
-                {sections.map(section => [
+                {!showSkeleton && sections.map(section => [
                   <TableRow key={`${section.key}-head`}>
                     <TableCell
                       colSpan={6}

@@ -1,6 +1,13 @@
 import Box from '@mui/material/Box';
 import SaasDashboardMockup from './SaasDashboardMockup';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
+import { MOCK_MENTIONS } from '../../../data/beautymaster/mentions.js';
+
+const LAST_SYNCED_AT = new Date('2026-07-27T09:56:00');
+const LAST_CRAWLED_AT = MOCK_MENTIONS.reduce(
+  (max, m) => (m.capturedAt > max ? m.capturedAt : max),
+  MOCK_MENTIONS[0]?.capturedAt ?? null,
+);
 
 export default {
   title: 'BeautyMaster/Page/SaasDashboardMockup',
@@ -9,17 +16,22 @@ export default {
   parameters: { layout: 'fullscreen' },
   argTypes: {
     influencers: { control: 'object', description: '전체 인플루언서 목록 (Influencer[] typedef)' },
+    mentions: { control: 'object', description: '멘션 목록 (Mention[] typedef)' },
     inviteCounts: { control: 'object', description: '"Number" 탭 초대 인원 데이터 (store→tier→count)' },
     lastSyncedAt: { control: 'date', description: '마지막 시트 동기화 시각' },
-    selectedStore: { control: 'text', description: 'Workflow 뷰 캡션에 표시할 스토어' },
+    lastCrawledAt: { control: 'date', description: '마지막 멘션 크롤 시각' },
     defaultView: {
       control: 'radio',
-      options: ['operations', 'analytics', 'workflow'],
+      options: ['operations', 'mentions', 'analytics', 'workflow'],
       description: '최초 활성 뷰',
     },
     selectedId: { control: 'text', description: '현재 선택된 인플루언서 ID' },
+    isLoading: { control: 'boolean', description: '최초 로딩 여부 (목록이 비었을 때만 스켈레톤)' },
+    error: { control: false, description: '조회 실패 에러 — 상단 배너로 표시' },
     onSelect: { action: 'selected', description: '인플루언서 행 클릭 핸들러' },
-    onOpenSettings: { action: 'settings', description: '사이드바 설정 아이콘 클릭 핸들러' },
+    onRefresh: { action: 'refreshed', description: '헤더 새로고침 핸들러' },
+    onOpenSettings: { action: 'settings', description: '헤더 설정 아이콘 클릭 핸들러' },
+    onRetry: { action: 'retried', description: '에러 배너 Retry 핸들러' },
     sx: { control: 'object', description: '루트 Box에 적용할 MUI sx 오버라이드' },
   },
   decorators: [
@@ -31,25 +43,33 @@ export default {
   ],
 };
 
-/** Operations — Visit schedule 레일과 목록이 한 화면. 사이드바로 Analytics/Workflow 전환 */
+/** Operations — Visit schedule 레일과 목록이 한 화면. 사이드바로 다른 뷰 전환 */
 export const Default = {
   args: {
     influencers: MOCK_INFLUENCERS,
-    lastSyncedAt: new Date('2026-07-27T09:56:00'),
-    selectedStore: 'Duluth',
+    mentions: MOCK_MENTIONS,
+    lastSyncedAt: LAST_SYNCED_AT,
+    lastCrawledAt: LAST_CRAWLED_AT,
     defaultView: 'operations',
+  },
+};
+
+/** Mentions — Review queue / Qualified / Below threshold 3개 섹션 */
+export const Mentions = {
+  args: {
+    ...Default.args,
+    defaultView: 'mentions',
   },
 };
 
 /** Analytics — 전환 KPI + 퍼널 + By store/tier 테이블 */
 export const Analytics = {
   args: {
-    influencers: MOCK_INFLUENCERS,
+    ...Default.args,
     inviteCounts: {
       Duluth: { tier1: 40, tier2: 25 },
       Atlanta: { tier1: 30, tier2: 20 },
     },
-    lastSyncedAt: new Date('2026-07-27T09:56:00'),
     defaultView: 'analytics',
   },
 };
@@ -57,18 +77,38 @@ export const Analytics = {
 /** Workflow — 7단계 참조 문서 */
 export const Workflow = {
   args: {
-    influencers: MOCK_INFLUENCERS,
-    lastSyncedAt: new Date('2026-07-27T09:56:00'),
-    selectedStore: 'Duluth',
+    ...Default.args,
     defaultView: 'workflow',
   },
 };
 
-/** 빈 상태 — 시트 데이터가 없을 때 */
+/** 빈 상태 — 시트는 연결됐지만 아직 행이 없을 때 */
 export const Empty = {
   args: {
     influencers: [],
+    mentions: [],
     lastSyncedAt: null,
+    lastCrawledAt: null,
     defaultView: 'operations',
+  },
+};
+
+/** 최초 로딩 — 데이터가 아직 없을 때만 스켈레톤. 폴링 중에는 직전 목록을 유지한다 */
+export const Loading = {
+  args: {
+    influencers: [],
+    mentions: [],
+    lastSyncedAt: null,
+    lastCrawledAt: null,
+    defaultView: 'operations',
+    isLoading: true,
+  },
+};
+
+/** 조회 실패 — 목록을 지우지 않고 상단 배너로만 알리고 Retry를 제공한다 */
+export const LoadError = {
+  args: {
+    ...Default.args,
+    error: new Error('Google Sheets returned 403 (check sharing settings)'),
   },
 };

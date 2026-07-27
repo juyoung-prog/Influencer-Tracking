@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import AlternateEmailOutlinedIcon from '@mui/icons-material/AlternateEmailOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
@@ -13,9 +14,10 @@ import '@fontsource-variable/inter';
 /** flat-SaaS 시안 공통 폰트 스택 (modern_saas_design_core_features.md 기반 시안 전용) */
 export const SAAS_FONT = '"Inter Variable", Inter, "Pretendard Variable", Pretendard, sans-serif';
 
-/** 기존 대시보드의 탭 구성(Operations / Analytics / Workflow)을 사이드바로 옮긴 것 */
+/** 기존 대시보드의 탭 구성(Operations / Mentions / Analytics / Workflow)을 사이드바로 옮긴 것 */
 const NAV_ITEMS = [
   { key: 'operations', label: 'Operations', Icon: ListAltOutlinedIcon },
+  { key: 'mentions', label: 'Mentions', Icon: AlternateEmailOutlinedIcon },
   { key: 'analytics', label: 'Analytics', Icon: BarChartOutlinedIcon },
   { key: 'workflow', label: 'Workflow', Icon: RouteOutlinedIcon },
 ];
@@ -26,11 +28,11 @@ const NAV_ITEMS = [
  * flat-SaaS 시안의 셸 — 좌측 고정 사이드바(192px) + 유동 본문.
  * 본문은 중앙 정렬 max-width 없이 프레임을 가득 채운다(운영형 SaaS의 공간 포화 정책).
  * 스크롤은 셸이 아니라 각 뷰가 소유한다(본문은 overflow hidden + flex column).
- * 네비는 기존 대시보드 탭 구성(Operations/Analytics/Workflow)을 그대로 따르고,
+ * 네비는 기존 대시보드 탭 구성(Operations/Mentions/Analytics/Workflow)을 그대로 따르고,
  * 상단 header에는 global utility controls(sync status, refresh, settings)가 있다.
  *
  * Props:
- * @param {string} activeNav - 활성 네비 키 (operations|analytics|workflow) [Required]
+ * @param {string} activeNav - 활성 네비 키 (operations|mentions|analytics|workflow) [Required]
  * @param {number} influencerCount - Operations 항목 옆 카운트 [Optional, 기본값: 0]
  * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (상단 header에 표시) [Optional, 기본값: null]
  * @param {function} onNavigate - 네비 항목 클릭 핸들러 (key) => void [Optional]
