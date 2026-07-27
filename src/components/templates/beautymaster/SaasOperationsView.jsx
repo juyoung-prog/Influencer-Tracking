@@ -360,32 +360,28 @@ function SaasOperationsView({
                 No visits scheduled
               </Typography>
             ) : (
-              scheduleGroups.map(grp => (
+              scheduleGroups.map(grp => {
+                const isToday = grp.key === 'today';
+                return (
                 <Box key={grp.key} sx={{ mb: 1 }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      px: 1,
-                      pt: 0.75,
-                      pb: 0.5,
-                    }}
-                  >
+                  {/* 라벨과 인원수를 붙여 하나의 정보 묶음으로 읽히게 한다.
+                      우측 정렬하면 둘 사이가 멀어져 관계가 끊긴다. */}
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.875, px: 1, pt: 0.75, pb: 0.5 }}>
                     <Typography
                       sx={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: grp.key === 'today' ? 'primary.main' : 'text.disabled',
+                        color: isToday ? 'primary.main' : 'text.disabled',
                       }}
                     >
                       {grp.label}
                     </Typography>
+                    {/* 라벨보다 한 단계 진하게 — 실제로 읽어야 하는 값은 숫자다 */}
                     <Typography
                       sx={{
-                        fontSize: 10,
-                        fontWeight: 500,
-                        color: 'text.disabled',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: isToday ? 'primary.main' : 'text.secondary',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -424,7 +420,8 @@ function SaasOperationsView({
                     </Box>
                   ))}
                 </Box>
-              ))
+                );
+              })
             )}
           </Box>
         </Box>
