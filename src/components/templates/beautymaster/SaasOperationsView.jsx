@@ -429,6 +429,9 @@ function SaasOperationsView({
         {/* 목록 — KPI + 툴바 + 탭 + 섹션. 좌우 인셋은 이 컨테이너 한 곳에서만 관리한다.
             자식들이 각자 padding을 두면 기준선이 갈라지므로 자식에는 가로 padding을 주지 않는다. */}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', px: CONTENT_PX }}>
+          {/* 상단 고정 묶음 — 스크롤하지 않지만 아래 목록과 같은 스크롤바 거터를 예약해
+              좌우 기준선을 맞춘다. 예약하지 않으면 목록만 스크롤바 폭만큼 좁아진다. */}
+          <Box sx={{ flexShrink: 0, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
         {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
             목록 컬럼 안에 있으므로 툴바·탭·섹션과 같은 인셋을 쓴다.
             덕분에 레일과의 세로 경계선이 화면 위끝까지 끊기지 않고 이어진다. */}
@@ -614,8 +617,9 @@ function SaasOperationsView({
               );
             })}
           </Box>
+          </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pb: 2 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}
