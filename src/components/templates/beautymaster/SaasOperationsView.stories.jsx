@@ -122,54 +122,7 @@ export const NarrowViewport = {
   },
 };
 
-/**
- * 레일 상태 표시 — 경보가 있는 행은 이름 아래 짧은 상태 문구가 붙는다.
- * 이전에는 색 점(•) 하나로 "경보 있음"만 알렸는데, 어떤 문제인지 알 수 없고
- * 색·모양으로만 전달돼 텍스트 대체물이 없었다(WCAG 1.4.1).
- */
-export const RailAlertLabels = {
-  play: async ({ canvasElement }) => {
-    const rail = [...canvasElement.querySelectorAll('p')]
-      .find(p => p.textContent.trim() === 'VISIT SCHEDULE').parentElement;
 
-    // 색 점은 더 이상 쓰지 않는다
-    const dots = [...rail.querySelectorAll('div')].filter(d => {
-      const s = getComputedStyle(d);
-      return s.borderRadius === '50%' && parseFloat(s.width) <= 6;
-    });
-    await expect(dots).toHaveLength(0);
-
-    // 대신 상태 문구가 보인다
-    const labels = [...rail.querySelectorAll('p')]
-      .map(p => p.textContent.trim())
-      .filter(t => ['No visit', 'No upload', 'No credit', 'No-show', 'Reschedule'].includes(t));
-    await expect(labels.length).toBeGreaterThan(0);
-  },
-};
-
-/**
- * 레일은 날짜와 시각을 함께 보여준다.
- *
- * Past 그룹은 여러 날짜가 한 덩어리로 묶여 있어 시각만 있으면 그게 1월인지 10월인지
- * 알 수 없었다. 동시에, 시트에 시각이 없는 건은 파싱하면 자정이 되는데 그걸
- * "12:00 AM"으로 보여주면 없는 정보를 만들어내는 것이라 날짜만 쓴다.
- */
-export const RailShowsDateAndTime = {
-  play: async ({ canvasElement }) => {
-    const rail = canvasElement.querySelector('[data-rail]');
-    const cells = [...rail.querySelectorAll('*')]
-      .filter(e => !e.children.length && /^[A-Z][a-z]{2}\s\d/.test(e.textContent.trim()))
-      .map(e => e.textContent.trim());
-    await expect(cells.length).toBeGreaterThan(0);
-
-    // 모든 일정 셀이 날짜로 시작한다
-    for (const c of cells) await expect(c).toMatch(/^[A-Z][a-z]{2} \d{1,2}/);
-    // 시각이 붙은 건이 실제로 있다
-    await expect(cells.some(c => /·\s\d{1,2}:\d{2}\s?(AM|PM)/.test(c))).toBe(true);
-    // 자정을 지어내지 않는다
-    await expect(cells.some(c => /12:00\s?AM/.test(c))).toBe(false);
-  },
-};
 
 /**
  * 섹션 헤더의 수는 그 섹션이 실제로 그린 행 수와 같아야 한다.
@@ -243,5 +196,102 @@ export const UpcomingHoldsOnlyFutureVisits = {
         await expect(day.getTime()).toBeGreaterThanOrEqual(todayStart.getTime());
       }
     }
+  },
+};
+
+/**
+ * 레일은 인덱스다 — 한 줄, 시각 + 축약 이름 + 점 하나.
+ *
+ * 날짜는 그룹 헤더("JUL 8 · 6")가 말한다. 예전에는 행마다 날짜를 적어서 같은 날이
+ * 일곱 줄이면 "Jul 11"이 일곱 번 반복됐다.
+ *
+ * 상태 문구("No visit")를 점으로 되돌린 건 정보를 줄이려는 게 아니다. 구체적 상태는
+ * 오른쪽 목록과 상세 패널이 이미 말하므로 레일에서는 "미해결 있음"만 알면 된다.
+ * 다만 색·모양만으로 전달하면 안 되므로 점에 role/aria-label로 상태 텍스트를 붙인다.
+ */
+export const RailIsAnIndex = {
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    await expect(rail).toBeTruthy();
+
+    const rows = [...rail.querySelectorAll('[data-rail-row]')];
+    await expect(rows.length).toBeGreaterThan(0);
+
+    // 모든 행이 같은 높이 = 한 줄. 두 줄짜리가 섞이면 인덱스로 훑을 수 없다.
+    const heights = new Set(rows.map(r => Math.round(r.getBoundingClientRect().height)));
+    await expect(heights.size).toBe(1);
+
+    // 행에는 날짜가 없다 — 시각만 남는다
+    for (const row of rows) {
+      const time = row.children[0].textContent.trim();
+      await expect(time).toMatch(/^(\d{1,2}:\d{2}\s?(AM|PM)|—)$/);
+    }
+
+    // 그룹 헤더가 "라벨 · 건수" 형태로 날짜를 대신한다
+    const headers = [...rail.querySelectorAll('span')]
+      .map(e => e.textContent.trim())
+      .filter(t => /·\s*\d+$/.test(t));
+    await expect(headers.length).toBeGreaterThan(0);
+    await expect(headers.some(h => h.startsWith('TODAY'))).toBe(true);
+  },
+};
+
+/**
+ * 경보는 점 하나로 표시하되, 점만으로 끝내지 않는다.
+ * WCAG 1.4.1 — 색과 모양만으로 정보를 전달하지 않도록 상태 텍스트를 접근성 이름에 넣는다.
+ */
+export const RailDotsCarryAccessibleText = {
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    const dots = [...rail.querySelectorAll('[role="img"]')];
+    await expect(dots.length).toBeGreaterThan(0);
+
+    for (const dot of dots) {
+      const label = dot.getAttribute('aria-label');
+      await expect(label).toBeTruthy();
+      await expect(dot.getAttribute('title')).toBe(label);
+    }
+
+    // 점이 붙은 행은 실제로 경보가 있는 건이어야 한다
+    for (const dot of dots) {
+      const id = dot.closest('[data-rail-row]').getAttribute('data-rail-row');
+      const inf = MOCK_INFLUENCERS.find(i => i.id === id);
+      await expect(inf.alertFlags.length).toBeGreaterThan(0);
+    }
+  },
+};
+
+/**
+ * 레일에서 고른 사람이 오른쪽 목록에서 강조된다 — 이 레일이 존재하는 이유다.
+ */
+export const RailSelectionSyncsToList = {
+  args: { onSelect: fn() },
+  play: async ({ args, canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    const listIds = new Set(
+      [...canvasElement.querySelectorAll('[data-influencer-id]')].map(e => e.getAttribute('data-influencer-id')),
+    );
+    const row = [...rail.querySelectorAll('[data-rail-row]')]
+      .find(r => listIds.has(r.getAttribute('data-rail-row')));
+    await expect(row).toBeTruthy();
+
+    await userEvent.click(row);
+    await waitFor(async () => {
+      await expect(args.onSelect).toHaveBeenCalled();
+    });
+    const picked = args.onSelect.mock.calls.at(-1)[0];
+    await expect(picked.id).toBe(row.getAttribute('data-rail-row'));
+  },
+};
+
+/**
+ * 오늘 일정이 0건이어도 구간을 남기고, 빈 회색 띠 대신 문구를 둔다.
+ */
+export const TodayEmptyStateSpeaks = {
+  args: { influencers: MOCK_INFLUENCERS.filter(i => i.scheduleGroup !== 'today') },
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    await expect(rail.textContent).toContain('TODAY · 0');
+    await expect(rail.textContent).toContain('No visits today');
   },
 };

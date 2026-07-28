@@ -36,20 +36,32 @@ const CATEGORY_OPTIONS = [
 ];
 
 /**
- * 레일의 일정 표기 — 날짜와 시각을 함께 보여준다.
+ * 레일 행의 시각.
  *
- * Past 그룹은 여러 날짜가 한 덩어리로 묶여 있어 시각만 보면 언제인지 알 수 없다.
- * 시트에 시각이 없으면 파싱 결과가 자정이 되므로 "12:00 AM"을 만들어내지 않고
- * 날짜만 쓴다 — 없는 정보를 있는 것처럼 보이지 않게.
+ * 날짜는 그룹 헤더가 말하므로 행에는 시각만 남긴다. 시트에 시각이 없으면 파싱
+ * 결과가 자정이 되는데, 그걸 "12:00 AM"으로 보여주면 없는 정보를 만드는 것이라 비운다.
  *
  * @param {Influencer} inf
- * @returns {string} 예: "Jul 8 · 5:00 PM" / "Jul 8" / "—"
+ * @returns {string} 예: "5:00 PM" / "—"
  */
-function formatVisitWhen(inf) {
-  if (!inf.scheduledTime) return '—';
-  const date = inf.scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  if (!inf.hasScheduledTimeOfDay) return date;
-  return `${date} · ${inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+function formatVisitTime(inf) {
+  if (!inf.scheduledTime || !inf.hasScheduledTimeOfDay) return '—';
+  return inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * 좁은 레일에서 쓰는 이름 축약. "Kientazya Hawkins" → "Kientazya H."
+ *
+ * 말줄임("Kientazya H…")보다 성을 줄이는 쪽이 식별에 낫다 — 이름 앞부분이 온전히
+ * 남기 때문이다. 전체 이름은 title로 남겨 마우스로 확인할 수 있게 한다.
+ *
+ * @param {string} fullName
+ * @returns {string}
+ */
+function abbreviateName(fullName) {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '—';
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
 
 /**
@@ -97,50 +109,56 @@ function railAlertLabel(inf) {
 
 /**
  * Visit schedule 레일 폭.
- * 일정(날짜+시각) 컬럼과 이름이 한 줄에 나란히 들어가야 한다 — 236px에서는
- * 이름이 "Deneysha Ch…"처럼 잘려 동명이인 구분이 안 됐다.
+ * 레일은 콘텐츠가 아니라 인덱스다 — 어느 날 누가 있는지만 훑고, 자세한 내용은
+ * 오른쪽 목록과 상세 패널이 맡는다. 날짜를 그룹 헤더로 올려 행을 한 줄로 줄였다.
  */
-const RAIL_WIDTH = 268;
+const RAIL_WIDTH = 180;
 
 /**
- * Visit schedule 레일의 일정 컬럼 폭.
- * "Jul 28 · 12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가
- * 달라지고 이름 컬럼 시작점이 행마다 어긋난다.
+ * 레일 시각 컬럼 폭. "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 —
+ * 접히면 행 높이가 달라지고 이름 시작 위치가 행마다 어긋난다.
  */
-const TIME_COL_WIDTH = 96;
+const TIME_COL_WIDTH = 52;
 
-/** 좌측 레일용 날짜 그룹 — Today / 날짜별 / Past */
+/**
+ * 좌측 레일용 날짜 그룹 — Today + 날짜별.
+ *
+ * 예전에는 지난 건을 "Past" 한 덩어리로 묶고 날짜를 행마다 적어서, 같은 날이
+ * 일곱 줄이면 "Jul 11"이 일곱 번 반복됐다. 날짜를 헤더로 올리면 행에는 시각만
+ * 남아 한 줄로 줄어든다.
+ *
+ * @param {Influencer[]} influencers
+ * @returns {Array<{key,label,isToday,items}>}
+ */
 function buildScheduleGroups(influencers) {
-  const today = { key: 'today', label: 'Today', items: [] };
-  const past = { key: 'past', label: 'Past', items: [] };
+  const today = { key: 'today', label: 'Today', isToday: true, items: [] };
   const byDate = {};
 
   for (const inf of influencers) {
     const g = inf.scheduleGroup;
     if (g === 'today') {
       today.items.push(inf);
-    } else if (g === 'upcoming' && inf.scheduledTime) {
-      const k = `${inf.scheduledTime.getFullYear()}-${inf.scheduledTime.getMonth()}-${inf.scheduledTime.getDate()}`;
-      if (!byDate[k]) {
-        byDate[k] = {
-          key: k,
-          label: inf.scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          sortDate: inf.scheduledTime,
-          items: [],
-        };
-      }
-      byDate[k].items.push(inf);
-    } else if (g === 'past') {
-      past.items.push(inf);
+      continue;
     }
+    // 날짜가 없으면 인덱스에 놓을 자리가 없다 — 목록에서 "Date TBD"로 보인다
+    if (!inf.scheduledTime || (g !== 'upcoming' && g !== 'past')) continue;
+
+    const t = inf.scheduledTime;
+    const k = `${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`;
+    if (!byDate[k]) {
+      byDate[k] = {
+        key: k,
+        label: t.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        sortDate: t,
+        isToday: false,
+        items: [],
+      };
+    }
+    byDate[k].items.push(inf);
   }
 
-  const groups = [];
-  // Today는 0명이어도 항상 넣는다 — "오늘 방문 없음"을 빈 자리가 아니라 숫자로 보여주기 위함.
-  // 나머지 그룹은 비면 생략한다.
-  groups.push(today);
-  groups.push(...Object.values(byDate).sort((a, b) => a.sortDate - b.sortDate));
-  if (past.items.length) groups.push(past);
+  // Today는 0건이어도 항상 넣는다 — 빈 자리가 아니라 "오늘 없음"을 말해주기 위함
+  const groups = [today, ...Object.values(byDate).sort((a, b) => a.sortDate - b.sortDate)];
   for (const grp of groups) {
     grp.items.sort((a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0));
   }
@@ -428,78 +446,74 @@ function SaasOperationsView({
                         fontWeight: 600,
                         letterSpacing: '0.04em',
                         color: isToday ? 'primary.dark' : 'text.secondary',
-                      }}
-                    >
-                      {grp.label.toUpperCase()}
-                    </Typography>
-                    <Typography
-                      component="span"
-                      sx={{
-                        ml: 'auto',
-                        fontSize: 11,
-                        color: 'text.secondary',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
-                      {grp.items.length}
+                      {grp.label.toUpperCase()} · {grp.items.length}
                     </Typography>
                   </Box>
                   <Box sx={{ pt: 0.5 }}>
-                  {grp.items.map(inf => (
+                  {grp.items.length === 0 && (
+                    <Typography sx={{ px: 0.75, py: 0.5, fontSize: 11, color: 'text.secondary' }}>
+                      No visits today
+                    </Typography>
+                  )}
+                  {grp.items.map(inf => {
+                    const alert = railAlertLabel(inf);
+                    return (
                     <Box
                       key={inf.id}
+                      data-rail-row={inf.id}
                       onClick={() => onSelect?.(inf)}
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 1,
-                        px: 1,
-                        py: 0.5,
+                        gap: 0.75,
+                        px: 0.75,
+                        py: 0.375,
                         borderRadius: '6px',
                         cursor: onSelect ? 'pointer' : 'default',
                         backgroundColor: selectedId === inf.id ? 'action.selected' : 'transparent',
                         '&:hover': { backgroundColor: 'action.hover' },
                       }}
                     >
-                      {/* 고정 폭 + nowrap — "11:00 AM"이 두 줄로 접히면 행 높이가 들쭉날쭉해지고
-                          이름 시작 위치도 어긋난다. 폭은 가장 긴 "12:00 PM" 기준. */}
+                      {/* 고정 폭 + nowrap — 접히면 행 높이가 달라지고 이름 시작 위치가 어긋난다 */}
                       <Typography
                         sx={{
                           width: TIME_COL_WIDTH,
                           flexShrink: 0,
-                          alignSelf: 'flex-start',
                           whiteSpace: 'nowrap',
                           fontSize: 11,
                           color: 'text.secondary',
                           fontVariantNumeric: 'tabular-nums',
                         }}
                       >
-                        {formatVisitWhen(inf)}
+                        {formatVisitTime(inf)}
                       </Typography>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          sx={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        >
-                          {inf.fullName || '—'}
-                        </Typography>
-                        {railAlertLabel(inf) && (
-                          <Typography
-                            sx={{
-                              fontSize: 11,
-                              fontWeight: 500,
-                              lineHeight: 1.3,
-                              color: 'warning.main',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {railAlertLabel(inf)}
-                          </Typography>
+                      <Typography
+                        title={inf.fullName || undefined}
+                        sx={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      >
+                        {abbreviateName(inf.fullName)}
+                      </Typography>
+                      {/* 미해결 표시는 점 하나로 충분하다 — 구체적 상태는 오른쪽 목록과
+                          상세 패널이 이미 말한다. 색·모양만으로 전달하지 않도록
+                          상태 문구를 title/aria-label로 붙인다. */}
+                      <Box
+                        sx={{ width: 6, height: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {alert && (
+                          <Box
+                            role="img"
+                            aria-label={alert}
+                            title={alert}
+                            sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'warning.main' }}
+                          />
                         )}
                       </Box>
                     </Box>
-                  ))}
+                    );
+                  })}
                   </Box>
                 </Box>
                 );
