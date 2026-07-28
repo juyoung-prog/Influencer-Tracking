@@ -368,14 +368,27 @@ function SaasOperationsView({
     onStoreChange?.(ALL_STORES);
   };
 
+  /* 선택된 칩을 파랑으로 꽉 채우면 목록이 주인공인 화면에서 필터가 가장 강한
+     요소가 된다. 틴트 + 파랑 글자 + 파랑 테두리로 "켜짐"만 알린다.
+     포커스는 테두리를 굵히지 않고 바깥 링으로 구분한다 — 굵기가 바뀌면
+     레이아웃이 흔들리고 선택과 포커스가 같은 신호로 보인다. */
   const chipSx = isOn => ({
     height: 32,
     fontSize: 12,
     fontWeight: 500,
     borderRadius: '6px',
     px: 1,
+    '&.Mui-focusVisible': {
+      boxShadow: theme => `0 0 0 3px ${theme.palette.accent.ring}`,
+      backgroundColor: isOn ? 'accent.tint' : 'transparent',
+    },
     ...(isOn
-      ? { backgroundColor: 'primary.main', color: 'common.white', borderColor: 'primary.main', '&:hover': { backgroundColor: 'primary.dark' } }
+      ? {
+        backgroundColor: 'accent.tint',
+        color: 'accent.main',
+        borderColor: 'accent.main',
+        '&:hover': { backgroundColor: 'accent.tintHover' },
+      }
       : { borderColor: 'divider', color: 'text.secondary', backgroundColor: 'transparent', '&:hover': { backgroundColor: 'action.hover' } }),
   });
 
@@ -486,7 +499,7 @@ function SaasOperationsView({
                         fontSize: 11,
                         fontWeight: 600,
                         letterSpacing: '0.04em',
-                        color: sec.isToday ? 'primary.dark' : 'text.primary',
+                        color: sec.isToday ? 'accent.main' : 'text.primary',
                       }}
                     >
                       {sec.label.toUpperCase()}
@@ -749,7 +762,7 @@ function SaasOperationsView({
                   sx={{
                     border: 'none',
                     borderBottom: '2px solid',
-                    borderBottomColor: isActive ? 'primary.dark' : 'transparent',
+                    borderBottomColor: isActive ? 'accent.main' : 'transparent',
                     // 컨테이너의 1px 보더 위에 인디케이터를 겹쳐 선이 두 줄로 보이지 않게 한다
                     mb: '-1px',
                     px: 0,
@@ -758,9 +771,9 @@ function SaasOperationsView({
                     font: 'inherit',
                     fontSize: 12,
                     fontWeight: isActive ? 600 : 500,
-                    color: isActive ? 'primary.dark' : 'text.secondary',
+                    color: isActive ? 'accent.main' : 'text.secondary',
                     cursor: 'pointer',
-                    '&:hover': { color: isActive ? 'primary.dark' : 'text.primary' },
+                    '&:hover': { color: isActive ? 'accent.main' : 'text.primary' },
                   }}
                 >
                   {t.label}

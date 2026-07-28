@@ -3,7 +3,14 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import SaasOperationsView from './SaasOperationsView';
 import { SAAS_FONT } from './SaasShell';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
-import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
+import {
+  ALERT_GRACE_DAYS,
+  ALL_STORES,
+  deriveAlertFlags,
+  deriveScheduleGroup,
+  deriveStores,
+  isStaleVisit,
+} from '../../../data/beautymaster/schema.js';
 
 const STORES = deriveStores(MOCK_INFLUENCERS);
 
@@ -404,5 +411,160 @@ export const RailHeaderCountsAlignRight = {
 
     // 두 층의 개수가 같은 세로선에 선다
     await expect(rights.size).toBe(1);
+  },
+};
+
+/**
+ * 경보 없는 미완료 건이 어느 구간으로 가는지.
+ *
+ * ACTION REQUIRED는 유예를 넘긴 건, IN PROGRESS는 유예 안에 있어 아직 경보가
+ * 없는 건, STALE은 90일이 지나 경보를 멈춘 건이다. 세 구간이 같은 축(얼마나 밀렸나)
+ * 위에 있어서, 경계가 어긋나면 사람이 조용히 사라지거나 엉뚱한 구간에 쌓인다.
+ *
+ * 유예 일수는 아직 확정값이 아니다(사장님이 써보고 정하기로 함).
+ * 그래서 숫자를 스토리에 박지 않고 ALERT_GRACE_DAYS에서 가져다 쓴다 —
+ * 값을 바꿔도 이 테스트는 새 기준으로 따라간다.
+ */
+const daysAgo = n => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(13, 0, 0, 0);
+  return d;
+};
+
+const gracePeriodRow = (id, name, days, overrides) => {
+  const base = {
+    ...MOCK_INFLUENCERS[0],
+    id,
+    fullName: name,
+    scheduledTime: daysAgo(days),
+    hasScheduledTimeOfDay: true,
+    collaboShared: false,
+    creditShared: false,
+    creditUsed: false,
+    uploadDate: null,
+    contactReason: null,
+    contactStatus: null,
+    lastContactDate: null,
+    requestedDate: null,
+    note: '',
+    ...overrides,
+  };
+  const scheduleGroup = deriveScheduleGroup(base.scheduledTime);
+  return { ...base, scheduleGroup, alertFlags: deriveAlertFlags({ ...base, scheduleGroup }) };
+};
+
+export const GraceWindowDecidesTheSection = {
+  args: {
+    influencers: [
+      // 방문 후 업로드 유예 안 — 아직 재촉할 때가 아니다
+      gracePeriodRow('grace-in', 'Grace Inside', ALERT_GRACE_DAYS.UPLOAD - 1, { agreement: true, attend: true }),
+      // 유예를 넘김 — 경보
+      gracePeriodRow('grace-out', 'Grace Outside', ALERT_GRACE_DAYS.UPLOAD + 5, { agreement: true, attend: true }),
+      // 90일 초과 — 경보를 멈춘 건
+      gracePeriodRow('grace-stale', 'Long Gone', ALERT_GRACE_DAYS.STALE + 30, { agreement: true, attend: true }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const sectionOf = id => canvasElement.querySelector(`[data-influencer-id="${id}"]`)
+      ?.closest('[data-section]')?.getAttribute('data-section');
+
+    // 접힌 구간도 펼쳐서 전부 확인한다
+    for (const header of canvasElement.querySelectorAll('[data-section] button')) {
+      if (header.getAttribute('aria-expanded') !== 'true') await userEvent.click(header);
+    }
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-influencer-id="grace-in"]')).toBeTruthy();
+    });
+
+    await expect(sectionOf('grace-out')).toBe('attention');
+    await expect(sectionOf('grace-in')).toBe('inProgress');
+    await expect(sectionOf('grace-stale')).toBe('stale');
+
+    // 세 명 모두 어딘가에는 있어야 한다 — 조용히 사라지면 운영에서 놓친다
+    for (const id of ['grace-in', 'grace-out', 'grace-stale']) {
+      await expect(sectionOf(id)).toBeTruthy();
+    }
+
+    // STALE의 판정은 목록과 경보 로직이 같은 함수를 쓴다
+    await expect(isStaleVisit(daysAgo(ALERT_GRACE_DAYS.STALE + 30))).toBe(true);
+    await expect(isStaleVisit(daysAgo(ALERT_GRACE_DAYS.UPLOAD - 1))).toBe(false);
+  },
+};
+
+/**
+ * 활성·선택·포커스가 모두 한 파랑에서 나온다.
+ *
+ * 예전에는 자리마다 값이 달랐다 — 칩 테두리·내비 배경·메뉴 선택은 #0000FF,
+ * 탭 밑줄과 활성 글자는 #0000B2. 같은 "선택됨"인데 색이 두 개였다.
+ * 채도가 낮은 쪽(accent.main)으로 모았다. 새 컨트롤이 primary.main을 다시
+ * 끌어다 쓰면 이 테스트가 잡는다.
+ */
+export const AccentBlueIsOneValue = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // 필터를 켜서 선택 상태를 만든다
+    await userEvent.click(canvas.getByRole('button', { name: 'Instagram', exact: true }));
+
+    const isBlue = c => {
+      const m = (c.match(/[\d.]+/g) || []).map(Number);
+      return m.length >= 3 && m[2] > 100 && m[2] > m[0] + 60 && m[2] > m[1] + 60;
+    };
+
+    const bases = new Set();
+    await waitFor(async () => {
+      bases.clear();
+      for (const el of canvasElement.querySelectorAll('*')) {
+        const cs = getComputedStyle(el);
+        for (const prop of ['color', 'backgroundColor', 'borderColor', 'borderBottomColor', 'borderLeftColor']) {
+          if (isBlue(cs[prop])) bases.add((cs[prop].match(/[\d.]+/g) || []).slice(0, 3).join(','));
+        }
+      }
+      await expect(bases.size).toBeGreaterThan(0);
+    });
+
+    // 투명도는 달라도 되지만 기준 색은 하나여야 한다
+    await expect([...bases]).toEqual(['0,0,178']);
+  },
+};
+
+/**
+ * 선택과 포커스는 다른 신호다.
+ *
+ * 선택은 옅은 틴트 + 파랑 글자·테두리로 "켜짐"만 알린다 — 파랑으로 꽉 채우면
+ * 목록이 주인공인 화면에서 필터가 가장 강한 요소가 된다.
+ * 포커스는 테두리를 굵히지 않고 바깥 링으로 알린다 — 굵기가 바뀌면 레이아웃이
+ * 흔들리고, 선택과 포커스가 같은 신호로 보인다.
+ */
+export const SelectedAndFocusLookDifferent = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const chip = canvas.getByRole('button', { name: 'Instagram', exact: true });
+
+    await userEvent.click(chip);
+
+    /* 클릭 직후에는 hover/focus-visible이 얹혀 배경이 잠깐 다르게 잡힌다.
+       상태가 가라앉을 때까지 세 값을 함께 확인한다 — 하나만 먼저 통과하면
+       나머지를 전환 중간에 읽게 된다(이 테스트가 처음 그렇게 실패했다). */
+    await waitFor(async () => {
+      const on = getComputedStyle(chip);
+      // 꽉 채우지 않는다 — 배경은 반투명 틴트
+      await expect(on.backgroundColor).toMatch(/rgba\(0, 0, 178, 0\.\d+\)/);
+      await expect(on.color).toBe('rgb(0, 0, 178)');
+      await expect(on.borderColor).toBe('rgb(0, 0, 178)');
+    });
+
+    // 입력 포커스는 1px 테두리 + 바깥 링
+    const input = canvasElement.querySelector('input[placeholder]');
+    input.focus();
+    await waitFor(async () => {
+      const root = input.closest('.MuiOutlinedInput-root');
+      await expect(root.classList.contains('Mui-focused')).toBe(true);
+    });
+    const root = input.closest('.MuiOutlinedInput-root');
+    const outline = root.querySelector('.MuiOutlinedInput-notchedOutline');
+    await expect(getComputedStyle(outline).borderWidth).toBe('1px');
+    await expect(getComputedStyle(root).boxShadow).toContain('rgba(0, 0, 178');
   },
 };

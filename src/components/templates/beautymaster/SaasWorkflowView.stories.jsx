@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { fn } from 'storybook/test';
+import { expect, fn } from 'storybook/test';
 import SaasWorkflowView from './SaasWorkflowView';
 import { SAAS_FONT } from './SaasShell';
 import { ALL_STORES } from '../../../data/beautymaster/schema.js';
@@ -65,4 +65,32 @@ export const StoreSelected = {
 /** 다른 단계를 펼친 상태 */
 export const StepExpanded = {
   args: { defaultExpanded: '04' },
+};
+
+/**
+ * 문서 전체가 한 단(段)을 공유한다.
+ *
+ * 산문 위주라 폭을 묶어 한 줄 길이를 유지하되, 좌측 정렬로 두면 넓은 화면에서
+ * 오른쪽만 비어 보여 가운데로 모았다. 이때 아코디언만 가운데 정렬했더니 제목은
+ * x=80, 카드는 x=308이 되어 기준선이 갈라졌다. 제목·통계·아코디언이 같은 컨테이너
+ * 안에 있어야 한다.
+ */
+export const DocumentSharesOneColumn = {
+  play: async ({ canvasElement }) => {
+    const leaf = text => [...canvasElement.querySelectorAll('*')]
+      .find(e => !e.children.length && e.textContent.trim() === text);
+
+    const title = leaf('Influencer workflow');
+    const accordion = canvasElement.querySelector('.MuiAccordion-root');
+    await expect(title).toBeTruthy();
+    await expect(accordion).toBeTruthy();
+
+    const titleX = Math.round(title.getBoundingClientRect().x);
+    const accordionX = Math.round(accordion.getBoundingClientRect().x);
+    await expect(titleX).toBe(accordionX);
+
+    // 폭은 묶여 있어야 한다 — 넓은 화면에서 산문이 한 줄로 늘어지면 읽기 나빠진다
+    const width = accordion.getBoundingClientRect().width;
+    await expect(width).toBeLessThanOrEqual(880);
+  },
 };

@@ -32,7 +32,11 @@ function SaasStoreSelect({ stores, value = ALL_STORES, onChange, sx }) {
         fontSize: 12,
         borderRadius: '6px',
         backgroundColor: 'background.paper',
+        /* 기본 테두리만 divider로 낮춘다. 조건 없이 두면 sx가 테마의 포커스
+           규칙을 덮어써서, 열려 있는데도 테두리가 회색으로 남는다. */
         '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 1, borderColor: 'accent.main' },
+        '&.Mui-focused': { boxShadow: theme => `0 0 0 3px ${theme.palette.accent.ring}` },
         '& .MuiSelect-icon': { fontSize: 18, right: 6 },
         ...sx,
       }}

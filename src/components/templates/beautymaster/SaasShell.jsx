@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
@@ -96,16 +95,16 @@ function NavRow({ Icon, label, isActive = false, trailing = null, iconSx, ...res
         textAlign: 'left',
         textDecoration: 'none',
         // 활성 표시는 테두리가 아니라 아주 옅은 브랜드 틴트 — outlined 버튼처럼 보이지 않게
-        backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+        backgroundColor: isActive ? theme.palette.accent.tint : 'transparent',
         // 글자·선은 primary.dark — 순수 #0000FF는 흰 배경 위 가장자리가 떨려 보인다(색수차)
-        color: isActive ? 'primary.dark' : 'text.secondary',
+        color: isActive ? 'accent.main' : 'text.secondary',
         transition: theme.transitions.create(['width', 'background-color', 'color'], {
           duration: 180,
           easing: theme.transitions.easing.easeOut,
         }),
         '&:hover': {
           backgroundColor: isActive
-            ? alpha(theme.palette.primary.main, 0.12)
+            ? theme.palette.accent.tintHover
             : theme.palette.action.hover,
         },
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },

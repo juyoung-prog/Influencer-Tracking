@@ -77,6 +77,26 @@ const palette = {
   },
 
   /**
+   * 상호작용 액센트 — 활성·선택·포커스가 모두 이 한 값에서 나온다.
+   *
+   * 예전에는 자리마다 파랑이 달랐다. 칩 테두리·내비 배경·메뉴 선택은 #0000FF,
+   * 탭 밑줄·활성 글자는 #0000B2였다. 같은 "선택됨"인데 색이 두 개였던 셈이다.
+   *
+   * 기준을 낮은 쪽(#0000B2)으로 잡는다. primary.main은 채도 100%라 화면에서
+   * 가장 강한 요소가 되는데, 목록이 주인공인 화면에서 컨트롤이 그 자리를
+   * 가져가면 안 된다. 브랜드 색 자체는 primary에 그대로 남는다.
+   */
+  accent: {
+    main: '#0000B2',
+    /** 선택 배경 — 채우지 않고 옅게 깐다 */
+    tint: 'rgba(0, 0, 178, 0.08)',
+    /** 선택 배경 hover */
+    tintHover: 'rgba(0, 0, 178, 0.14)',
+    /** 포커스 외곽 링 — 테두리는 1px로 두고 번짐으로 알린다 */
+    ring: 'rgba(0, 0, 178, 0.18)',
+  },
+
+  /**
    * 면(surface) 위계.
    * background.default/paper가 둘 다 흰색이라 "한 단 낮은 면"을 표현할 토큰이 없었고,
    * 그 결과 grey.50/100이 날것으로 흩어져 무엇이 사이드바고 무엇이 아바타인지
@@ -374,6 +394,29 @@ const components = {
     styleOverrides: {
       root: {
         borderRadius: 4,
+        /* MUI 기본 포커스는 테두리를 2px로 굵히고 순수 파랑을 쓴다.
+           굵기가 바뀌면 레이아웃이 1px 흔들리고, 컨트롤이 목록보다 강해진다.
+           두께는 1px로 두고 바깥에 옅은 링을 둘러 상태를 알린다. */
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+          borderWidth: 1,
+          borderColor: palette.accent.main,
+        },
+        '&.Mui-focused': {
+          boxShadow: `0 0 0 3px ${palette.accent.ring}`,
+        },
+      },
+    },
+  },
+  MuiMenuItem: {
+    styleOverrides: {
+      root: {
+        // MUI 기본값은 alpha(primary.main, 0.08) — 순수 파랑 틴트라 연보라로 보인다.
+        // 앱의 다른 "선택됨"과 같은 액센트를 쓴다.
+        '&.Mui-selected': { backgroundColor: palette.accent.tint },
+        '&.Mui-selected:hover': { backgroundColor: palette.accent.tintHover },
+        // 메뉴가 열리면 선택 항목에 포커스가 얹힌다. 이 조합을 빼두면
+        // MUI가 selectedOpacity+focusOpacity를 순수 파랑으로 다시 계산한다.
+        '&.Mui-selected.Mui-focusVisible': { backgroundColor: palette.accent.tintHover },
       },
     },
   },

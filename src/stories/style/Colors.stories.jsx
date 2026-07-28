@@ -191,7 +191,7 @@ export const Docs = {
 
     // 토큰 값 (테이블용)
     const tokenValues = [
-      { token: 'primary.main', value: theme.palette.primary.main, description: '주요 브랜드 색상, CTA 버튼' },
+      { token: 'primary.main', value: theme.palette.primary.main, description: '브랜드 색상 — 채움(면)에만. 컨트롤 상태에는 accent를 쓸 것' },
       { token: 'primary.light', value: theme.palette.primary.light, description: 'hover 상태, 배경 강조' },
       { token: 'primary.dark', value: theme.palette.primary.dark, description: 'active 상태, 텍스트 강조' },
       { token: 'secondary.main', value: theme.palette.secondary.main, description: '보조 액션, 태그' },
@@ -204,6 +204,9 @@ export const Docs = {
       { token: 'text.disabled', value: theme.palette.text.disabled, description: '⚠ 비활성 컨트롤 전용 — 2.68:1로 AA 미달이라 읽을 글자에 쓰지 말 것' },
       { token: 'background.default', value: theme.palette.background.default, description: '페이지 배경' },
       { token: 'background.paper', value: theme.palette.background.paper, description: '카드, 모달 배경' },
+      { token: 'accent.main', value: theme.palette.accent.main, description: '활성·선택·포커스 — 컨트롤 액센트는 전부 이 값' },
+      { token: 'accent.tint', value: theme.palette.accent.tint, description: '선택 배경 — 채우지 않고 옅게 깐다' },
+      { token: 'accent.ring', value: theme.palette.accent.ring, description: '포커스 외곽 링 — 테두리는 1px로 두고 번짐으로 알린다' },
       { token: 'surface.sunken', value: theme.palette.surface.sunken, description: '한 단 낮은 면 — 사이드바, 섹션/그룹 헤더' },
       { token: 'surface.muted', value: theme.palette.surface.muted, description: '채워진 작은 면 — 아바타, 태그, 프로그레스 트랙' },
       { token: 'divider', value: theme.palette.divider, description: '구분선, 보더' },

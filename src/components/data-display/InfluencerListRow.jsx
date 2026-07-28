@@ -129,7 +129,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         borderBottom: '1px solid',
         borderColor: 'divider',
         borderLeft: '2px solid',
-        borderLeftColor: isSelected ? 'primary.dark' : 'transparent',
+        borderLeftColor: isSelected ? 'accent.main' : 'transparent',
         backgroundColor: isSelected ? 'action.selected' : 'transparent',
         textAlign: 'left',
         '&:hover': { backgroundColor: 'action.hover' },

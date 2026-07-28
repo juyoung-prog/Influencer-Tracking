@@ -135,7 +135,7 @@ function FunnelBar({ rows }) {
                 // 순수 #0000FF는 톤이 너무 튀므로 primary.dark를 낮은 불투명도로 쓴다.
                 width: step.ofInvited == null ? 0 : `${Math.min(step.ofInvited, 1) * 100}%`,
                 height: '100%',
-                backgroundColor: alpha(theme.palette.primary.dark, 0.62),
+                backgroundColor: alpha(theme.palette.accent.main, 0.62),
               })}
             />
           </Box>
