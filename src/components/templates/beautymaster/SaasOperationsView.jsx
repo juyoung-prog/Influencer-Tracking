@@ -55,23 +55,24 @@ const STATUS_TABS = [
 const CONTENT_PX = 3;
 
 /**
- * 24px 인셋으로 그어지는 하단 divider.
+ * 24px 인셋으로 그어지는 divider.
  *
- * borderBottom을 컨테이너에 직접 주면 padding 바깥(border-box 전체)까지 선이 번져
- * 콘텐츠보다 좌우로 24px씩 튀어나온다. ::after로 그어 콘텐츠와 같은 그리드에 맞춘다.
+ * border를 컨테이너에 직접 주면 padding 바깥(border-box 전체)까지 선이 번져
+ * 콘텐츠보다 좌우로 24px씩 튀어나온다. 의사요소로 그어 콘텐츠와 같은 그리드에 맞춘다.
  *
  * @param {object} theme - MUI theme
+ * @param {'top'|'bottom'} side - 선을 그을 변 [기본값: 'bottom']
  * @returns {object} sx 조각
  */
-const insetBottomDivider = theme => ({
+const insetDivider = (theme, side = 'bottom') => ({
   position: 'relative',
-  '&::after': {
+  [`&::${side === 'top' ? 'before' : 'after'}`]: {
     content: '""',
     position: 'absolute',
     left: theme.spacing(CONTENT_PX),
     right: theme.spacing(CONTENT_PX),
-    bottom: 0,
-    borderBottom: '1px solid',
+    [side]: 0,
+    borderTop: '1px solid',
     borderColor: theme.palette.divider,
   },
 });
@@ -315,8 +316,6 @@ function SaasOperationsView({
           rowGap: 2,
           px: 3,
           py: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
         }}
       >
         <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
@@ -364,6 +363,7 @@ function SaasOperationsView({
             flexShrink: 0,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
+            borderTop: '1px solid',
             borderRight: '1px solid',
             borderColor: 'divider',
             minHeight: 0,
@@ -500,7 +500,8 @@ function SaasOperationsView({
               flexWrap: 'wrap',
               px: CONTENT_PX,
               py: 2,
-              ...insetBottomDivider(theme),
+              ...insetDivider(theme, 'top'),
+              ...insetDivider(theme),
             })}
           >
             <TextField
@@ -595,7 +596,7 @@ function SaasOperationsView({
               gap: 2.5,
               px: CONTENT_PX,
               mt: 1.25,
-              ...insetBottomDivider(theme),
+              ...insetDivider(theme),
             })}
           >
             {STATUS_TABS.map(t => {
