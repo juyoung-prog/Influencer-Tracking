@@ -109,6 +109,8 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {Date|null} uploadDate
  * @property {boolean} creditShared
  * @property {boolean} creditUsed
+ * @property {boolean} hasCreditUsedValue - 시트 셀에 값이 적혀 있었는지.
+ *   비어 있으면 creditUsed=false가 되는데 그건 "미사용"이 아니라 "미측정"이다.
  * @property {string} serialNumber
  * @property {'USE'|'MAYBE'|"DON'T"|null} opinion
  * @property {number|null} views
@@ -444,6 +446,14 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
     creditUsed: creditUsedCount,
   };
 
+  /* 값이 0인 것과 아직 아무도 적지 않은 것은 다르다.
+     시트의 credit used 열은 현재 비어 있어서 creditUsed가 전부 false로 파싱된다.
+     이걸 0으로 계산하면 "발급분 전량 미사용"으로 읽힌다 — 실제로는 측정 자체가 없다.
+     열에 값이 하나라도 들어오면 자동으로 true가 되어 정상 계산으로 돌아간다. */
+  const funnelMeasured = {
+    creditUsed: influencers.some(i => i.hasCreditUsedValue),
+  };
+
   // Group by platform (primary platform)
   const platformMap = {};
   for (const inf of influencers) {
@@ -454,10 +464,13 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   const byPlatform = {};
   for (const [p, list] of Object.entries(platformMap)) {
     const pAttend = list.filter(i => i.attend).length;
+    const pUpload = list.filter(i => i.collaboShared).length;
     byPlatform[p] = {
       count:      list.length,
+      attendCount: pAttend,
+      collaboSharedCount: pUpload,
       attendRate: safeRate(pAttend, list.length),
-      uploadRate: safeRate(list.filter(i => i.collaboShared).length, pAttend),
+      uploadRate: safeRate(pUpload, pAttend),
       avgViews:   avgViews(list),
     };
   }
@@ -471,11 +484,14 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   const byStore = {};
   for (const [s, list] of Object.entries(storeMap)) {
     const sAttend = list.filter(i => i.attend).length;
+    const sUpload = list.filter(i => i.collaboShared).length;
     byStore[s] = {
       count:      list.length,
+      attendCount: sAttend,
+      collaboSharedCount: sUpload,
       invited:    invitedByStore[s] ?? null,
       attendRate: safeRate(sAttend, list.length),
-      uploadRate: safeRate(list.filter(i => i.collaboShared).length, sAttend),
+      uploadRate: safeRate(sUpload, sAttend),
       avgViews:   avgViews(list),
     };
   }
@@ -496,11 +512,14 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   const byCategory = {};
   for (const [cat, list] of Object.entries(categoryMap)) {
     const cAttend = list.filter(i => i.attend).length;
+    const cUpload = list.filter(i => i.collaboShared).length;
     byCategory[cat] = {
       count:      list.length,
+      attendCount: cAttend,
+      collaboSharedCount: cUpload,
       invited:    invitedByCategory[cat] ?? null,
       attendRate: safeRate(cAttend, list.length),
-      uploadRate: safeRate(list.filter(i => i.collaboShared).length, cAttend),
+      uploadRate: safeRate(cUpload, cAttend),
       avgViews:   avgViews(list),
     };
   }
@@ -534,6 +553,7 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
     creditUsedRate: safeRate(creditUsedCount, creditSharedCount),
     opinionCounts,
     funnel,
+    funnelMeasured,
     byPlatform,
     byStore,
     byTier,
@@ -576,6 +596,7 @@ export function createInfluencer(overrides = {}) {
     uploadDate: null,
     creditShared: false,
     creditUsed: false,
+    hasCreditUsedValue: false,
     serialNumber: '',
     opinion: null,
     views: null,
@@ -636,6 +657,7 @@ export function createAnalyticsSummary() {
     creditUsedRate: 0,
     opinionCounts: { use: 0, maybe: 0, dont: 0 },
     funnel: { invited: 0, responded: undefined, agreement: 0, attended: 0, uploaded: 0, creditSent: 0, creditUsed: 0 },
+    funnelMeasured: { creditUsed: false },
     byPlatform: {},
     byStore: {},
     byTier: { tier1: emptyTierStats(), tier2: emptyTierStats() },

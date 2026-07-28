@@ -138,6 +138,24 @@ function parseBool(val) {
   return val === 'TRUE' || val === 'true' || val === '1';
 }
 
+/**
+ * credit used 열 해석.
+ *
+ * 시트는 이 칸에 사용 날짜를 적는다(TRUE/FALSE가 아니다). 날짜든 TRUE든 값이
+ * 있으면 사용한 것으로 본다. 빈 칸은 미기록이므로 false — 그 구분은
+ * hasCreditUsedValue가 따로 들고 있다.
+ *
+ * @param {string} val
+ * @returns {boolean}
+ */
+function parseCreditUsed(val) {
+  const v = (val || '').trim();
+  if (!v) return false;
+  if (parseBool(v)) return true;
+  if (/^(false|no|n)$/i.test(v)) return false;
+  return true;
+}
+
 function parseDate(val) {
   if (!val) return null;
   // Handle "M/D/YYYY HHam" / "M/D/YYYY H:MMpm" formats from Google Sheets
@@ -303,7 +321,12 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       collaboLink: row['collabo link'] || '',
       uploadDate: parseDate(row['upload date']),
       creditShared: parseBool(row['credit shared']),
-      creditUsed: parseBool(row['credit used']),
+      // 이 열은 TRUE/FALSE가 아니라 사용한 **날짜**를 적는다(예: 3/10/2026).
+      // parseBool만 쓰면 날짜를 못 읽어 전부 false가 되고, 퍼널이 "발급분 전량 미사용"이 된다.
+      creditUsed: parseCreditUsed(row['credit used']),
+      // 셀이 비어 있으면 값이 false가 되는데, 그건 "사용 안 함"이 아니라 "아직 안 적음"이다.
+      // 측정이 시작됐는지를 따로 남겨 미측정을 0으로 계산하지 않는다.
+      hasCreditUsedValue: Boolean((row['credit used'] || '').trim()),
       serialNumber: row['serial #'] || row['serial#'] || '',
       opinion: parseOpinion(row['opinion']),
       views: parseNum(row['views']),

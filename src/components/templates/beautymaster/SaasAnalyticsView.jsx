@@ -59,35 +59,42 @@ const FUNNEL_STEPS = [
  * @param {object} funnel - deriveAnalyticsSummary().funnel
  * @returns {Array<{key,label,value,ofInvited,ofPrevious}>}
  */
-function buildFunnelRows(funnel) {
+function buildFunnelRows(funnel, funnelMeasured = {}) {
   /* 초대 데이터(Number 탭)가 없으면 schema가 invited를 시트 행 수로 대체하고
      responded 단계를 뺀다. 그 상태에서 첫 줄을 "Invited"라고 부르면 실제로는
      추적 중인 행 수인데 초대 인원으로 읽힌다 — 분모를 잘못 알려주는 셈이다. */
   const hasInviteData = funnel?.responded !== undefined && funnel?.responded !== null;
 
   const steps = FUNNEL_STEPS
-    .map(s => ({ ...s, value: funnel?.[s.key] }))
+    .map(s => ({ ...s, value: funnel?.[s.key], isMeasured: funnelMeasured[s.key] !== false }))
     .filter(s => s.value !== undefined && s.value !== null);
   if (steps.length === 0) return [];
 
   const top = steps[0].value || 0;
-  return steps.map((step, i) => ({
-    ...step,
-    label: step.key === 'invited' && !hasInviteData ? 'Tracked' : step.label,
-    ofInvited: top > 0 ? step.value / top : 0,
-    // 첫 단계는 직전이 없다. 0으로 나누지 않도록 분모를 확인한다.
-    ofPrevious: i === 0 ? null : (steps[i - 1].value > 0 ? step.value / steps[i - 1].value : 0),
-  }));
+  return steps.map((step, i) => {
+    const prev = steps[i - 1];
+    /* 아직 아무도 기록하지 않은 단계는 0이 아니라 "모른다"다.
+       0으로 계산하면 "발급분 전량 미사용" 같은 없는 사실이 만들어진다.
+       직전 단계가 미측정이면 그 다음 비율도 낼 수 없다. */
+    return {
+      ...step,
+      label: step.key === 'invited' && !hasInviteData ? 'Tracked' : step.label,
+      ofInvited: step.isMeasured && top > 0 ? step.value / top : null,
+      ofPrevious: i === 0 || !step.isMeasured || !prev.isMeasured
+        ? null
+        : (prev.value > 0 ? step.value / prev.value : 0),
+    };
+  });
 }
 
 /**
- * NoDataBadge — 값이 0인 단계에 붙는 표시.
+ * NotMeasuredBadge — 시트에 값이 하나도 적히지 않은 단계에 붙는 표시.
  *
- * 0이 "아무도 안 했다"인지 "아직 시트에 연결이 안 됐다"인지 집계만 봐서는 구분되지
- * 않는다. 그래서 단정하지 않고 관찰된 사실("기록된 값이 없다")만 적는다.
- * 실제로 시트의 credit used 컬럼은 값이 하나도 없다.
+ * 값이 0인 것과 아직 아무도 적지 않은 것은 다르다. 시트의 credit used 열은
+ * 지금 비어 있는데, 이걸 0으로 두면 "발급한 33건이 전량 미사용"으로 읽힌다.
+ * 열에 값이 들어오기 시작하면 배지가 사라지고 계산이 정상화된다.
  */
-function NoDataBadge() {
+function NotMeasuredBadge() {
   return (
     <Typography
       component="span"
@@ -100,7 +107,7 @@ function NoDataBadge() {
         whiteSpace: 'nowrap',
       }}
     >
-      none recorded
+      not measured
     </Typography>
   );
 }
@@ -126,7 +133,7 @@ function FunnelBar({ rows }) {
               sx={theme => ({
                 // 단계마다 톤을 달리하면 의미 없는 차이를 만든다 — 한 색으로 고정하고,
                 // 순수 #0000FF는 톤이 너무 튀므로 primary.dark를 낮은 불투명도로 쓴다.
-                width: `${Math.min(step.ofInvited, 1) * 100}%`,
+                width: step.ofInvited == null ? 0 : `${Math.min(step.ofInvited, 1) * 100}%`,
                 height: '100%',
                 backgroundColor: alpha(theme.palette.primary.dark, 0.62),
               })}
@@ -136,12 +143,16 @@ function FunnelBar({ rows }) {
               각각 고정폭 우측 정렬로 나눈다. 배지는 그 밖에 둔다 —
               폭 안에 넣으면 눌려서 "0"과 "0%"가 두 줄로 갈라진다. */}
           <Typography data-funnel-value sx={{ width: 40, flexShrink: 0, textAlign: 'right', fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-            {step.value}
+            {step.isMeasured ? step.value : '—'}
           </Typography>
           <Typography sx={{ width: 40, flexShrink: 0, textAlign: 'right', fontSize: 13, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-            {pct(step.ofInvited)}
+            {step.ofInvited == null ? '—' : pct(step.ofInvited)}
           </Typography>
-          {step.value === 0 && <NoDataBadge />}
+          {/* 배지 자리는 항상 잡아둔다. 있는 행에만 렌더하면 그 행만 flex 항목이
+              하나 더 생겨 트랙(flex:1)이 줄고 숫자 컬럼이 밀린다. */}
+          <Box sx={{ width: 92, flexShrink: 0 }}>
+            {!step.isMeasured && <NotMeasuredBadge />}
+          </Box>
         </Box>
       ))}
     </Box>
@@ -161,16 +172,22 @@ function FunnelBar({ rows }) {
 function StageDropOff({ rows }) {
   if (rows.length < 2) return null;
 
-  const pairs = rows.slice(1).map((cur, i) => ({
-    key: cur.key,
-    from: rows[i].label,
-    to: cur.label,
-    rate: cur.ofPrevious ?? 0,
-    delta: cur.value - rows[i].value,
-  }));
+  const pairs = rows.slice(1).map((cur, i) => {
+    // 어느 한쪽이 미측정이면 이탈을 계산할 수 없다 — 0%/-33 같은 수치를 만들지 않는다
+    const isMeasured = cur.isMeasured && rows[i].isMeasured;
+    return {
+      key: cur.key,
+      from: rows[i].label,
+      to: cur.label,
+      isMeasured,
+      rate: isMeasured ? cur.ofPrevious ?? 0 : null,
+      delta: isMeasured ? cur.value - rows[i].value : null,
+    };
+  });
 
   // 가장 많이 빠진 구간 하나만 강조한다 — 여러 개를 칠하면 강조가 아니게 된다
-  const worstDelta = Math.min(...pairs.map(p => p.delta));
+  const measured = pairs.filter(p => p.isMeasured);
+  const worstDelta = measured.length > 0 ? Math.min(...measured.map(p => p.delta)) : 0;
   const hasLoss = worstDelta < 0;
 
   return (
@@ -199,8 +216,8 @@ function StageDropOff({ rows }) {
               <Typography sx={{ flex: 1, minWidth: 0, fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.from} <Box component="span" sx={{ color: 'text.disabled' }}>→</Box> {p.to}
               </Typography>
-              <Typography sx={{ width: 44, flexShrink: 0, textAlign: 'right', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                {pct(p.rate)}
+              <Typography sx={{ width: p.isMeasured ? 44 : 'auto', flexShrink: 0, textAlign: 'right', fontSize: 12, color: p.isMeasured ? 'text.primary' : 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                {p.isMeasured ? pct(p.rate) : 'not measured'}
               </Typography>
               <Typography
                 data-dropoff-delta
@@ -211,7 +228,7 @@ function StageDropOff({ rows }) {
                   color: isWorst ? 'warning.main' : 'text.secondary',
                 }}
               >
-                {p.delta === 0 ? '0' : p.delta}
+                {!p.isMeasured ? '' : p.delta === 0 ? '0' : p.delta}
               </Typography>
             </Box>
           );
@@ -252,11 +269,13 @@ function FunnelTable({ rows }) {
             <TableRow key={row.key} data-funnel-step={row.key} sx={{ '& td': { fontSize: 13, py: 0.875 }, '&:hover': { backgroundColor: 'action.hover' } }}>
               <TableCell sx={{ fontWeight: 500 }}>
                 {row.label}
-                {row.value === 0 && <NoDataBadge />}
+                {!row.isMeasured && <NotMeasuredBadge />}
               </TableCell>
-              <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{row.value}</TableCell>
+              <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                {row.isMeasured ? row.value : '—'}
+              </TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                {pct(row.ofInvited)}
+                {row.ofInvited == null ? '—' : pct(row.ofInvited)}
               </TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                 {row.ofPrevious == null ? '—' : pct(row.ofPrevious)}
@@ -276,6 +295,35 @@ function FunnelTable({ rows }) {
  * @param {string} groupHeader - 첫 컬럼 헤더 [Required]
  * @param {Array} rows - 행 목록 [Required]
  */
+/**
+ * 표본이 작으면 퍼센트만으로는 오해가 생긴다.
+ * "kbeauty 100%"가 2명 중 2명인지 20명 중 20명인지 알 수 없고, 앞의 경우 한 명이
+ * 빠지면 50%가 된다. n < 10이면 원시 분수를 함께 적어 흔들림의 크기를 드러낸다.
+ */
+const SMALL_SAMPLE = 10;
+
+/**
+ * Rate — 비율 + (표본이 작을 때) 원시 분수
+ *
+ * Props:
+ * @param {number} rate - 0~1 비율 [Required]
+ * @param {number} numerator - 분자 [Required]
+ * @param {number} denominator - 분모 [Required]
+ */
+function Rate({ rate, numerator, denominator }) {
+  const isSmall = denominator > 0 && denominator < SMALL_SAMPLE;
+  return (
+    <>
+      {pct(rate)}
+      {isSmall && (
+        <Box component="span" sx={{ ml: 0.5, fontSize: 11, color: 'text.secondary' }}>
+          ({numerator}/{denominator})
+        </Box>
+      )}
+    </>
+  );
+}
+
 function BreakdownTable({ groupHeader, rows }) {
   // 전 행이 비어 있으면 "—"만 늘어선 컬럼이 남는다 — 데이터가 붙기 전까지 숨긴다
   const hasAvgViews = rows.some(r => r.avgViews != null);
@@ -306,10 +354,10 @@ function BreakdownTable({ groupHeader, rows }) {
                 {row.count}
               </TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                {pct(row.attendRate)}
+                <Rate rate={row.attendRate} numerator={row.attendCount ?? 0} denominator={row.count ?? 0} />
               </TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                {pct(row.uploadRate)}
+                <Rate rate={row.uploadRate} numerator={row.collaboSharedCount ?? 0} denominator={row.attendCount ?? 0} />
               </TableCell>
               {hasAvgViews && (
                 <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
@@ -394,10 +442,9 @@ function SaasAnalyticsView({
         borderColor: 'divider',
       }}
     >
+      {/* 같은 수를 Campaign Summary의 Tracked 카드가 이미 말한다 —
+          한 화면에 같은 숫자를 두 번 두지 않는다. */}
       <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
-      <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-        {filtered.length} tracked
-      </Typography>
     </Box>
   );
 
@@ -419,7 +466,7 @@ function SaasAnalyticsView({
   const f = summary.funnel || {};
   const visitRate = f.agreement > 0 ? f.attended / f.agreement : 0;
   const uploadRate = f.attended > 0 ? f.uploaded / f.attended : 0;
-  const funnelRows = buildFunnelRows(f);
+  const funnelRows = buildFunnelRows(f, summary.funnelMeasured || {});
 
   /* 초대 데이터가 지금 보고 있는 스토어 전부를 덮지 못하면 "% of invited"의 분모가
      실제보다 좁거나 넓다. 시트의 Number 탭에는 G10만 있다 — 조용히 비율을 내면
@@ -448,8 +495,10 @@ function SaasAnalyticsView({
 
       {/* Funnel — 수평 바 또는 테이블 토글 */}
       <Box sx={{ mb: 4 }}>
+        {/* 요약 카드는 agreement 기준, 퍼널은 invited 기준이라 한 화면에 모수가 둘이다.
+            어느 쪽을 보고 있는지 제목에 적어둔다. */}
         <SectionTitle
-          title="Conversion Funnel"
+          title={`Conversion Funnel — of ${funnelRows[0]?.value ?? 0} ${(funnelRows[0]?.label ?? '').toLowerCase()}`}
           action={
             <ToggleButtonGroup
               size="small"
