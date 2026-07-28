@@ -100,3 +100,24 @@ export const LoadError = {
 export const Empty = {
   args: { influencers: [], stores: [] },
 };
+
+/**
+ * 좁은 화면 — md 미만에서는 Visit schedule이 사라지지 않고 목록 위로 쌓인다.
+ * 숨기면 현장에서 오늘 방문자를 확인할 수단이 없어지므로 높이만 제한해 남긴다.
+ * (뷰포트 애드온을 쓰지 않고 데코레이터로 폭을 고정해 재현한다)
+ */
+export const NarrowViewport = {
+  decorators: [
+    Story => (
+      <Box sx={{ width: 390, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid', borderColor: 'divider', fontFamily: SAAS_FONT }}>
+        <Story />
+      </Box>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const rail = [...canvasElement.querySelectorAll('p')]
+      .find(p => p.textContent.trim() === 'VISIT SCHEDULE')?.parentElement;
+    await expect(rail).toBeTruthy();
+    await expect(rail).toBeVisible();
+  },
+};

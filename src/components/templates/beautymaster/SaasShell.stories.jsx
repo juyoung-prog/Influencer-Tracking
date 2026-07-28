@@ -27,6 +27,7 @@ export default {
     },
     influencerCount: { control: { type: 'number' }, description: 'Operations 항목 옆 카운트 (0이면 숨김)' },
     lastSyncedAt: { control: 'date', description: '마지막 동기화 시각 — 사이드바 하단에 펼침 시 표시' },
+    isSyncing: { control: 'boolean', description: '시트 조회 진행 중 — 캡션이 "Syncing…"으로 바뀌고 Refresh 아이콘이 회전한다' },
     sheetUrl: { control: 'text', description: 'Google Sheet 원본 링크. 비면 해당 줄을 숨긴다' },
     onNavigate: { action: 'navigated', description: '네비 항목 클릭 핸들러 (key) => void' },
     onRefresh: { action: 'refreshed', description: 'Refresh 클릭 핸들러' },
@@ -42,6 +43,7 @@ export default {
     activeNav: 'operations',
     influencerCount: 189,
     lastSyncedAt: new Date('2026-07-27T15:39:00'),
+    isSyncing: false,
     sheetUrl: 'https://docs.google.com/spreadsheets/d/EXAMPLE/edit',
     children: <BodyStub />,
   },
@@ -112,4 +114,27 @@ export const NotSynced = {
 /** Analytics 활성 */
 export const AnalyticsActive = {
   args: { activeNav: 'analytics' },
+};
+
+/**
+ * 동기화 중 — Refresh를 눌렀을 때의 상태.
+ * 하단 캡션이 "Last synced …" 대신 "Syncing…"이 되고, Refresh 아이콘이 회전하며
+ * 버튼이 비활성화된다. 이 표시가 없으면 눌렸는지 알 수 없다
+ * (목록이 이미 있으면 스켈레톤도 뜨지 않으므로).
+ * 라벨은 "Refresh" 그대로 둔다 — 캡션과 같은 문구를 두 줄 겹쳐 쓰지 않기 위해.
+ */
+export const Syncing = {
+  args: { isSyncing: true },
+  play: async ({ canvasElement }) => {
+    const nav = canvasElement.querySelector('nav');
+    nav.querySelector('button').focus();
+
+    await waitFor(async () => {
+      const caption = nav.querySelector('.saas-nav-sync');
+      await expect(caption).toHaveTextContent('Syncing…');
+    });
+
+    const refresh = [...nav.querySelectorAll('button')].find(b => /Refresh/.test(b.textContent));
+    await expect(refresh).toBeDisabled();
+  },
 };

@@ -297,7 +297,7 @@ function SaasShell({
             disabled={isSyncing}
             aria-busy={isSyncing}
             Icon={RefreshOutlinedIcon}
-            label={isSyncing ? 'Syncing…' : 'Refresh'}
+            label="Refresh"
             iconSx={isSyncing ? { animation: 'saas-spin 900ms linear infinite' } : undefined}
           />
           {sheetUrl && (

@@ -135,7 +135,7 @@ Vibe Dictionary 텍소노미 v0.4 기반 분류. 번호는 텍소노미 카테�
 ### Molecule / 분자
 
 - InfluencerCard: 인플루언서 카드. 280px 폭, avatar + 이름/시간 + StatusIconRow + 스테이지 레이블 (`components/card/InfluencerCard.jsx`)
-- InfluencerListRow: 인플루언서 리스트 행. 가로형. avatar + 이름/시간/노트 + 플랫폼·티어 + 스테이지 + overdue + 노쇼/일정변경 연락 상태 배지(warning 컬러, contactStatus가 no-response면 경과일수 강조) (`components/data-display/InfluencerListRow.jsx`)
+- InfluencerListRow: 인플루언서 리스트 행. `hasScheduledTimeOfDay`가 false면 시각을 만들어내지 않고 "Jul 8 · time TBD"로 표시한다(시트에 날짜만 있는 셀은 파싱하면 자정이 되므로). 가로형. avatar + 이름/시간/노트 + 플랫폼·티어 + 스테이지 + overdue + 노쇼/일정변경 연락 상태 배지(warning 컬러, contactStatus가 no-response면 경과일수 강조) (`components/data-display/InfluencerListRow.jsx`)
 - InfluencerFilterBar: 스토어·월·플랫폼·티어 필터 바 (`components/data-display/InfluencerFilterBar.jsx`)
 - ScheduleTimeline: 방문 일정 타임라인 패널. 날짜 그룹(오늘·예정·과거·미정)별 행 (`components/data-display/ScheduleTimeline.jsx`)
 - InfluencerFunnel: Invited → Credit Used 전환 퍼널. "Number" 탭 초대 인원 데이터가 있으면 Invited/Agreement 사이에 Responded 단계 추가 표시 (`components/data-display/InfluencerFunnel.jsx`)

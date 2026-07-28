@@ -14,6 +14,8 @@ function make(overrides = {}) {
     tier: 'tier1',
     category: 'kbeauty',
     scheduledTime: D('2026-07-05T11:00:00'),
+    // 시트 셀에 시각까지 적혀 있었는지. false면 날짜만 쓰고 시각은 "time TBD"로 밝힌다
+    hasScheduledTimeOfDay: true,
     uploadDate: null,
     agreement: true,
     attend: false,
@@ -205,4 +207,29 @@ export const AllStates = {
       </Box>
     );
   },
+};
+
+/**
+ * 시각 미입력 — 시트에 날짜만 있고 시각이 없는 경우.
+ * 파싱하면 자정이 되는데 그걸 "12:00 AM"으로 보여주면 없는 정보를 만들어내는 것이라,
+ * 날짜만 쓰고 시각 자리는 "time TBD"로 밝힌다. 실데이터에서 45건(24%)이 이 상태다.
+ */
+export const TimeNotSet = {
+  name: 'Time Not Set',
+  render: () => (
+    <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+      <InfluencerListRow
+        influencer={make({ id: 'a', fullName: 'Kim Minjung', hasScheduledTimeOfDay: true })}
+        onClick={() => {}}
+      />
+      <InfluencerListRow
+        influencer={make({ id: 'b', fullName: 'Lee Jiyeon', hasScheduledTimeOfDay: false })}
+        onClick={() => {}}
+      />
+      <InfluencerListRow
+        influencer={make({ id: 'c', fullName: 'Park Soyeon', scheduledTime: null, hasScheduledTimeOfDay: false })}
+        onClick={() => {}}
+      />
+    </Box>
+  ),
 };

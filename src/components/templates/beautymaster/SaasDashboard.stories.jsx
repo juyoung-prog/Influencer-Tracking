@@ -20,6 +20,7 @@ export default {
     },
     selectedId: { control: 'text', description: '현재 선택된 인플루언서 ID' },
     isLoading: { control: 'boolean', description: '최초 로딩 여부 (목록이 비었을 때만 스켈레톤)' },
+    isSyncing: { control: 'boolean', description: '폴링/새로고침 진행 중 — 사이드바 하단 Refresh 표시에 반영' },
     error: { control: false, description: '조회 실패 에러 — 상단 배너로 표시' },
     onSelect: { action: 'selected', description: '인플루언서 행 클릭 핸들러' },
     onRefresh: { action: 'refreshed', description: '헤더 새로고침 핸들러' },
@@ -90,4 +91,9 @@ export const LoadError = {
     ...Default.args,
     error: new Error('Google Sheets returned 403 (check sharing settings)'),
   },
+};
+
+/** 폴링 진행 중 — 목록은 그대로 두고 사이드바 Refresh만 진행 상태로 바뀐다 */
+export const Syncing = {
+  args: { ...Default.args, isSyncing: true },
 };
