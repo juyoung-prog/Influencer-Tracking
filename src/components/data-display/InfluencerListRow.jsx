@@ -9,7 +9,7 @@ function getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup })
   if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main',     show: true };
   if (attend)        return { label: 'Awaiting Upload',  color: 'text.secondary', show: true };
   const isFuture = scheduleGroup === 'upcoming' || scheduleGroup === 'today';
-  if (isFuture)      return { label: 'Scheduled',        color: 'text.disabled',  show: false };
+  if (isFuture)      return { label: 'Scheduled',        color: 'text.secondary',  show: false };
   return               { label: 'Visit Unconfirmed', color: 'warning.main',   show: true };
 }
 
@@ -129,7 +129,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         borderBottom: '1px solid',
         borderColor: 'divider',
         borderLeft: '2px solid',
-        borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+        borderLeftColor: isSelected ? 'primary.dark' : 'transparent',
         backgroundColor: isSelected ? 'action.selected' : 'transparent',
         textAlign: 'left',
         '&:hover': { backgroundColor: 'action.hover' },
@@ -142,7 +142,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
           width: 28, height: 28, fontSize: 11, fontWeight: 700,
           flexShrink: 0, alignSelf: 'flex-start', mt: 0.25,
           // 기본값(흰 글자 + grey.400)은 대비 1.88:1로 AA 미달 — 연한 배경에 진한 글자로 뒤집는다
-          bgcolor: 'grey.100',
+          bgcolor: 'surface.muted',
           color: 'text.secondary',
         }}
       >
@@ -179,11 +179,13 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
           </Typography>
         )}
         {daysOverdue != null && (
-          // 지연 일수는 이 행에서 가장 중요한 위험 신호다. 이전엔 text.disabled(2.68:1)로
-          // 가장 흐렸는데, warning.main(5.93:1)으로 올려 AA를 통과시키고 위계를 뒤집는다.
+          // 지연 일수는 심각도가 아니라 "얼마나"를 말하는 수치다.
+          // 심각도 색은 위의 stage 라벨이 이미 지고 있어서, 여기까지 앰버로 칠하면
+          // 한 행에 경고색이 세 줄 겹쳐 무엇이 급한지 사라진다.
+          // 대비는 AA를 넘기되(5.74:1) 색은 중립으로 두고 굵기로만 강조한다.
           <Typography
             variant="caption"
-            sx={{ display: 'block', color: 'warning.main', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
+            sx={{ display: 'block', color: 'text.secondary', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
           >
             {daysOverdue}d overdue
           </Typography>
@@ -194,7 +196,10 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
             sx={{
               display: 'block',
               mt: 0.25,
-              color: 'warning.main',
+              // 3단계: 막힘(레드) > 지연(앰버) > 부가정보(중립).
+              // 회신이 끊긴 건은 스스로 풀리지 않으므로 레드. 회신 대기 중인 건은
+              // 위의 stage 라벨이 이미 앰버라, 여기까지 앰버면 한 행에 경고색이 둘이 된다.
+              color: contactAlert.isUrgent ? 'error.main' : 'text.secondary',
               fontWeight: contactAlert.isUrgent ? 700 : 500,
               fontSize: '0.6875rem',
               lineHeight: 1.3,

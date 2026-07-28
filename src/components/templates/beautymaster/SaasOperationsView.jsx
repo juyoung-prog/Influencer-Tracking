@@ -300,7 +300,7 @@ function SaasOperationsView({
     px: 1,
     ...(isOn
       ? { backgroundColor: 'primary.main', color: 'common.white', borderColor: 'primary.main', '&:hover': { backgroundColor: 'primary.dark' } }
-      : { borderColor: 'divider', color: 'text.secondary', backgroundColor: 'transparent', '&:hover': { backgroundColor: 'grey.50' } }),
+      : { borderColor: 'divider', color: 'text.secondary', backgroundColor: 'transparent', '&:hover': { backgroundColor: 'action.hover' } }),
   });
 
   return (
@@ -372,7 +372,7 @@ function SaasOperationsView({
                 </Box>
               ))
             ) : !hasScheduledVisit ? (
-              <Typography sx={{ fontSize: 13, color: 'text.disabled', px: 1, py: 2 }}>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary', px: 1, py: 2 }}>
                 No visits scheduled
               </Typography>
             ) : (
@@ -381,7 +381,7 @@ function SaasOperationsView({
                 return (
                 <Box key={grp.key} sx={{ mb: 1 }}>
                   {/* 본 테이블의 섹션 헤더(ACTION REQUIRED 등)와 같은 표면·타이포를 쓴다 —
-                      grey.50 배경, 위아래 1px divider, 11px/600/0.04em uppercase, muted 카운트.
+                      sunken 배경, 위아래 1px divider, 11px/600/0.04em uppercase, muted 카운트.
                       레일은 폭이 좁아 카운트를 우측 정렬해도 라벨과 멀어지지 않는다. */}
                   <Box
                     sx={{
@@ -391,7 +391,7 @@ function SaasOperationsView({
                       mx: -1,
                       px: 2,
                       py: 0.625,
-                      backgroundColor: 'grey.50',
+                      backgroundColor: 'surface.sunken',
                       borderTop: '1px solid',
                       borderBottom: '1px solid',
                       borderColor: 'divider',
@@ -403,7 +403,7 @@ function SaasOperationsView({
                         fontSize: 11,
                         fontWeight: 600,
                         letterSpacing: '0.04em',
-                        color: isToday ? 'primary.main' : 'text.secondary',
+                        color: isToday ? 'primary.dark' : 'text.secondary',
                       }}
                     >
                       {grp.label.toUpperCase()}
@@ -413,7 +413,7 @@ function SaasOperationsView({
                       sx={{
                         ml: 'auto',
                         fontSize: 11,
-                        color: 'text.disabled',
+                        color: 'text.secondary',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -433,8 +433,8 @@ function SaasOperationsView({
                         py: 0.5,
                         borderRadius: '6px',
                         cursor: onSelect ? 'pointer' : 'default',
-                        backgroundColor: selectedId === inf.id ? 'grey.100' : 'transparent',
-                        '&:hover': { backgroundColor: 'grey.50' },
+                        backgroundColor: selectedId === inf.id ? 'action.selected' : 'transparent',
+                        '&:hover': { backgroundColor: 'action.hover' },
                       }}
                     >
                       {/* 고정 폭 + nowrap — "11:00 AM"이 두 줄로 접히면 행 높이가 들쭉날쭉해지고
@@ -531,7 +531,7 @@ function SaasOperationsView({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchOutlinedIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                      <SearchOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 },
@@ -540,7 +540,7 @@ function SaasOperationsView({
                 width: 200,
                 '& .MuiInputBase-root': { borderRadius: '6px', fontSize: 12, height: 36, backgroundColor: 'background.paper' },
                 '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-                '& .MuiInputBase-input::placeholder': { color: 'text.disabled', opacity: 1 },
+                '& .MuiInputBase-input::placeholder': { color: 'text.secondary', opacity: 1 },
               }}
             />
             <SaasStoreSelect
@@ -618,7 +618,7 @@ function SaasOperationsView({
                   sx={{
                     border: 'none',
                     borderBottom: '2px solid',
-                    borderBottomColor: isActive ? 'primary.main' : 'transparent',
+                    borderBottomColor: isActive ? 'primary.dark' : 'transparent',
                     // 컨테이너의 1px 보더 위에 인디케이터를 겹쳐 선이 두 줄로 보이지 않게 한다
                     mb: '-1px',
                     px: 0,
@@ -627,9 +627,9 @@ function SaasOperationsView({
                     font: 'inherit',
                     fontSize: 12,
                     fontWeight: isActive ? 600 : 500,
-                    color: isActive ? 'primary.main' : 'text.secondary',
+                    color: isActive ? 'primary.dark' : 'text.secondary',
                     cursor: 'pointer',
-                    '&:hover': { color: isActive ? 'primary.main' : 'text.primary' },
+                    '&:hover': { color: isActive ? 'primary.dark' : 'text.primary' },
                   }}
                 >
                   {t.label}
@@ -705,7 +705,7 @@ function SaasOperationsView({
                       borderBottom: isCollapsed ? 'none' : '1px solid',
                       borderColor: 'divider',
                       borderRadius: isCollapsed ? '5px' : '5px 5px 0 0',
-                      backgroundColor: 'grey.50',
+                      backgroundColor: 'surface.sunken',
                       font: 'inherit',
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -716,7 +716,7 @@ function SaasOperationsView({
                       sx={theme => ({
                         fontSize: 14,
                         flexShrink: 0,
-                        color: 'text.disabled',
+                        color: 'text.secondary',
                         transform: isCollapsed ? 'none' : 'rotate(90deg)',
                         transition: theme.transitions.create('transform', { duration: 150 }),
                         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
@@ -733,7 +733,7 @@ function SaasOperationsView({
                     >
                       {section.label.toUpperCase()}
                     </Typography>
-                    <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                       {section.items.length}
                     </Typography>
                   </Box>

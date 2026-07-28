@@ -59,7 +59,7 @@ function SummaryCard({ label, value, description }) {
         {value}
       </Typography>
       {description && (
-        <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>{description}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{description}</Typography>
       )}
     </Box>
   );
@@ -86,7 +86,7 @@ function FunnelBar({ funnel }) {
     .map(s => ({ ...s, value: funnel?.[s.key] }))
     .filter(s => s.value !== undefined && s.value !== null);
 
-  if (data.length === 0) return <Typography sx={{ color: 'text.disabled' }}>No funnel data</Typography>;
+  if (data.length === 0) return <Typography sx={{ color: 'text.secondary' }}>No funnel data</Typography>;
 
   const max = Math.max(...data.map(s => s.value), 1);
   return (
@@ -96,7 +96,7 @@ function FunnelBar({ funnel }) {
           <Typography sx={{ width: 80, flexShrink: 0, fontSize: 13, color: 'text.secondary' }}>
             {step.label}
           </Typography>
-          <Box sx={{ flex: 1, height: 18, backgroundColor: 'grey.100', borderRadius: '4px', overflow: 'hidden' }}>
+          <Box sx={{ flex: 1, height: 18, backgroundColor: 'surface.muted', borderRadius: '4px', overflow: 'hidden' }}>
             <Box
               sx={{
                 width: `${(step.value / max) * 100}%`,
@@ -127,7 +127,7 @@ function BreakdownTable({ groupHeader, rows }) {
     <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}>
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'grey.50', py: 0.75 } }}>
+          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75 } }}>
             <TableCell>{groupHeader}</TableCell>
             <TableCell align="right">Count</TableCell>
             <TableCell align="right">Visit rate</TableCell>
@@ -141,7 +141,7 @@ function BreakdownTable({ groupHeader, rows }) {
               key={row.label}
               sx={{
                 '& td': { fontSize: 13, py: 0.875 },
-                '&:hover': { backgroundColor: 'grey.50' },
+                '&:hover': { backgroundColor: 'action.hover' },
               }}
             >
               <TableCell sx={{ fontWeight: 500 }}>{row.label}</TableCell>
@@ -236,7 +236,7 @@ function SaasAnalyticsView({
       }}
     >
       <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
-      <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+      <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
         {filtered.length} tracked
       </Typography>
     </Box>

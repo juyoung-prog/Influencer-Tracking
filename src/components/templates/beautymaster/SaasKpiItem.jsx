@@ -55,7 +55,7 @@ function SaasKpiItem({ label, value, total = null, isFirst = false, isAlert = fa
           {value}
         </Typography>
         {total !== null && total > 0 && (
-          <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+          <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
             of {total}
           </Typography>
         )}

@@ -133,7 +133,7 @@ const FILE_DEFS = [
 function FileCard({ kind, name, desc, href = null, note = '' }) {
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 1.5 }}>
-      <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>
+      <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>
         {kind}
       </Typography>
       {href ? (
@@ -147,7 +147,7 @@ function FileCard({ kind, name, desc, href = null, note = '' }) {
             fontWeight: 600,
             fontSize: 13,
             mb: 0.5,
-            color: 'primary.main',
+            color: 'primary.dark',
             textDecoration: 'none',
             '&:hover': { textDecoration: 'underline' },
           }}
@@ -156,7 +156,7 @@ function FileCard({ kind, name, desc, href = null, note = '' }) {
           <OpenInNewIcon sx={{ fontSize: 11, verticalAlign: 'text-top', ml: 0.4 }} />
         </Typography>
       ) : (
-        <Typography sx={{ fontWeight: 600, fontSize: 13, mb: 0.5, color: 'text.disabled' }}>
+        <Typography sx={{ fontWeight: 600, fontSize: 13, mb: 0.5, color: 'text.secondary' }}>
           {name}
         </Typography>
       )}
@@ -164,7 +164,7 @@ function FileCard({ kind, name, desc, href = null, note = '' }) {
         {desc}
       </Typography>
       {note && (
-        <Typography sx={{ fontSize: 11, color: 'text.disabled', fontStyle: 'italic' }}>
+        <Typography sx={{ fontSize: 11, color: 'text.secondary', fontStyle: 'italic' }}>
           {note}
         </Typography>
       )}
@@ -193,7 +193,7 @@ function TagRow({ files, tools, handoff }) {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1.25 }}>
       {files.map(f => (
-        <Typography key={f} component="span" sx={{ ...tagSx, backgroundColor: 'grey.100', color: 'text.secondary' }}>
+        <Typography key={f} component="span" sx={{ ...tagSx, backgroundColor: 'surface.muted', color: 'text.secondary' }}>
           {f}
         </Typography>
       ))}
@@ -321,7 +321,7 @@ function SaasWorkflowView({
             <Typography sx={{ fontSize: 18, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
               {num}
             </Typography>
-            <Typography sx={{ fontSize: 11, color: 'text.disabled', lineHeight: 1.4 }}>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary', lineHeight: 1.4 }}>
               {label}
             </Typography>
           </Box>
@@ -345,7 +345,7 @@ function SaasWorkflowView({
                 backgroundColor: 'transparent',
                 px: 2,
                 py: 1,
-                '&:hover': { backgroundColor: 'grey.50' },
+                '&:hover': { backgroundColor: 'action.hover' },
               },
               '& .MuiAccordionDetails-root': { px: 2, py: 2 },
             }}
@@ -376,7 +376,7 @@ function SaasWorkflowView({
               {phase.stepGroups ? (
                 phase.stepGroups.map((group, gi) => (
                   <Box key={group.heading} sx={{ mb: gi === phase.stepGroups.length - 1 ? 1.5 : 2 }}>
-                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.75 }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.75 }}>
                       {group.heading}
                     </Typography>
                     <Box component="ul" sx={{ m: 0, pl: 2.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -404,7 +404,7 @@ function SaasWorkflowView({
       </Box>
 
       <Divider sx={{ my: 4 }} />
-      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 2, display: 'block' }}>
+      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 2, display: 'block' }}>
         Reference
       </Typography>
       <Typography component="h2" sx={{ fontSize: 14, fontWeight: 600, mb: 0.75 }}>

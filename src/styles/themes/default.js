@@ -76,6 +76,21 @@ const palette = {
     paper: '#FFFFFF',
   },
 
+  /**
+   * 면(surface) 위계.
+   * background.default/paper가 둘 다 흰색이라 "한 단 낮은 면"을 표현할 토큰이 없었고,
+   * 그 결과 grey.50/100이 날것으로 흩어져 무엇이 사이드바고 무엇이 아바타인지
+   * 코드만 봐서는 구분되지 않았다. 이름으로 역할을 고정한다.
+   *
+   * hover/selected는 여기 두지 않는다 — action.hover/selected는 반투명이라
+   * 어떤 면 위에 올려도 합성되지만, 불투명한 grey는 흰 배경에서만 맞다.
+   */
+  surface: {
+    default: '#FFFFFF',
+    sunken: grey[50],
+    muted: grey[100],
+  },
+
   // 구분선
   divider: 'rgba(0, 0, 0, 0.12)',
 

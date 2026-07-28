@@ -85,7 +85,8 @@ function NavRow({ Icon, label, isActive = false, trailing = null, iconSx, ...res
         textDecoration: 'none',
         // 활성 표시는 테두리가 아니라 아주 옅은 브랜드 틴트 — outlined 버튼처럼 보이지 않게
         backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-        color: isActive ? 'primary.main' : 'text.secondary',
+        // 글자·선은 primary.dark — 순수 #0000FF는 흰 배경 위 가장자리가 떨려 보인다(색수차)
+        color: isActive ? 'primary.dark' : 'text.secondary',
         transition: theme.transitions.create(['width', 'background-color', 'color'], {
           duration: 180,
           easing: theme.transitions.easing.easeOut,
@@ -184,7 +185,7 @@ function SaasShell({
           flexDirection: 'column',
           borderRight: '1px solid',
           borderColor: 'divider',
-          backgroundColor: 'grey.50',
+          backgroundColor: 'surface.sunken',
           px: 1.25,
           py: 1.75,
           transition: theme.transitions.create(['width', 'background-color', 'box-shadow'], {
@@ -257,7 +258,7 @@ function SaasShell({
                 trailing={key === 'operations' && influencerCount > 0 ? (
                   <Typography
                     className={LABEL_CLASS}
-                    sx={{ ml: 'auto', fontSize: 11, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
+                    sx={{ ml: 'auto', fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
                   >
                     {influencerCount}
                   </Typography>
@@ -283,7 +284,7 @@ function SaasShell({
         >
           <Typography
             className={SYNC_CLASS}
-            sx={{ display: 'block', px: 1.25, fontSize: 11, lineHeight: `${SYNC_ROW_HEIGHT}px`, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
+            sx={{ display: 'block', px: 1.25, fontSize: 11, lineHeight: `${SYNC_ROW_HEIGHT}px`, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
           >
             {isSyncing
               ? 'Syncing…'

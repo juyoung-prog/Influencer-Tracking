@@ -200,9 +200,12 @@ export const Docs = {
       { token: 'success.main', value: theme.palette.success.main, description: '성공, 완료, 활성' },
       { token: 'info.main', value: theme.palette.info.main, description: '정보, 안내' },
       { token: 'text.primary', value: theme.palette.text.primary, description: '주요 텍스트' },
-      { token: 'text.secondary', value: theme.palette.text.secondary, description: '보조 텍스트, 캡션' },
+      { token: 'text.secondary', value: theme.palette.text.secondary, description: '보조 텍스트, 캡션 (읽어야 하는 모든 부가 정보)' },
+      { token: 'text.disabled', value: theme.palette.text.disabled, description: '⚠ 비활성 컨트롤 전용 — 2.68:1로 AA 미달이라 읽을 글자에 쓰지 말 것' },
       { token: 'background.default', value: theme.palette.background.default, description: '페이지 배경' },
       { token: 'background.paper', value: theme.palette.background.paper, description: '카드, 모달 배경' },
+      { token: 'surface.sunken', value: theme.palette.surface.sunken, description: '한 단 낮은 면 — 사이드바, 섹션/그룹 헤더' },
+      { token: 'surface.muted', value: theme.palette.surface.muted, description: '채워진 작은 면 — 아바타, 태그, 프로그레스 트랙' },
       { token: 'divider', value: theme.palette.divider, description: '구분선, 보더' },
     ];
 

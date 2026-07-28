@@ -7,7 +7,7 @@ import SaasShell from './SaasShell';
 function BodyStub() {
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+      <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
         본문 영역 — 사이드바를 펼쳐도 이 영역의 폭·위치는 변하지 않는다
       </Typography>
     </Box>

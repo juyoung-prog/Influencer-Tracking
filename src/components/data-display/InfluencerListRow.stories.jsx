@@ -236,9 +236,10 @@ export const TimeNotSet = {
 };
 
 /**
- * 위험 신호 대비 — "Nd overdue"는 이 행에서 가장 중요한 신호인데
- * 이전에는 text.disabled(2.68:1)로 가장 흐렸다. warning.main(5.93:1)으로 올려
- * WCAG AA를 통과시키고 위계를 뒤집었다. 아바타도 1.88 → 5.59:1.
+ * 위험 신호 대비 — "Nd overdue"는 한때 text.disabled(2.68:1)로 가장 흐렸다.
+ * 지금은 text.secondary(5.74:1) + 600 굵기다. 색은 중립인데,
+ * 심각도는 위의 stage 라벨이 지고 이 줄은 "얼마나"를 말하는 수치이기 때문이다.
+ * 색을 다시 흐리게 바꾸면 이 테스트가 잡는다. 아바타도 1.88 → 5.59:1.
  */
 export const OverdueEmphasis = {
   render: () => (
