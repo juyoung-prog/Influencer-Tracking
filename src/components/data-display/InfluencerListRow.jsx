@@ -77,6 +77,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
     fullName = '',
     imageUrl = '',
     scheduledTime = null,
+    hasScheduledTimeOfDay = false,
     uploadDate = null,
     scheduleGroup = 'no-time',
     platform = '',
@@ -97,11 +98,17 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
 
   const initials = fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
-  const timeLabel = scheduledTime
-    ? scheduleGroup === 'today'
-      ? scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      : `${scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-    : 'TBD';
+  // 시트에 시각이 없으면 파싱 결과가 자정이 된다. 그걸 "12:00 AM"으로 보여주면
+  // 없는 정보를 있는 것처럼 만들므로, 날짜만 쓰고 시각은 "time TBD"로 밝힌다.
+  const dateLabel = scheduledTime ? scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
+  const clockLabel = scheduledTime && hasScheduledTimeOfDay
+    ? scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const timeLabel = !scheduledTime
+    ? 'Date TBD'
+    : scheduleGroup === 'today'
+      ? (clockLabel ?? 'Time TBD')
+      : `${dateLabel} · ${clockLabel ?? 'time TBD'}`;
 
   const stage = getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup });
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);

@@ -56,11 +56,12 @@ const SYNC_CLASS = 'saas-nav-sync';
  * @param {string} label - 펼쳤을 때 보이는 라벨 [Required]
  * @param {boolean} isActive - 활성 상태 여부 [Optional, 기본값: false]
  * @param {node} trailing - 라벨 우측에 붙일 요소(카운트 등) [Optional, 기본값: null]
+ * @param {object} iconSx - 아이콘에 덧붙일 sx (동기화 중 회전 등) [Optional]
  *
  * Example usage:
  * <NavRow component="button" type="button" onClick={onRefresh} Icon={RefreshOutlinedIcon} label="Refresh" />
  */
-function NavRow({ Icon, label, isActive = false, trailing = null, ...rest }) {
+function NavRow({ Icon, label, isActive = false, trailing = null, iconSx, ...rest }) {
   return (
     <Box
       {...rest}
@@ -97,7 +98,7 @@ function NavRow({ Icon, label, isActive = false, trailing = null, ...rest }) {
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
       })}
     >
-      <Icon sx={{ fontSize: 16, flexShrink: 0 }} />
+      <Icon sx={{ fontSize: 16, flexShrink: 0, ...iconSx }} />
       <Typography className={LABEL_CLASS} sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500, lineHeight: 1 }}>
         {label}
       </Typography>
@@ -126,6 +127,7 @@ function NavRow({ Icon, label, isActive = false, trailing = null, ...rest }) {
  * @param {number} influencerCount - Operations 항목 옆 카운트 [Optional, 기본값: 0]
  * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (사이드바 하단, 펼침 시 표시) [Optional, 기본값: null]
  * @param {function} onNavigate - 네비 항목 클릭 핸들러 (key) => void [Optional]
+ * @param {boolean} isSyncing - 시트 조회 진행 중 여부. 아이콘을 돌리고 캡션을 바꿔 눌린 걸 알린다 [Optional, 기본값: false]
  * @param {function} onRefresh - Refresh 클릭 핸들러 [Optional]
  * @param {string} sheetUrl - Google Sheet 원본 링크. 없으면 해당 줄을 숨긴다 [Optional, 기본값: '']
  * @param {function} onOpenSettings - Settings 클릭 핸들러 [Optional]
@@ -139,6 +141,7 @@ function SaasShell({
   activeNav,
   influencerCount = 0,
   lastSyncedAt = null,
+  isSyncing = false,
   onNavigate,
   onRefresh,
   sheetUrl = '',
@@ -157,6 +160,7 @@ function SaasShell({
         isolation: 'isolate',
         backgroundColor: 'background.paper',
         fontFamily: SAAS_FONT,
+        '@keyframes saas-spin': { to: { transform: 'rotate(360deg)' } },
         '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiTableCell-root, & .MuiInputBase-root': {
           fontFamily: 'inherit',
         },
@@ -282,9 +286,20 @@ function SaasShell({
             className={SYNC_CLASS}
             sx={{ display: 'block', px: 1.25, fontSize: 11, lineHeight: `${SYNC_ROW_HEIGHT}px`, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}
           >
-            Last synced {lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+            {isSyncing
+              ? 'Syncing…'
+              : `Last synced ${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}`}
           </Typography>
-          <NavRow component="button" type="button" onClick={onRefresh} Icon={RefreshOutlinedIcon} label="Refresh" />
+          <NavRow
+            component="button"
+            type="button"
+            onClick={onRefresh}
+            disabled={isSyncing}
+            aria-busy={isSyncing}
+            Icon={RefreshOutlinedIcon}
+            label={isSyncing ? 'Syncing…' : 'Refresh'}
+            iconSx={isSyncing ? { animation: 'saas-spin 900ms linear infinite' } : undefined}
+          />
           {sheetUrl && (
             <NavRow
               component="a"

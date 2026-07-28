@@ -153,6 +153,19 @@ function parseDate(val) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * 셀에 시각까지 적혀 있는지 판별한다.
+ * 날짜만 있는 셀은 parseDate가 자정으로 만들어 버리는데, 이를 "12:00 AM 방문"으로
+ * 표시하면 없는 정보를 있는 것처럼 보여주게 된다(실데이터 52건).
+ *
+ * @param {string} val - 원본 셀 값
+ * @returns {boolean}
+ */
+function hasTimeOfDay(val) {
+  if (!val) return false;
+  return /\d\s*(am|pm)\b/i.test(val) || /\d{1,2}:\d{2}/.test(val);
+}
+
 function parseNum(val) {
   const n = parseInt(val, 10);
   return isNaN(n) ? null : n;
@@ -283,6 +296,7 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       socialAccountUrl: resolveSocialUrl(fullName, row['social account'], row['platform'] || ''),
       email: row['email'] || '',
       scheduledTime,
+      hasScheduledTimeOfDay: hasTimeOfDay(rawTime),
       agreement: parseBool(row['agreement']),
       attend: parseBool(row['attend']),
       collaboShared: parseBool(row['collabo shared']),

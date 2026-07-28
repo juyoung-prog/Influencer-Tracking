@@ -33,8 +33,16 @@ const CATEGORY_OPTIONS = [
   { value: 'specific', label: 'Specific' },
 ];
 
-function formatTime(date) {
-  return date ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
+/**
+ * 레일 시간 컬럼. 시트에 시각이 없으면 파싱 결과가 자정이 되므로 "12:00 AM"을
+ * 만들어내지 않고 '—'로 비운다 — 없는 정보를 있는 것처럼 보이지 않게.
+ *
+ * @param {Influencer} inf
+ * @returns {string}
+ */
+function formatTime(inf) {
+  if (!inf.scheduledTime || !inf.hasScheduledTimeOfDay) return '—';
+  return inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 /**
@@ -288,18 +296,22 @@ function SaasOperationsView({
       )}
 
 
-      {/* 본문 — Visit schedule 레일 + 목록, 한 화면에 나란히.
-          둘 사이 구분은 레일 우측의 얇은 divider와 목록 컬럼의 좌측 인셋(24px)이 만든다.
-          여기에 gap을 더 두면 divider와 콘텐츠 사이가 40px로 벌어져 빈 띠처럼 보인다. */}
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        {/* Visit schedule — 좌측 고정 레일(보조 패널), 자체 스크롤 */}
+      {/* 본문 — Visit schedule 레일 + 목록.
+          md 이상은 좌우로 나란히, 미만은 위아래로 쌓는다. 좁은 화면에서 레일을 숨기면
+          현장에서 오늘 방문자를 확인할 수단이 사라지므로 감추지 않고 접어 올린다.
+          두 영역 구분은 레일 경계선과 목록 컬럼의 24px 인셋이 만든다(gap 없음). */}
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
+        {/* Visit schedule — 보조 패널, 자체 스크롤 */}
         <Box
           sx={{
-            width: RAIL_WIDTH,
+            width: { xs: '100%', md: RAIL_WIDTH },
+            // 좁은 화면에서는 화면을 다 먹지 않도록 높이를 제한하고 안에서 스크롤한다
+            maxHeight: { xs: 240, md: 'none' },
             flexShrink: 0,
-            display: { xs: 'none', md: 'flex' },
+            display: 'flex',
             flexDirection: 'column',
-            borderRight: '1px solid',
+            borderRight: { xs: 'none', md: '1px solid' },
+            borderBottom: { xs: '1px solid', md: 'none' },
             borderColor: 'divider',
             minHeight: 0,
           }}
@@ -404,7 +416,7 @@ function SaasOperationsView({
                           fontVariantNumeric: 'tabular-nums',
                         }}
                       >
-                        {formatTime(inf.scheduledTime)}
+                        {formatTime(inf)}
                       </Typography>
                       <Typography
                         sx={{ fontSize: 13, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}

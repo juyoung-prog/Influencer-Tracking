@@ -190,6 +190,7 @@ function BeautymasterDashboard() {
         onOpenSettings={() => setSettingsOpen(true)}
         sheetUrl={sheetUrl}
         isLoading={isSyncing}
+        isSyncing={isSyncing}
         error={error}
         onRetry={refresh}
         selectedStore={selectedStore}

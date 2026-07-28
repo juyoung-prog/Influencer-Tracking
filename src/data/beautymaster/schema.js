@@ -100,6 +100,8 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {string} socialAccountUrl
  * @property {string} email
  * @property {Date|null} scheduledTime
+ * @property {boolean} hasScheduledTimeOfDay - 시트 셀에 시각까지 적혀 있었는지.
+ *   날짜만 있으면 파싱 결과가 자정이 되는데, 그걸 "12:00 AM 방문"으로 표시하면 안 된다.
  * @property {boolean} agreement
  * @property {boolean} attend
  * @property {boolean} collaboShared
@@ -175,28 +177,75 @@ export function deriveScheduleGroup(scheduledTime) {
 }
 
 /**
+ * 경보 유예·만료 기준 (일 단위).
+ *
+ * 유예 없이 판정하면 "어제 방문했는데 오늘 업로드가 없다"까지 경보가 되어
+ * 정작 오래 밀린 건이 묻힌다. 반대로 아주 오래 지난 건은 진행 중이 아니라
+ * 사실상 종료된 건이라 계속 울릴 이유가 없다.
+ */
+export const ALERT_GRACE_DAYS = Object.freeze({
+  /** 방문 예정일이 지난 뒤 이만큼은 기다린다 (당일 지각·익일 방문 등 정상 변동) */
+  VISIT: 3,
+  /** 방문 후 콘텐츠 업로드까지 기다리는 기간 */
+  UPLOAD: 7,
+  /** 업로드 후 크레딧 발송까지 기다리는 기간 */
+  CREDIT: 7,
+  /** 방문 예정일이 이만큼 지나면 경보를 멈춘다 (사실상 종료된 건) */
+  STALE: 90,
+});
+
+/** 자정 기준 경과 일수. date가 없으면 null */
+function daysSince(date, todayStart) {
+  if (!date) return null;
+  return Math.floor((todayStart - new Date(date.getFullYear(), date.getMonth(), date.getDate())) / 86400000);
+}
+
+/**
  * Evaluate boolean status combinations to produce alert flags.
  * Caller must pass a fully populated Influencer (alertFlags field ignored on input).
  *
- * agreement-no-attend fires only when the visit is past-due (by calendar date) or
- * has no scheduled time — future and today visits are not yet actionable.
+ * 판정 원칙 두 가지:
+ * 1. 뒤 단계가 완료됐으면 앞 단계 경보를 내지 않는다. 시트에 attend 체크가 빠졌더라도
+ *    크레딧까지 나갔으면 실제로는 진행된 것이다. (이 처리가 없으면 목록에 "Completed"인데
+ *    "277d overdue"인 행이 생긴다 — 같은 행이 서로 다른 말을 하게 된다.)
+ * 2. 각 단계는 ALERT_GRACE_DAYS만큼 기다린 뒤에만 경보한다. 방문일이 STALE을 넘기면
+ *    더 이상 경보하지 않는다.
+ *
+ * 재연락 미해결(no-show / reschedule)은 단계 진행과 독립적이므로 위 규칙과 별개로 유지한다.
  *
  * @param {Influencer} influencer
  * @param {Date} [today] - Injection point for testing; defaults to new Date()
  * @returns {string[]}
  */
 export function deriveAlertFlags(influencer, today = new Date()) {
-  const { agreement, attend, collaboShared, creditShared, creditUsed, scheduledTime, contactReason, contactStatus } = influencer;
+  const {
+    agreement, attend, collaboShared, creditShared,
+    scheduledTime, uploadDate, contactReason, contactStatus,
+  } = influencer;
   const flags = [];
 
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const visitIsPastDue = !scheduledTime
-    ? true // no date set → agreed but unscheduled, needs follow-up
-    : new Date(scheduledTime.getFullYear(), scheduledTime.getMonth(), scheduledTime.getDate()) < todayStart;
+  const sinceVisit = daysSince(scheduledTime, todayStart);
+  const isStale = sinceVisit !== null && sinceVisit > ALERT_GRACE_DAYS.STALE;
 
-  if (agreement && !attend && visitIsPastDue) flags.push(ALERT_FLAGS.AGREEMENT_NO_ATTEND);
-  if (attend && !collaboShared)              flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
-  if (collaboShared && !creditShared)        flags.push(ALERT_FLAGS.COLLABO_NO_CREDIT);
+  // 원칙 1·2 — 완료됐거나 너무 오래된 건은 단계 경보를 내지 않는다
+  if (!creditShared && !isStale) {
+    if (collaboShared) {
+      const sinceUpload = daysSince(uploadDate, todayStart);
+      if (sinceUpload === null || sinceUpload > ALERT_GRACE_DAYS.CREDIT) {
+        flags.push(ALERT_FLAGS.COLLABO_NO_CREDIT);
+      }
+    } else if (attend) {
+      if (sinceVisit === null || sinceVisit > ALERT_GRACE_DAYS.UPLOAD) {
+        flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
+      }
+    } else if (agreement) {
+      // 날짜가 없으면 "일정 미정" — 지연은 아니지만 잡아야 할 일이라 경보로 남긴다
+      if (sinceVisit === null || sinceVisit > ALERT_GRACE_DAYS.VISIT) {
+        flags.push(ALERT_FLAGS.AGREEMENT_NO_ATTEND);
+      }
+    }
+  }
 
   // Resolved by reality once the influencer actually shows up, regardless of whether
   // Contact Status was manually updated to Replied in the sheet.
@@ -502,6 +551,7 @@ export function createInfluencer(overrides = {}) {
     socialAccountUrl: '',
     email: '',
     scheduledTime: null,
+    hasScheduledTimeOfDay: false,
     agreement: false,
     attend: false,
     collaboShared: false,

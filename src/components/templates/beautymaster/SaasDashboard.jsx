@@ -27,6 +27,7 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  * @param {string} sheetUrl - Google Sheet 원본 링크 (헤더 아이콘) [Optional, 기본값: '']
  * @param {string|null} selectedId - 현재 선택된 인플루언서 ID [Optional, 기본값: null]
  * @param {boolean} isLoading - 최초 로딩 여부 [Optional, 기본값: false]
+ * @param {boolean} isSyncing - 시트 조회 진행 중 여부 (헤더 Refresh 표시) [Optional, 기본값: false]
  * @param {Error|null} error - 조회 실패 에러 [Optional, 기본값: null]
  * @param {function} onRetry - 에러 배너 Retry 핸들러 [Optional]
  * @param {string} defaultStore - 최초 선택 스토어 ('all'이면 전체). uncontrolled일 때만 쓰임 [Optional, 기본값: 'all']
@@ -50,6 +51,7 @@ function SaasDashboard({
   sheetUrl = '',
   selectedId = null,
   isLoading = false,
+  isSyncing = false,
   error = null,
   onRetry,
   defaultStore = ALL_STORES,
@@ -78,6 +80,7 @@ function SaasDashboard({
       activeNav={activeView}
       influencerCount={influencers.length}
       lastSyncedAt={lastSyncedAt}
+      isSyncing={isSyncing}
       onNavigate={setActiveView}
       onRefresh={onRefresh}
       sheetUrl={sheetUrl}
