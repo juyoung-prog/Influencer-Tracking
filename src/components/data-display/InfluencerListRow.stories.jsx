@@ -322,3 +322,48 @@ export const SeverityHierarchy = {
     await expect(getComputedStyle(urgent).color).toBe(rgb(defaultTheme.palette.error.main));
   },
 };
+
+/**
+ * 좁은 폭에서 행이 깨지지 않는다.
+ *
+ * 고정 컬럼 합이 348px였다 — 아바타 28 + gap 48 + tier·platform 100 + stage 140
+ * + padding 32. 390px 폰에서는 본문이 334px라 이름 자리가 마이너스가 되어
+ * 날짜·플랫폼·상태가 뒤엉키고 우측이 잘렸다.
+ *
+ * 이름 칸에 최소 폭을 줘서 오른쪽 두 컬럼이 다음 줄로 밀리게 한다.
+ * 이름을 100%로 만들면 아바타까지 떨어져 혼자 한 줄을 쓰므로 minWidth로만 민다.
+ */
+export const NarrowWidthWraps = {
+  name: 'Narrow width',
+  render: () => (
+    <Box sx={{ width: 334, containerType: 'inline-size', border: '1px solid', borderColor: 'divider' }}>
+      <InfluencerListRow
+        influencer={make({
+          id: 'narrow',
+          fullName: 'Kientazya Hawkins',
+          scheduledTime: D('2026-07-02T13:00:00'),
+          attend: true,
+          collaboShared: false,
+        })}
+        onClick={() => {}}
+      />
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector('[data-influencer-id]');
+
+    // 가로로 넘쳐서 잘리는 부분이 없어야 한다
+    await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+
+    // 아바타와 이름은 같은 줄에 남는다 — 아바타만 따로 떨어지면 목록이 읽히지 않는다
+    const avatar = row.querySelector('.MuiAvatar-root');
+    const name = [...row.querySelectorAll('*')].find(e => e.textContent.trim() === 'Kientazya Hawkins');
+    await expect(avatar).toBeTruthy();
+    await expect(name).toBeTruthy();
+    const sameLine = Math.abs(avatar.getBoundingClientRect().top - name.getBoundingClientRect().top) < 24;
+    await expect(sameLine).toBe(true);
+
+    // 이름은 줄임표로 잘리지 않는다
+    await expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth + 1);
+  },
+};

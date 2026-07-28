@@ -844,6 +844,9 @@ function SaasOperationsView({
                     borderColor: 'divider',
                     borderRadius: '6px',
                     mt: 2,
+                    // 행이 자기 폭에 맞춰 접히도록 컨테이너 기준점을 준다.
+                    // 창 크기가 아니라 이 컬럼의 폭이 행이 쓸 수 있는 실제 폭이다.
+                    containerType: 'inline-size',
                     // 마지막 행의 하단 divider는 컨테이너 보더와 겹치므로 지운다
                     '& > [data-influencer-id]:last-of-type': { borderBottom: 'none' },
                   }}

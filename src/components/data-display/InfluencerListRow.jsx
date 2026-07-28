@@ -121,6 +121,15 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
       sx={{
         display: 'flex',
         alignItems: 'center',
+        /* 좁은 폭에서는 오른쪽 두 컬럼을 다음 줄로 접는다.
+           고정 컬럼 합이 348px라(아바타 28 + gap 48 + 100 + 140 + padding 32)
+           390px 폰에서 이름 자리가 마이너스가 되어 날짜·플랫폼·상태가 뒤엉켰다.
+
+           뷰포트가 아니라 **컨테이너** 폭을 본다. 이 행이 실제로 쓸 수 있는 폭은
+           창 크기가 아니라 목록 컬럼이 정하기 때문이다(좌측 레일이 180px을 가져간다).
+           부모가 containerType을 선언하지 않으면 넓은 레이아웃으로 남는다. */
+        flexWrap: 'nowrap',
+        '@container (max-width: 420px)': { flexWrap: 'wrap', rowGap: 4 },
         gap: 2,
         width: '100%',
         px: 2,
@@ -149,7 +158,9 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         {initials}
       </Avatar>
 
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      {/* 좁을 때는 이름 칸에 최소 폭을 줘서 오른쪽 두 컬럼이 다음 줄로 밀리게 한다.
+          100%를 주면 아바타까지 떨어져 혼자 한 줄을 쓰므로 minWidth로만 민다. */}
+      <Box sx={{ flex: 1, minWidth: 0, '@container (max-width: 420px)': { minWidth: 180 } }}>
         <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {fullName || '—'}
         </Typography>
@@ -168,13 +179,24 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         )}
       </Box>
 
-      <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 100px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      {/* 접힌 줄에서는 아바타 폭(28) + gap(16)만큼 들여써서 이름과 세로선을 맞춘다 */}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          flex: '0 0 100px',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          // 접힌 줄에서는 아바타 폭(28) + gap(16)만큼 들여써서 이름과 세로선을 맞춘다
+          '@container (max-width: 420px)': { flex: '0 0 auto', marginLeft: '44px' },
+        }}
+      >
         {tier === 'tier2' ? 'T2' : 'T1'} · {platform}
       </Typography>
 
-      <Box sx={{ flex: '0 0 140px', flexShrink: 0 }}>
+      <Box sx={{ flex: '0 0 140px', minWidth: 0, flexShrink: 0, '@container (max-width: 420px)': { flex: '1 1 auto' } }}>
         {stage.show && (
-          <Typography variant="caption" sx={{ display: 'block', fontWeight: stage.color === 'error.main' ? 700 : 500, color: stage.color, whiteSpace: 'nowrap' }}>
+          <Typography variant="caption" sx={{ display: 'block', fontWeight: stage.color === 'error.main' ? 700 : 500, color: stage.color, whiteSpace: 'nowrap', '@container (max-width: 420px)': { whiteSpace: 'normal' } }}>
             {stage.label}
           </Typography>
         )}
