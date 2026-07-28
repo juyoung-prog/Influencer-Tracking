@@ -57,13 +57,24 @@ function formatVisitTime(inf) {
  * 말줄임("Kientazya H…")보다 성을 줄이는 쪽이 식별에 낫다 — 이름 앞부분이 온전히
  * 남기 때문이다. 전체 이름은 title로 남겨 마우스로 확인할 수 있게 한다.
  *
+ * 마지막 토큰을 무조건 쓰면 괄호 같은 기호가 이니셜이 된다
+ * ("Stephanie Gilliam (Robertson)" → "Stephanie (."). 그래서 뒤에서부터
+ * **문자로 시작하는** 토큰을 찾는다 — 위 예는 "Stephanie G."가 된다.
+ * 문자로 시작하는 토큰이 하나도 없으면 축약하지 않고 원본을 넘겨 말줄임에 맡긴다.
+ *
  * @param {string} fullName
  * @returns {string}
  */
 function abbreviateName(fullName) {
-  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  const name = (fullName || '').trim();
+  const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length < 2) return parts[0] || '—';
-  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+
+  // \p{L}은 한글·라틴 등 모든 문자를 포함한다. 숫자·기호는 이니셜이 될 수 없다.
+  const surname = [...parts].slice(1).reverse().find(t => /^\p{L}/u.test(t));
+  if (!surname) return name;
+
+  return `${parts[0]} ${surname[0].toUpperCase()}.`;
 }
 
 /**
@@ -121,6 +132,13 @@ const RAIL_WIDTH = 180;
  * 접히면 행 높이가 달라지고 이름 시작 위치가 행마다 어긋난다.
  */
 const TIME_COL_WIDTH = 36;
+
+/**
+ * 섹션 헤더(TODAY / PAST) 높이.
+ * 날짜 헤더가 그 아래에 붙어 sticky되므로 높이를 값으로 고정해야 오프셋이 정확하다.
+ * 내용에 따라 높이가 변하면 두 헤더가 겹치거나 벌어진다.
+ */
+const RAIL_SECTION_HEADER_HEIGHT = 28;
 
 /**
  * 좌측 레일 구조 — 섹션(TODAY / UPCOMING / PAST) 안에 날짜 그룹.
@@ -446,7 +464,12 @@ function SaasOperationsView({
                       // 스크롤 컨테이너의 px:1을 상쇄해 헤더가 레일 전체 폭을 쓰게 한다
                       mx: -1,
                       px: 2,
-                      py: 0.625,
+                      height: RAIL_SECTION_HEADER_HEIGHT,
+                      // 스크롤해도 방향(지난 것/오늘/예정)을 잃지 않도록 위에 붙여둔다.
+                      // 날짜 헤더보다 위층이라 z-index가 더 높다.
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 2,
                       backgroundColor: 'surface.sunken',
                       borderTop: '1px solid',
                       borderBottom: '1px solid',
@@ -479,7 +502,17 @@ function SaasOperationsView({
                       {day.label && (
                         <Typography
                           sx={{
-                            px: 0.75,
+                            // 목록 중간에서도 지금 보는 행이 어느 날짜인지 알 수 있게 붙여둔다.
+                            // 섹션 헤더 높이만큼 내려 두 헤더가 겹치지 않게 한다.
+                            position: 'sticky',
+                            top: `${RAIL_SECTION_HEADER_HEIGHT}px`,
+                            zIndex: 1,
+                            // 스크롤한 행이 비쳐 보이지 않도록 불투명한 면을 깐다.
+                            // 폭을 레일 전체로 늘려야 행이 옆으로 새지 않는다.
+                            backgroundColor: 'background.paper',
+                            mx: -1,
+                            px: 2,
+                            py: 0.25,
                             fontSize: 10,
                             lineHeight: 1.5,
                             fontWeight: 600,

@@ -304,3 +304,72 @@ export const TodayEmptyStateSpeaks = {
     await expect(rail.textContent).toContain('No visits today');
   },
 };
+
+/**
+ * 스크롤해도 지금 보는 행이 언제인지 알 수 있어야 한다.
+ *
+ * 헤더가 위로 사라지면 목록 중간에서 날짜를 잃는다. 두 층을 모두 붙여둔다 —
+ * 섹션(방향)이 맨 위, 날짜가 그 바로 아래. 오프셋이 어긋나면 두 헤더가 겹치므로
+ * 섹션 높이를 상수로 고정하고 날짜 헤더의 top을 그 값에 맞춘다.
+ */
+export const RailHeadersStickWhileScrolling = {
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+
+    const section = [...rail.querySelectorAll('span')]
+      .find(e => /^(TODAY|UPCOMING|PAST) · \d+$/.test(e.textContent.trim()))
+      .parentElement;
+    const sectionStyle = getComputedStyle(section);
+    await expect(sectionStyle.position).toBe('sticky');
+    await expect(sectionStyle.top).toBe('0px');
+
+    const day = [...rail.querySelectorAll('p')]
+      .find(e => /^[A-Z]{3} \d{1,2} · \d+$/.test(e.textContent.trim()));
+    await expect(day).toBeTruthy();
+    const dayStyle = getComputedStyle(day);
+    await expect(dayStyle.position).toBe('sticky');
+
+    // 날짜 헤더는 섹션 헤더 바로 아래에 멈춘다 — 겹치면 둘 다 못 읽는다
+    await expect(parseFloat(dayStyle.top)).toBe(Math.round(section.getBoundingClientRect().height));
+    // 스크롤한 행이 비쳐 보이지 않도록 불투명해야 한다
+    await expect(dayStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    // 섹션이 날짜보다 위층
+    await expect(Number(sectionStyle.zIndex)).toBeGreaterThan(Number(dayStyle.zIndex));
+  },
+};
+
+/**
+ * 이니셜은 문자일 때만 쓴다.
+ *
+ * 마지막 토큰을 무조건 쓰면 "Stephanie Gilliam (Robertson)"이 "Stephanie (."가 된다.
+ * 뒤에서부터 문자로 시작하는 토큰을 찾고, 없으면 축약하지 않는다.
+ * 홑이름("Nicole")은 그대로 둔다.
+ */
+export const RailNamesNeverAbbreviateToSymbols = {
+  args: {
+    influencers: [
+      ...MOCK_INFLUENCERS,
+      { ...MOCK_INFLUENCERS[0], id: 'ab-1', fullName: 'Stephanie Gilliam (Robertson)' },
+      { ...MOCK_INFLUENCERS[0], id: 'ab-2', fullName: 'Nicole' },
+      { ...MOCK_INFLUENCERS[0], id: 'ab-3', fullName: 'Ana (@ana)' },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    const shown = new Map(
+      [...rail.querySelectorAll('[data-rail-row]')].map(r => [
+        r.getAttribute('data-rail-row'),
+        r.children[1].textContent.trim(),
+      ]),
+    );
+
+    // 어떤 행도 기호를 이니셜로 쓰지 않는다
+    for (const label of shown.values()) {
+      await expect(label).not.toMatch(/[^\p{L}]\.$/u);
+    }
+
+    await expect(shown.get('ab-1')).toBe('Stephanie G.');   // 괄호를 건너뛰고 성을 찾는다
+    await expect(shown.get('ab-2')).toBe('Nicole');         // 홑이름은 그대로
+    await expect(shown.get('ab-3')).toBe('Ana (@ana)');     // 쓸 이니셜이 없으면 축약하지 않는다
+  },
+};
