@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import { expect } from 'storybook/test';
 import SaasDashboard from './SaasDashboard';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
 
@@ -96,4 +97,32 @@ export const LoadError = {
 /** 폴링 진행 중 — 목록은 그대로 두고 사이드바 Refresh만 진행 상태로 바뀐다 */
 export const Syncing = {
   args: { ...Default.args, isSyncing: true },
+};
+
+/**
+ * 셸 안의 모든 글자가 한 서체로 나와야 한다.
+ *
+ * MUI의 여러 컴포넌트(Avatar, ToggleButton, AccordionSummary…)는 각자 fontFamily를
+ * 들고 있고, 폼 요소(button/input)는 아예 상속을 안 해 UA 기본 Arial이 나온다.
+ * 실제로 Workflow의 Accordion 안 글자가 Arial, Operations의 아바타가 Pretendard로
+ * 나오고 있었다 — 눈으로는 잘 안 보이지만 시스템은 갈라진 상태였다.
+ *
+ * 클래스를 나열해 막는 방식이라 새 컴포넌트가 들어오면 다시 뚫린다. 이 테스트가
+ * 그때 잡는다.
+ */
+export const SingleTypeface = {
+  args: { ...Default.args },
+  play: async ({ canvasElement }) => {
+    const seen = new Map();
+    for (const el of canvasElement.querySelectorAll('*')) {
+      if (el.children.length || !el.textContent.trim()) continue;
+      const family = getComputedStyle(el).fontFamily.split(',')[0].replace(/"/g, '').trim();
+      if (!seen.has(family)) seen.set(family, `<${el.tagName}> "${el.textContent.trim().slice(0, 24)}"`);
+    }
+    const families = [...seen.keys()];
+    await expect(families.length).toBeGreaterThan(0);
+    // 실패하면 어느 요소가 튀는지 메시지에 남는다
+    await expect(JSON.stringify([...seen])).toBe(JSON.stringify([[families[0], seen.get(families[0])]]));
+    await expect(families[0]).toBe('Inter Variable');
+  },
 };

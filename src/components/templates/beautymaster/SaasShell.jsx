@@ -174,9 +174,13 @@ function SaasShell({
         backgroundColor: 'background.paper',
         fontFamily: SAAS_FONT,
         '@keyframes saas-spin': { to: { transform: 'rotate(360deg)' } },
-        '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiTableCell-root, & .MuiInputBase-root': {
+        '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiTableCell-root, & .MuiInputBase-root, & .MuiAvatar-root': {
           fontFamily: 'inherit',
         },
+        // 폼 요소는 font-family를 상속하지 않고 UA 기본값(Arial 등)을 쓴다.
+        // 이걸 빼면 위의 inherit 규칙이 역효과를 낸다 — 버튼 안의 Typography가
+        // 테마 폰트가 아니라 버튼의 Arial을 물려받는다(Workflow의 Accordion이 그랬다).
+        '& button, & input, & select, & textarea, & optgroup': { fontFamily: 'inherit' },
         ...sx,
       }}
     >

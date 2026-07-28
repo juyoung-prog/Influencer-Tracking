@@ -205,7 +205,7 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
                   <IconButton
                     size="small"
                     onClick={() => removeSource(idx)}
-                    sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}
+                    sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
                   >
                     <DeleteOutlineIcon fontSize="small" />
                   </IconButton>
