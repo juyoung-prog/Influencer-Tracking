@@ -41,9 +41,27 @@ function SaasStoreSelect({ stores, value = ALL_STORES, onChange, sx }) {
         ...sx,
       }}
     >
+      {/* "All stores"는 필터 해제고 아래는 특정 매장 선택이라 성격이 다르다.
+          같은 목록에 나란히 두면 매장 하나처럼 읽힌다.
+
+          구분선을 <Divider> 요소로 넣지 않는 이유: Select는 모든 자식을 복제하며
+          role="option"과 클릭 핸들러를 붙인다. 그러면 구분선이 스크린리더에
+          선택 가능한 항목으로 읽힌다. 첫 매장 항목의 위쪽 선으로 대신한다. */}
       <MenuItem value={ALL_STORES} sx={{ fontSize: 12 }}>All stores</MenuItem>
-      {stores.map(store => (
-        <MenuItem key={store} value={store} sx={{ fontSize: 12 }}>
+      {stores.map((store, i) => (
+        <MenuItem
+          key={store}
+          value={store}
+          sx={{
+            fontSize: 12,
+            ...(i === 0 && {
+              mt: 0.5,
+              pt: 1,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }),
+          }}
+        >
           {store}
         </MenuItem>
       ))}

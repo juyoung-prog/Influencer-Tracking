@@ -564,7 +564,48 @@ export const SelectedAndFocusLookDifferent = {
     });
     const root = input.closest('.MuiOutlinedInput-root');
     const outline = root.querySelector('.MuiOutlinedInput-notchedOutline');
+    // 굵기는 비포커스와 같아야 한다 — 바뀌면 레이아웃이 1px 흔들린다
     await expect(getComputedStyle(outline).borderWidth).toBe('1px');
-    await expect(getComputedStyle(root).boxShadow).toContain('rgba(0, 0, 178');
+    // 링은 있되 테두리보다 약해야 한다 — 컨트롤이 목록보다 강해 보이면 안 된다
+    const shadow = getComputedStyle(root).boxShadow;
+    await expect(shadow).toContain('rgba(0, 0, 178');
+    const ringAlpha = Number(shadow.match(/rgba\(0, 0, 178, ([\d.]+)\)/)[1]);
+    await expect(ringAlpha).toBeLessThan(0.15);
+  },
+};
+
+/**
+ * 스토어 드롭다운은 "필터 해제"와 "매장 선택"을 구분한다.
+ *
+ * "All stores"는 필터를 푸는 동작이고 나머지는 특정 매장을 고르는 동작이라
+ * 성격이 다르다. 같은 목록에 나란히 두면 매장 하나처럼 읽힌다.
+ */
+export const StoreMenuSeparatesClearFromPick = {
+  play: async ({ canvasElement }) => {
+    const select = canvasElement.querySelector('.MuiSelect-select');
+    await userEvent.click(select);
+
+    const listbox = await waitFor(() => {
+      const el = document.querySelector('[role="listbox"]');
+      if (!el) throw new Error('menu not open');
+      return el;
+    });
+
+    const items = [...listbox.children];
+    await expect(items[0].textContent.trim()).toBe('All stores');
+    await expect(items.length).toBeGreaterThan(1);
+
+    /* 구분은 첫 매장 항목의 위쪽 선으로 한다. <Divider>를 자식으로 넣으면
+       Select가 거기에도 role="option"을 붙여 선택 가능한 항목으로 읽힌다. */
+    const firstStore = items[1];
+    await expect(getComputedStyle(firstStore).borderTopWidth).toBe('1px');
+    for (const item of items.slice(2)) {
+      await expect(getComputedStyle(item).borderTopWidth).toBe('0px');
+    }
+
+    // 목록에 옵션 아닌 항목이 섞이지 않는다
+    for (const item of items) {
+      await expect(item.getAttribute('role')).toBe('option');
+    }
   },
 };
