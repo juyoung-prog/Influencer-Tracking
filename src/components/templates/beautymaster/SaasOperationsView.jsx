@@ -141,6 +141,13 @@ const TIME_COL_WIDTH = 36;
 const RAIL_SECTION_HEADER_HEIGHT = 28;
 
 /**
+ * 포커스 링이 요소 바깥으로 번지는 폭(accent.ring, 3px)에 1px 여유를 더한 값.
+ * 링은 box-shadow라 레이아웃을 차지하지 않으므로, 조상이 overflow로 잘라내면
+ * 소리 없이 사라진다. 잘릴 수 있는 컨테이너에 이만큼 자리를 만들어 둔다.
+ */
+const FOCUS_RING_PX = 4;
+
+/**
  * 좌측 레일 구조 — 섹션(TODAY / UPCOMING / PAST) 안에 날짜 그룹.
  *
  * 날짜 그룹만 두면 "JUL 8"이 지난 날인지 예정인지 알 수 없다. 반대로 경과일을
@@ -632,8 +639,14 @@ function SaasOperationsView({
             자식들이 각자 padding을 두면 기준선이 갈라지므로 자식에는 가로 padding을 주지 않는다. */}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', px: CONTENT_PX }}>
           {/* 상단 고정 묶음 — 스크롤하지 않지만 아래 목록과 같은 스크롤바 거터를 예약해
-              좌우 기준선을 맞춘다. 예약하지 않으면 목록만 스크롤바 폭만큼 좁아진다. */}
-          <Box sx={{ flexShrink: 0, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
+              좌우 기준선을 맞춘다. 예약하지 않으면 목록만 스크롤바 폭만큼 좁아진다.
+
+              overflowY:hidden을 주면 CSS가 다른 축을 auto로 바꿔 클리핑 박스가 생긴다.
+              그 경계가 검색창 좌측과 정확히 겹쳐서 포커스 링이 왼쪽만 잘렸다
+              (오른쪽은 툴바에 여유가 있어 보였다).
+              박스를 링 두께만큼 좌우로 넓히고 같은 양을 padding으로 되돌린다 —
+              내용 위치는 그대로면서 링이 들어갈 자리가 클리핑 박스 안에 생긴다. */}
+          <Box sx={{ flexShrink: 0, overflowY: 'hidden', scrollbarGutter: 'stable', mx: `-${FOCUS_RING_PX}px`, px: `${FOCUS_RING_PX}px` }}>
         {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
             목록 컬럼 안에 있으므로 툴바·탭·섹션과 같은 인셋을 쓴다.
             덕분에 레일과의 세로 경계선이 화면 위끝까지 끊기지 않고 이어진다. */}

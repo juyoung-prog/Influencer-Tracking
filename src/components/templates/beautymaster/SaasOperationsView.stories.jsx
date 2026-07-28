@@ -609,3 +609,41 @@ export const StoreMenuSeparatesClearFromPick = {
     }
   },
 };
+
+/**
+ * 포커스 링은 사방이 대칭이어야 한다.
+ *
+ * 링은 box-shadow라 레이아웃을 차지하지 않는다. 그래서 조상이 overflow로 잘라내면
+ * 소리 없이 한쪽만 사라진다 — 실제로 헤더 묶음의 클리핑 경계가 검색창 좌측과
+ * 정확히 겹쳐서 왼쪽 링만 없었다(오른쪽은 툴바에 여유가 있어 보였다).
+ * overflowY:hidden은 CSS상 다른 축을 auto로 바꾸기 때문에 생긴 일이라
+ * 눈으로 보기 전에는 드러나지 않는다.
+ */
+export const FocusRingIsNotClipped = {
+  play: async ({ canvasElement }) => {
+    const input = canvasElement.querySelector('input[placeholder]');
+    const root = input.closest('.MuiOutlinedInput-root');
+    input.focus();
+
+    await waitFor(async () => {
+      await expect(root.classList.contains('Mui-focused')).toBe(true);
+    });
+
+    const field = root.getBoundingClientRect();
+    const ring = 3;
+
+    /* 링이 그려질 자리가 조상의 클리핑 박스 안에 있는지 본다.
+       box-shadow는 잘려도 DOM에 흔적이 남지 않아 getBoundingClientRect로는
+       확인할 수 없다 — 자를 수 있는 조상을 직접 훑는다. */
+    let node = root.parentElement;
+    while (node && node !== canvasElement) {
+      const cs = getComputedStyle(node);
+      if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+        const clip = node.getBoundingClientRect();
+        await expect(field.left - ring).toBeGreaterThanOrEqual(clip.left - 0.5);
+        await expect(field.right + ring).toBeLessThanOrEqual(clip.right + 0.5);
+      }
+      node = node.parentElement;
+    }
+  },
+};
