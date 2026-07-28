@@ -7,6 +7,7 @@ import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import logoUrl from '../../../assets/beautymaster-logo.png';
 import '@fontsource-variable/inter';
 
 /** flat-SaaS 시안 공통 폰트 스택 (modern_saas_design_core_features.md 기반 시안 전용) */
@@ -21,8 +22,12 @@ const NAV_ITEMS = [
 
 /** 접힌 레일 폭 — 아이콘만 보인다 */
 const RAIL_WIDTH = 56;
-/** hover/focus 시 펼쳐지는 폭 */
-const EXPANDED_WIDTH = 248;
+/**
+ * hover/focus 시 펼쳐지는 폭.
+ * 헤더 제목("Influencer Tracking Dashboard")이 가장 긴 문자열이다. overflow:hidden이라
+ * 넘치면 조용히 잘리므로 폰트 렌더링 차이를 흡수할 여유를 둔다.
+ */
+const EXPANDED_WIDTH = 264;
 /** 사이드바 좌우 패딩(px 1.25 = 10px)을 뺀 안쪽 폭 */
 const RAIL_ROW_WIDTH = RAIL_WIDTH - 20;
 const EXPANDED_ROW_WIDTH = EXPANDED_WIDTH - 20;
@@ -31,6 +36,13 @@ const EXPANDED_ROW_WIDTH = EXPANDED_WIDTH - 20;
  * 높이를 접으면 그 아래 divider와 유틸리티 아이콘이 위아래로 움직이기 때문이다.
  */
 const SYNC_ROW_HEIGHT = 22;
+
+/**
+ * 헤더 로고 한 변.
+ * 접힘 상태에서 레일 중심(56/2 = 28)에 오도록 좌측 여백을 (56 - 20) / 2 - 10 = 8px 준다.
+ * 그래야 아래 네비 아이콘(16px, 중심 28)과 같은 세로축에 선다.
+ */
+const LOGO_SIZE = 20;
 
 /**
  * 폭이 바뀌는 요소에 공통으로 붙이는 클래스.
@@ -219,23 +231,35 @@ function SaasShell({
           },
         })}
       >
-        {/* 제목 — 접힘 상태에서는 잘려 보이지 않지만 높이는 유지해 아래 아이콘들의 y를 고정한다 */}
+        {/* 헤더 — 접힘/펼침이 같은 하나의 행이다. 폭과 제목 표시 여부만 바뀐다.
+            로고는 항상 보이므로 접힘 상태에서도 상단이 비지 않고, 높이가 고정이라
+            아래 네비 아이콘의 y는 두 상태에서 정확히 같다. */}
         <Box
           className={WIDTH_CLASS}
           sx={theme => ({
             display: 'flex',
             alignItems: 'center',
+            gap: 1,
             width: RAIL_ROW_WIDTH,
-            height: 18,
+            height: LOGO_SIZE,
             flexShrink: 0,
             overflow: 'hidden',
             whiteSpace: 'nowrap',
-            px: 1.25,
+            // 로고 중심을 레일 중심에 맞추는 값. 네비 행의 px(1.25)와 다른 이유는
+            // 로고(20px)가 네비 아이콘(16px)보다 크기 때문이다.
+            pl: `${(RAIL_WIDTH - LOGO_SIZE) / 2 - 10}px`,
+            pr: 1.25,
             mb: 2.25,
             transition: theme.transitions.create('width', { duration: 180, easing: theme.transitions.easing.easeOut }),
             '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
           })}
         >
+          <Box
+            component="img"
+            src={ logoUrl }
+            alt="BeautyMaster"
+            sx={{ width: LOGO_SIZE, height: LOGO_SIZE, flexShrink: 0, borderRadius: '5px', display: 'block' }}
+          />
           <Typography className={LABEL_CLASS} sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>
             Influencer Tracking Dashboard
           </Typography>

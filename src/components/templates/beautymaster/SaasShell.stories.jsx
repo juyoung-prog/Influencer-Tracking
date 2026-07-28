@@ -92,6 +92,50 @@ export const Expanded = {
   },
 };
 
+/**
+ * 접힘/펼침은 하나의 헤더가 폭과 제목 표시만 바꾸는 것이다.
+ *
+ * 로고는 두 상태에서 같은 자리에 그대로 있고, 그 아래 네비 아이콘의 x·y도 정확히
+ * 같아야 한다. 헤더가 커지거나 로고가 접힘 전용으로 따로 렌더되면 아이콘이 밀리는데,
+ * 그러면 hover할 때 사이드바 구조 자체가 바뀌는 것처럼 보인다.
+ *
+ * (CSS :hover는 합성 이벤트로 못 켜므로 같은 규칙 블록에 걸린 :focus-within으로 편다.)
+ */
+export const HeaderStaysPut = {
+  play: async ({ canvasElement }) => {
+    const nav = canvasElement.querySelector('nav');
+    const box = el => { const r = el.getBoundingClientRect(); return `${r.x.toFixed(1)},${r.y.toFixed(1)}`; };
+    const snap = () => ({
+      logo: box(nav.querySelector('img')),
+      icons: [...nav.querySelectorAll('svg')].slice(0, 3).map(box).join(' | '),
+    });
+
+    const logo = nav.querySelector('img');
+    await expect(logo).toBeVisible();             // 접힘 상태에서도 상단이 비지 않는다
+    const before = snap();
+
+    nav.querySelector('button').focus();
+    await waitFor(async () => {
+      await expect(nav.getBoundingClientRect().width).toBeGreaterThan(200);
+    });
+
+    const after = snap();
+    await expect(after.logo).toBe(before.logo);
+    await expect(after.icons).toBe(before.icons);
+
+    // 제목은 펼쳤을 때만 보이고, 네비 라벨과 같은 x에서 시작한다
+    const t = [...nav.querySelectorAll('.saas-nav-label')].find(e => e.textContent.startsWith('Influencer'));
+    // opacity는 150ms 페이드라 폭 전환이 끝나도 아직 오르는 중일 수 있다
+    await waitFor(async () => {
+      await expect(getComputedStyle(t).opacity).toBe('1');
+    });
+    await expect(t.scrollWidth).toBeLessThanOrEqual(t.clientWidth + 1);   // 잘리지 않는다
+    const labelX = [...nav.querySelectorAll('.saas-nav-label')]
+      .find(e => e.textContent === 'Operations').getBoundingClientRect().x;
+    await expect(Math.round(t.getBoundingClientRect().x)).toBe(Math.round(labelX));
+  },
+};
+
 /** 네비 항목 클릭 — onNavigate로 키가 올라간다 */
 export const NavigateByClick = {
   play: async ({ args, canvasElement }) => {
