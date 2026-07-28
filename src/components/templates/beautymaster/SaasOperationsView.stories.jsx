@@ -231,17 +231,17 @@ export const RailIsAnIndex = {
     }
 
     // 섹션 헤더가 방향을 말한다 — TODAY는 0건이어도 항상 있다
-    const sections = [...rail.querySelectorAll('span')]
-      .map(e => e.textContent.trim())
-      .filter(t => /^(TODAY|UPCOMING|PAST) · \d+$/.test(t));
-    await expect(sections.some(t => t.startsWith('TODAY'))).toBe(true);
-    await expect(sections.some(t => /^(UPCOMING|PAST)/.test(t))).toBe(true);
+    const sections = [...rail.querySelectorAll('[data-rail-section]')]
+      .map(e => e.children[0].textContent.trim());
+    await expect(sections).toContain('TODAY');
+    await expect(sections.some(t => t === 'UPCOMING' || t === 'PAST')).toBe(true);
 
-    // 그 아래 날짜 그룹이 "JUL 8 · 6" 형태로 묶는다
-    const days = [...rail.querySelectorAll('p')]
-      .map(e => e.textContent.trim())
-      .filter(t => /^[A-Z]{3} \d{1,2} · \d+$/.test(t));
+    // 그 아래 날짜 그룹이 묶는다
+    const days = [...rail.querySelectorAll('[data-rail-day]')];
     await expect(days.length).toBeGreaterThan(0);
+    for (const day of days) {
+      await expect(day.children[0].textContent.trim()).toMatch(/^[A-Z]{3} \d{1,2}$/);
+    }
   },
 };
 
@@ -300,7 +300,9 @@ export const TodayEmptyStateSpeaks = {
   args: { influencers: MOCK_INFLUENCERS.filter(i => i.scheduleGroup !== 'today') },
   play: async ({ canvasElement }) => {
     const rail = canvasElement.querySelector('[data-rail]');
-    await expect(rail.textContent).toContain('TODAY · 0');
+    const today = rail.querySelector('[data-rail-section="today"]');
+    await expect(today.children[0].textContent.trim()).toBe('TODAY');
+    await expect(today.querySelector('[data-rail-count]').textContent.trim()).toBe('0');
     await expect(rail.textContent).toContain('No visits today');
   },
 };
@@ -316,15 +318,12 @@ export const RailHeadersStickWhileScrolling = {
   play: async ({ canvasElement }) => {
     const rail = canvasElement.querySelector('[data-rail]');
 
-    const section = [...rail.querySelectorAll('span')]
-      .find(e => /^(TODAY|UPCOMING|PAST) · \d+$/.test(e.textContent.trim()))
-      .parentElement;
+    const section = rail.querySelector('[data-rail-section]');
     const sectionStyle = getComputedStyle(section);
     await expect(sectionStyle.position).toBe('sticky');
     await expect(sectionStyle.top).toBe('0px');
 
-    const day = [...rail.querySelectorAll('p')]
-      .find(e => /^[A-Z]{3} \d{1,2} · \d+$/.test(e.textContent.trim()));
+    const day = rail.querySelector('[data-rail-day]');
     await expect(day).toBeTruthy();
     const dayStyle = getComputedStyle(day);
     await expect(dayStyle.position).toBe('sticky');
@@ -371,5 +370,39 @@ export const RailNamesNeverAbbreviateToSymbols = {
     await expect(shown.get('ab-1')).toBe('Stephanie G.');   // 괄호를 건너뛰고 성을 찾는다
     await expect(shown.get('ab-2')).toBe('Nicole');         // 홑이름은 그대로
     await expect(shown.get('ab-3')).toBe('Ana (@ana)');     // 쓸 이니셜이 없으면 축약하지 않는다
+  },
+};
+
+/**
+ * 헤더는 "라벨 좌 / 개수 우"다.
+ *
+ * "JUL 8 · 6"은 이 앱에서 " · "가 동등한 항목을 잇는 기호라("Jul 8 · 02:00 PM",
+ * "T2 · Instagram") 날짜 범위 "7월 8~6"으로 읽혔다. 개수를 우측 끝에 두면
+ * 구분자 없이도 개수로 읽힌다. 섹션·날짜 두 층에 같은 규칙을 쓴다.
+ */
+export const RailHeaderCountsAlignRight = {
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    const headers = [...rail.querySelectorAll('[data-rail-section], [data-rail-day]')];
+    await expect(headers.length).toBeGreaterThan(1);
+
+    const rights = new Set();
+    for (const header of headers) {
+      // 라벨에 구분자가 남아 있으면 안 된다
+      await expect(header.children[0].textContent).not.toContain('·');
+
+      const count = header.querySelector('[data-rail-count]');
+      await expect(count).toBeTruthy();
+      await expect(count.textContent.trim()).toMatch(/^\d+$/);
+      rights.add(Math.round(count.getBoundingClientRect().right));
+
+      // 날짜가 주인공, 개수는 보조 — 색이 같으면 위계가 없다
+      const labelColor = getComputedStyle(header.children[0]).color;
+      const countColor = getComputedStyle(count).color;
+      await expect(countColor).not.toBe(labelColor);
+    }
+
+    // 두 층의 개수가 같은 세로선에 선다
+    await expect(rights.size).toBe(1);
   },
 };

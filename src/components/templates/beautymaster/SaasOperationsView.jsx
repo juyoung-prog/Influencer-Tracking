@@ -458,6 +458,7 @@ function SaasOperationsView({
                   {/* 섹션 헤더 — 방향(지난 것 / 오늘 / 예정)을 여기서 한 번만 말한다.
                       본 테이블의 섹션 헤더와 같은 표면·타이포를 쓴다. */}
                   <Box
+                    data-rail-section={sec.key}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -476,17 +477,31 @@ function SaasOperationsView({
                       borderColor: 'divider',
                     }}
                   >
+                    {/* "PAST · 72"는 " · "가 라벨과 개수를 잇는 셈이라 범위로 읽힌다.
+                        이 앱에서 " · "는 동등한 항목을 잇는 기호다(Jul 8 · 02:00 PM).
+                        개수를 우측 끝에 두면 구분자 없이도 개수로 읽힌다. */}
                     <Typography
                       component="span"
                       sx={{
                         fontSize: 11,
                         fontWeight: 600,
                         letterSpacing: '0.04em',
-                        color: sec.isToday ? 'primary.dark' : 'text.secondary',
+                        color: sec.isToday ? 'primary.dark' : 'text.primary',
+                      }}
+                    >
+                      {sec.label.toUpperCase()}
+                    </Typography>
+                    <Typography
+                      component="span"
+                      data-rail-count
+                      sx={{
+                        ml: 'auto',
+                        fontSize: 11,
+                        color: 'text.secondary',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
-                      {sec.label.toUpperCase()} · {sec.count}
+                      {sec.count}
                     </Typography>
                   </Box>
 
@@ -501,6 +516,7 @@ function SaasOperationsView({
                       {/* 날짜 헤더 — 섹션보다 한 단 약하게. 두 층이 같은 무게면 위계가 사라진다 */}
                       {day.label && (
                         <Typography
+                          data-rail-day={day.key}
                           sx={{
                             // 목록 중간에서도 지금 보는 행이 어느 날짜인지 알 수 있게 붙여둔다.
                             // 섹션 헤더 높이만큼 내려 두 헤더가 겹치지 않게 한다.
@@ -510,18 +526,29 @@ function SaasOperationsView({
                             // 스크롤한 행이 비쳐 보이지 않도록 불투명한 면을 깐다.
                             // 폭을 레일 전체로 늘려야 행이 옆으로 새지 않는다.
                             backgroundColor: 'background.paper',
+                            display: 'flex',
+                            alignItems: 'center',
                             mx: -1,
                             px: 2,
                             py: 0.25,
                             fontSize: 10,
                             lineHeight: 1.5,
-                            fontWeight: 600,
                             letterSpacing: '0.04em',
-                            color: 'text.secondary',
-                            fontVariantNumeric: 'tabular-nums',
                           }}
                         >
-                          {day.label.toUpperCase()} · {day.items.length}
+                          {/* 날짜가 주인공, 개수는 보조 — 색과 굵기로 위계를 만든다.
+                              개수를 더 흐리게 하려면 text.disabled(2.68:1)뿐인데 AA에 못 미친다.
+                              그래서 개수를 내리는 대신 날짜를 올려 간격을 벌린다. */}
+                          <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                            {day.label.toUpperCase()}
+                          </Box>
+                          <Box
+                            component="span"
+                            data-rail-count
+                            sx={{ ml: 'auto', fontWeight: 400, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {day.items.length}
+                          </Box>
                         </Typography>
                       )}
                       {day.items.map(inf => {
