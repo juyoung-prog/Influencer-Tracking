@@ -48,6 +48,35 @@ const STATUS_TABS = [
 ];
 
 /**
+ * main workspace 공통 가로 인셋 (theme.spacing 3 = 24px).
+ * 필터 툴바 · 상태 탭 · 각 divider · 결과 섹션 컨테이너가 모두 이 하나의 값을 쓴다 —
+ * 영역마다 제각각 padding을 두면 화면이 미묘하게 어긋나 보인다.
+ */
+const CONTENT_PX = 3;
+
+/**
+ * 24px 인셋으로 그어지는 하단 divider.
+ *
+ * borderBottom을 컨테이너에 직접 주면 padding 바깥(border-box 전체)까지 선이 번져
+ * 콘텐츠보다 좌우로 24px씩 튀어나온다. ::after로 그어 콘텐츠와 같은 그리드에 맞춘다.
+ *
+ * @param {object} theme - MUI theme
+ * @returns {object} sx 조각
+ */
+const insetBottomDivider = theme => ({
+  position: 'relative',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    left: theme.spacing(CONTENT_PX),
+    right: theme.spacing(CONTENT_PX),
+    bottom: 0,
+    borderBottom: '1px solid',
+    borderColor: theme.palette.divider,
+  },
+});
+
+/**
  * Visit schedule 레일의 시간 컬럼 폭.
  * "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가 달라지고
  * 이름 컬럼 시작점이 행마다 어긋난다.
@@ -463,17 +492,16 @@ function SaasOperationsView({
         {/* 목록 — 툴바 + 섹션 구분 테이블, 자체 스크롤 */}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Box
-            sx={{
+            sx={theme => ({
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
               flexWrap: 'wrap',
-              px: 3,
+              px: CONTENT_PX,
               py: 2,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            }}
+              ...insetBottomDivider(theme),
+            })}
           >
             <TextField
               value={searchQuery}
@@ -560,16 +588,15 @@ function SaasOperationsView({
               pill/카드 없이 텍스트 + 2px 하단 인디케이터로만 표현한다.
               위쪽 여백(10px)으로 필터 툴바와 띄워 세 층(필터 → 상태 → 결과)을 갈라 보이게 한다. */}
           <Box
-            sx={{
+            sx={theme => ({
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               gap: 2.5,
-              px: 3,
+              px: CONTENT_PX,
               mt: 1.25,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            }}
+              ...insetBottomDivider(theme),
+            })}
           >
             {STATUS_TABS.map(t => {
               const isActive = statusFilter === t.id;
@@ -603,7 +630,7 @@ function SaasOperationsView({
             })}
           </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, pb: 2 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: CONTENT_PX, pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}
