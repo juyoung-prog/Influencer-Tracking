@@ -134,3 +134,35 @@ export const SingleTypeface = {
     await expect(families[0]).toBe('Inter Variable');
   },
 };
+
+/**
+ * 셸까지 포함해 액센트가 하나인지 본다.
+ *
+ * Operations 쪽 AccentBlueIsOneValue는 뷰만 렌더해서 사이드바가 범위 밖이다.
+ * 내비 활성 배경은 예전에 alpha(primary.main, 0.08)이라 순수 파랑이었고,
+ * 같은 화면의 탭 밑줄(#0000B2)과 값이 갈렸다. 조립된 화면에서 다시 확인한다.
+ */
+export const AccentBlueIsOneValueAcrossShell = {
+  args: { ...Default.args },
+  play: async ({ canvasElement }) => {
+    const isBlue = c => {
+      const m = (c.match(/[\d.]+/g) || []).map(Number);
+      return m.length >= 3 && m[2] > 100 && m[2] > m[0] + 60 && m[2] > m[1] + 60;
+    };
+
+    const nav = canvasElement.querySelector('nav [aria-current="page"]');
+    await expect(nav).toBeTruthy();
+    // 활성 내비는 액센트 틴트 + 액센트 글자
+    await expect(getComputedStyle(nav).backgroundColor).toMatch(/rgba\(0, 0, 178, 0\.\d+\)/);
+    await expect(getComputedStyle(nav).color).toBe('rgb(0, 0, 178)');
+
+    const bases = new Set();
+    for (const el of canvasElement.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+      for (const prop of ['color', 'backgroundColor', 'borderColor', 'borderBottomColor', 'borderLeftColor']) {
+        if (isBlue(cs[prop])) bases.add((cs[prop].match(/[\d.]+/g) || []).slice(0, 3).join(','));
+      }
+    }
+    await expect([...bases]).toEqual(['0,0,178']);
+  },
+};
