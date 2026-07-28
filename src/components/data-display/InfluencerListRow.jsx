@@ -138,7 +138,13 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
       <Avatar
         src={imageUrl}
         alt={fullName}
-        sx={{ width: 28, height: 28, fontSize: 11, fontWeight: 700, flexShrink: 0, alignSelf: 'flex-start', mt: 0.25 }}
+        sx={{
+          width: 28, height: 28, fontSize: 11, fontWeight: 700,
+          flexShrink: 0, alignSelf: 'flex-start', mt: 0.25,
+          // 기본값(흰 글자 + grey.400)은 대비 1.88:1로 AA 미달 — 연한 배경에 진한 글자로 뒤집는다
+          bgcolor: 'grey.100',
+          color: 'text.secondary',
+        }}
       >
         {initials}
       </Avatar>
@@ -147,7 +153,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {fullName || '—'}
         </Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
           {timeLabel}
         </Typography>
         {categoryLabel && (
@@ -162,7 +168,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
         )}
       </Box>
 
-      <Typography variant="caption" color="text.disabled" sx={{ flex: '0 0 100px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 100px', whiteSpace: 'nowrap', flexShrink: 0 }}>
         {tier === 'tier2' ? 'T2' : 'T1'} · {platform}
       </Typography>
 
@@ -173,7 +179,12 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
           </Typography>
         )}
         {daysOverdue != null && (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.625rem', lineHeight: 1 }}>
+          // 지연 일수는 이 행에서 가장 중요한 위험 신호다. 이전엔 text.disabled(2.68:1)로
+          // 가장 흐렸는데, warning.main(5.93:1)으로 올려 AA를 통과시키고 위계를 뒤집는다.
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', color: 'warning.main', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
+          >
             {daysOverdue}d overdue
           </Typography>
         )}
@@ -185,8 +196,8 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
               mt: 0.25,
               color: 'warning.main',
               fontWeight: contactAlert.isUrgent ? 700 : 500,
-              fontSize: '0.625rem',
-              lineHeight: 1.2,
+              fontSize: '0.6875rem',
+              lineHeight: 1.3,
             }}
           >
             {contactAlert.text}

@@ -15,6 +15,7 @@ import InfluencerListRow from '../../data-display/InfluencerListRow';
 import SaasKpiItem from './SaasKpiItem';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
+  ALERT_FLAGS,
   ALL_STORES,
   DEFAULT_INFLUENCER_FILTERS,
   SHEET_STATUS,
@@ -61,6 +62,32 @@ const STATUS_TABS = [
  * 영역마다 제각각 padding을 두면 화면이 미묘하게 어긋나 보인다.
  */
 const CONTENT_PX = 3;
+
+/**
+ * 레일에서 쓰는 짧은 경보 라벨.
+ * 이전에는 색 점(•) 하나로 "경보 있음"만 알렸는데, 어떤 문제인지 알 수 없고
+ * 색·모양으로만 전달돼 텍스트 대체물이 없었다(WCAG 1.4.1).
+ * 목록 쪽 상태 문구(Visit Unconfirmed 등)와 같은 어휘를 짧게 줄여 쓴다.
+ */
+const RAIL_ALERT_LABEL = {
+  [ALERT_FLAGS.AGREEMENT_NO_ATTEND]: 'No visit',
+  [ALERT_FLAGS.ATTEND_NO_COLLABO]: 'No upload',
+  [ALERT_FLAGS.COLLABO_NO_CREDIT]: 'No credit',
+  [ALERT_FLAGS.NO_SHOW_UNRESOLVED]: 'No-show',
+  [ALERT_FLAGS.RESCHEDULE_PENDING]: 'Reschedule',
+};
+
+/**
+ * 레일 행에 붙일 상태 문구. 경보가 없으면 null.
+ * 여러 개면 첫 번째만 — 레일은 훑는 용도라 한 줄을 넘기지 않는다(상세는 목록·Drawer).
+ *
+ * @param {Influencer} inf
+ * @returns {string|null}
+ */
+function railAlertLabel(inf) {
+  const flag = inf.alertFlags.find(f => RAIL_ALERT_LABEL[f]);
+  return flag ? RAIL_ALERT_LABEL[flag] : null;
+}
 
 /** Visit schedule 레일 폭 */
 const RAIL_WIDTH = 236;
@@ -241,6 +268,13 @@ function SaasOperationsView({
       .filter(s => s.items.length > 0);
   }, [filtered, stageFilter]);
 
+  /**
+   * 배너 카운트는 ACTION REQUIRED 섹션과 **같은 목록**에서 센다.
+   * KPI 모수(scoped)로 세면 상태 탭이나 검색을 걸었을 때 배너 69 / 섹션 66처럼
+   * 갈라지는데, Review 버튼이 그 섹션으로 가는 동작이라 다른 수를 말하면 안 된다.
+   */
+  const attentionCount = useMemo(() => filtered.filter(i => i.alertFlags.length > 0).length, [filtered]);
+
   const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
   const hasScheduledVisit = scheduleGroups.some(g => g.items.length > 0);
@@ -415,6 +449,7 @@ function SaasOperationsView({
                         sx={{
                           width: TIME_COL_WIDTH,
                           flexShrink: 0,
+                          alignSelf: 'flex-start',
                           whiteSpace: 'nowrap',
                           fontSize: 12,
                           color: 'text.secondary',
@@ -423,14 +458,28 @@ function SaasOperationsView({
                       >
                         {formatTime(inf)}
                       </Typography>
-                      <Typography
-                        sx={{ fontSize: 13, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      >
-                        {inf.fullName || '—'}
-                      </Typography>
-                      {inf.alertFlags.length > 0 && (
-                        <Box sx={{ ml: 'auto', width: 5, height: 5, borderRadius: '50%', backgroundColor: 'warning.main', flexShrink: 0 }} />
-                      )}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          sx={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        >
+                          {inf.fullName || '—'}
+                        </Typography>
+                        {railAlertLabel(inf) && (
+                          <Typography
+                            sx={{
+                              fontSize: 11,
+                              fontWeight: 500,
+                              lineHeight: 1.3,
+                              color: 'warning.main',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {railAlertLabel(inf)}
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
                   ))}
                   </Box>
@@ -465,7 +514,7 @@ function SaasOperationsView({
           <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
           <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
 
-          {kpi.alertCount > 0 && (
+          {attentionCount > 0 && (
             <Box
               sx={theme => ({
                 ml: 'auto',
@@ -481,7 +530,7 @@ function SaasOperationsView({
               })}
             >
               <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                Needs attention — {kpi.alertCount}
+                Needs attention — {attentionCount}
               </Typography>
               <Button
                 size="small"
