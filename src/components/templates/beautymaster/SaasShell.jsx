@@ -218,26 +218,25 @@ function SaasShell({
           },
         })}
       >
-        {/* 로고 — 사각 마크의 중심이 아이콘들과 같은 x에 오도록 좌측 패딩을 맞춘다 */}
+        {/* 제목 — 접힘 상태에서는 잘려 보이지 않지만 높이는 유지해 아래 아이콘들의 y를 고정한다 */}
         <Box
           className={WIDTH_CLASS}
           sx={theme => ({
             display: 'flex',
             alignItems: 'center',
-            gap: 1.25,
             width: RAIL_ROW_WIDTH,
+            height: 18,
             flexShrink: 0,
             overflow: 'hidden',
             whiteSpace: 'nowrap',
-            px: 1.125,
+            px: 1.25,
             mb: 2.25,
             transition: theme.transitions.create('width', { duration: 180, easing: theme.transitions.easing.easeOut }),
             '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
           })}
         >
-          <Box sx={{ width: 18, height: 18, borderRadius: '5px', backgroundColor: 'primary.main', flexShrink: 0 }} />
           <Typography className={LABEL_CLASS} sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>
-            BeautyMaster
+            Influencer Tracking Dashboard
           </Typography>
         </Box>
 

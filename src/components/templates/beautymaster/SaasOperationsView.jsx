@@ -8,7 +8,6 @@ import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import InfluencerListRow from '../../data-display/InfluencerListRow';
@@ -35,15 +34,20 @@ const CATEGORY_OPTIONS = [
 ];
 
 /**
- * 레일 시간 컬럼. 시트에 시각이 없으면 파싱 결과가 자정이 되므로 "12:00 AM"을
- * 만들어내지 않고 '—'로 비운다 — 없는 정보를 있는 것처럼 보이지 않게.
+ * 레일의 일정 표기 — 날짜와 시각을 함께 보여준다.
+ *
+ * Past 그룹은 여러 날짜가 한 덩어리로 묶여 있어 시각만 보면 언제인지 알 수 없다.
+ * 시트에 시각이 없으면 파싱 결과가 자정이 되므로 "12:00 AM"을 만들어내지 않고
+ * 날짜만 쓴다 — 없는 정보를 있는 것처럼 보이지 않게.
  *
  * @param {Influencer} inf
- * @returns {string}
+ * @returns {string} 예: "Jul 8 · 5:00 PM" / "Jul 8" / "—"
  */
-function formatTime(inf) {
-  if (!inf.scheduledTime || !inf.hasScheduledTimeOfDay) return '—';
-  return inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+function formatVisitWhen(inf) {
+  if (!inf.scheduledTime) return '—';
+  const date = inf.scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (!inf.hasScheduledTimeOfDay) return date;
+  return `${date} · ${inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 /**
@@ -89,15 +93,19 @@ function railAlertLabel(inf) {
   return flag ? RAIL_ALERT_LABEL[flag] : null;
 }
 
-/** Visit schedule 레일 폭 */
-const RAIL_WIDTH = 236;
+/**
+ * Visit schedule 레일 폭.
+ * 일정(날짜+시각) 컬럼과 이름이 한 줄에 나란히 들어가야 한다 — 236px에서는
+ * 이름이 "Deneysha Ch…"처럼 잘려 동명이인 구분이 안 됐다.
+ */
+const RAIL_WIDTH = 268;
 
 /**
- * Visit schedule 레일의 시간 컬럼 폭.
- * "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가 달라지고
- * 이름 컬럼 시작점이 행마다 어긋난다.
+ * Visit schedule 레일의 일정 컬럼 폭.
+ * "Jul 28 · 12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가
+ * 달라지고 이름 컬럼 시작점이 행마다 어긋난다.
  */
-const TIME_COL_WIDTH = 62;
+const TIME_COL_WIDTH = 96;
 
 /** 좌측 레일용 날짜 그룹 — Today / 날짜별 / Past */
 function buildScheduleGroups(influencers) {
@@ -142,8 +150,8 @@ function buildScheduleGroups(influencers) {
  *
  * flat-SaaS 시안 Operations 뷰 — 기존 대시보드 Operations 탭(SchedulePanel + InfluencerPanel)과
  * 같은 구성: Visit schedule 레일과 인플루언서 목록이 한 화면에 나란히 있고, 각자 스크롤한다.
- * KPI 스트립(배경 직접 배치) + Needs attention 배너는 목록 컬럼 안 최상단에 있다 —
- * 레일 위에 걸치면 세로 경계선이 KPI 아래에서야 시작해 KPI만 떠 보인다.
+ * KPI 스트립은 목록 컬럼 안 최상단에 있다 — 레일 위에 걸치면 세로 경계선이
+ * KPI 아래에서야 시작해 KPI만 떠 보인다.
  * 목록은 Action required / Upcoming / Completed 섹션으로 나뉘고, 각 섹션은 접을 수 있다.
  * 행은 컬럼으로 흩뿌리지 않고 InfluencerListRow의 요약 행(아바타+이름·시간·카테고리 /
  * 티어·플랫폼 / 상태·overdue·연락사유)으로 한 사람 정보를 한 덩어리로 읽게 한다.
@@ -179,8 +187,7 @@ function SaasOperationsView({
   selectedStore = ALL_STORES,
   onStoreChange,
 }) {
-  /** 검색어·단계는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
-  const [stageFilter, setStageFilter] = useState('all');
+  /** 검색어는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
   /** 시트 상태 탭 — 기존 InfluencerPanel의 tab 상태를 그대로 복원한 것 */
   const [statusFilter, setStatusFilter] = useState('all');
   /**
@@ -206,10 +213,8 @@ function SaasOperationsView({
 
   /**
    * KPI 모수 — 스토어/플랫폼/티어/카테고리까지만 적용한다.
-   * 검색어와 단계 필터는 "무엇을 보느냐"가 아니라 "지금 화면에서 어디를 찾느냐"라
+   * 검색어와 상태 탭은 "무엇을 보느냐"가 아니라 "지금 화면에서 어디를 찾느냐"라
    * 모수에서 뺀다. 기존 대시보드의 filteredKpi와 같은 기준이다.
-   * (단계 필터를 넣으면 Needs attention의 Review를 누르는 순간 방금 본 경보 수가
-   *  바뀌어버려 오히려 읽기 어려워진다.)
    */
   const scoped = useMemo(() => {
     const { platform, tier, category } = activeFilters;
@@ -264,23 +269,13 @@ function SaasOperationsView({
       },
     ];
     return all
-      .filter(s => (stageFilter === 'all' ? true : s.key === stageFilter))
       .filter(s => s.items.length > 0);
-  }, [filtered, stageFilter]);
-
-  /**
-   * 배너 카운트는 ACTION REQUIRED 섹션과 **같은 목록**에서 센다.
-   * KPI 모수(scoped)로 세면 상태 탭이나 검색을 걸었을 때 배너 69 / 섹션 66처럼
-   * 갈라지는데, Review 버튼이 그 섹션으로 가는 동작이라 다른 수를 말하면 안 된다.
-   */
-  const attentionCount = useMemo(() => filtered.filter(i => i.alertFlags.length > 0).length, [filtered]);
+  }, [filtered]);
 
   const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
   const hasScheduledVisit = scheduleGroups.some(g => g.items.length > 0);
-  const visibleCount = sections.reduce((n, s) => n + s.items.length, 0);
-  const hasFilter = stageFilter !== 'all'
-    || statusFilter !== 'all'
+  const hasFilter = statusFilter !== 'all'
     || selectedStore !== ALL_STORES
     || activeFilters.platform !== null
     || activeFilters.tier !== null
@@ -290,7 +285,6 @@ function SaasOperationsView({
   const showSkeleton = isLoading && influencers.length === 0;
 
   const resetFilters = () => {
-    setStageFilter('all');
     setStatusFilter('all');
     setSearchQuery('');
     if (!isFiltersControlled) setInternalFilters(DEFAULT_INFLUENCER_FILTERS);
@@ -451,12 +445,12 @@ function SaasOperationsView({
                           flexShrink: 0,
                           alignSelf: 'flex-start',
                           whiteSpace: 'nowrap',
-                          fontSize: 12,
+                          fontSize: 11,
                           color: 'text.secondary',
                           fontVariantNumeric: 'tabular-nums',
                         }}
                       >
-                        {formatTime(inf)}
+                        {formatVisitWhen(inf)}
                       </Typography>
                       <Box sx={{ minWidth: 0 }}>
                         <Typography
@@ -514,33 +508,6 @@ function SaasOperationsView({
           <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
           <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
 
-          {attentionCount > 0 && (
-            <Box
-              sx={theme => ({
-                ml: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
-                px: 1.5,
-                py: 0.875,
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: alpha(theme.palette.warning.main, 0.32),
-                backgroundColor: alpha(theme.palette.warning.main, 0.06),
-              })}
-            >
-              <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                Needs attention — {attentionCount}
-              </Typography>
-              <Button
-                size="small"
-                onClick={() => setStageFilter('attention')}
-                sx={{ textTransform: 'none', fontSize: 13, fontWeight: 600, minWidth: 0, py: 0 }}
-              >
-                Review →
-              </Button>
-            </Box>
-          )}
         </Box>
           <Box
             sx={{
@@ -614,14 +581,6 @@ function SaasOperationsView({
                 sx={chipSx(activeFilters.category === c.value)}
               />
             ))}
-            {stageFilter !== 'all' && (
-              <Chip
-                label="Action required only"
-                size="small"
-                onDelete={() => setStageFilter('all')}
-                sx={chipSx(true)}
-              />
-            )}
             {hasFilter && (
               <Button
                 size="small"
@@ -631,9 +590,6 @@ function SaasOperationsView({
                 Reset
               </Button>
             )}
-            <Typography sx={{ ml: 'auto', fontSize: 12, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
-              {visibleCount} of {influencers.length}
-            </Typography>
           </Box>
 
           {/* 시트 상태 탭 — 필터 컨트롤과 결과 사이의 2차 내비게이션.
@@ -717,6 +673,7 @@ function SaasOperationsView({
               return (
                 <Box
                   key={section.key}
+                  data-section={section.key}
                   sx={{
                     // 섹션 하나가 하나의 운영 단위로 읽히도록 테두리로 묶는다.
                     // 카드가 아니다 — 섀도 없음, radius 6px, 얇은 중립 보더.

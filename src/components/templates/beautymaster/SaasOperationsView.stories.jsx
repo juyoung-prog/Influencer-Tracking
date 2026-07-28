@@ -148,24 +148,33 @@ export const RailAlertLabels = {
 };
 
 /**
- * Needs attention 배너와 ACTION REQUIRED 섹션은 **같은 목록**에서 센다.
- * KPI 모수로 세면 상태 탭·검색을 걸었을 때 갈라지는데, Review가 그 섹션으로 가는
- * 동작이라 다른 수를 말하면 안 된다.
+ * 섹션 헤더의 수는 그 섹션이 실제로 그린 행 수와 같아야 한다.
+ *
+ * 예전에는 상단 "Needs attention" 배너가 같은 개념을 다른 모수로 세어 두 숫자가
+ * 갈라졌다. 배너를 없애 숫자를 하나로 줄였으므로, 남은 위험은 "헤더 수 ≠ 실제 행 수"
+ * 하나다. 상태 탭을 바꿔도 그 관계가 유지되는지 본다.
  */
-export const CountsStayInSync = {
+export const SectionCountMatchesRows = {
   play: async ({ canvasElement }) => {
-    const read = () => {
-      const t = canvasElement.innerText;
-      return [t.match(/Needs attention — (\d+)/)?.[1], t.match(/ACTION REQUIRED\s*(\d+)/)?.[1]];
+    const check = async () => {
+      const sections = [...canvasElement.querySelectorAll('[data-section]')];
+      await expect(sections.length).toBeGreaterThan(0);
+      let checked = 0;
+      for (const sec of sections) {
+        const header = sec.querySelector('button');
+        // 접힌 섹션은 행을 그리지 않으므로 헤더 수와 비교할 대상이 없다
+        if (header.getAttribute('aria-expanded') !== 'true') continue;
+        const claimed = Number(header.innerText.match(/(\d+)\s*$/)?.[1]);
+        const rows = sec.querySelectorAll('[data-influencer-id]').length;
+        await expect(claimed).toBe(rows);
+        checked += 1;
+      }
+      await expect(checked).toBeGreaterThan(0);
     };
-    const [b1, s1] = read();
-    await expect(b1).toBe(s1);
+    await check();
 
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Processing' }));
-    await waitFor(async () => {
-      const [b2, s2] = read();
-      await expect(b2).toBe(s2);
-    });
+    await waitFor(check);
   },
 };
