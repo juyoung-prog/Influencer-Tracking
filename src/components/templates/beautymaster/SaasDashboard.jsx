@@ -78,7 +78,6 @@ function SaasDashboard({
   return (
     <SaasShell
       activeNav={activeView}
-      influencerCount={influencers.length}
       lastSyncedAt={lastSyncedAt}
       isSyncing={isSyncing}
       onNavigate={setActiveView}

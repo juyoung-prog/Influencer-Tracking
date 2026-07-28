@@ -137,7 +137,6 @@ function NavRow({ Icon, label, isActive = false, trailing = null, iconSx, ...res
  *
  * Props:
  * @param {string} activeNav - 활성 네비 키 (operations|analytics|workflow) [Required]
- * @param {number} influencerCount - Operations 항목 옆 카운트 [Optional, 기본값: 0]
  * @param {Date|null} lastSyncedAt - 마지막 동기화 시각 (사이드바 하단, 펼침 시 표시) [Optional, 기본값: null]
  * @param {function} onNavigate - 네비 항목 클릭 핸들러 (key) => void [Optional]
  * @param {boolean} isSyncing - 시트 조회 진행 중 여부. 아이콘을 돌리고 캡션을 바꿔 눌린 걸 알린다 [Optional, 기본값: false]
@@ -148,11 +147,10 @@ function NavRow({ Icon, label, isActive = false, trailing = null, iconSx, ...res
  * @param {object} sx - 루트 Box에 적용할 MUI sx 오버라이드 [Optional]
  *
  * Example usage:
- * <SaasShell activeNav="operations" influencerCount={12} onNavigate={setView}>...</SaasShell>
+ * <SaasShell activeNav="operations" onNavigate={setView}>...</SaasShell>
  */
 function SaasShell({
   activeNav,
-  influencerCount = 0,
   lastSyncedAt = null,
   isSyncing = false,
   onNavigate,
@@ -283,14 +281,6 @@ function SaasShell({
                 Icon={Icon}
                 label={label}
                 isActive={isActive}
-                trailing={key === 'operations' && influencerCount > 0 ? (
-                  <Typography
-                    className={LABEL_CLASS}
-                    sx={{ ml: 'auto', fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
-                  >
-                    {influencerCount}
-                  </Typography>
-                ) : null}
               />
             );
           })}

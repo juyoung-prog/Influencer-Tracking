@@ -25,7 +25,6 @@ export default {
       options: ['operations', 'analytics', 'workflow'],
       description: '활성 네비 키',
     },
-    influencerCount: { control: { type: 'number' }, description: 'Operations 항목 옆 카운트 (0이면 숨김)' },
     lastSyncedAt: { control: 'date', description: '마지막 동기화 시각 — 사이드바 하단에 펼침 시 표시' },
     isSyncing: { control: 'boolean', description: '시트 조회 진행 중 — 캡션이 "Syncing…"으로 바뀌고 Refresh 아이콘이 회전한다' },
     sheetUrl: { control: 'text', description: 'Google Sheet 원본 링크. 비면 해당 줄을 숨긴다' },
@@ -41,7 +40,6 @@ export default {
     onRefresh: fn(),
     onOpenSettings: fn(),
     activeNav: 'operations',
-    influencerCount: 189,
     lastSyncedAt: new Date('2026-07-27T15:39:00'),
     isSyncing: false,
     sheetUrl: 'https://docs.google.com/spreadsheets/d/EXAMPLE/edit',
@@ -152,7 +150,7 @@ export const NoSheetUrl = {
 
 /** 아직 한 번도 동기화되지 않은 상태 */
 export const NotSynced = {
-  args: { lastSyncedAt: null, influencerCount: 0 },
+  args: { lastSyncedAt: null },
 };
 
 /** Analytics 활성 */

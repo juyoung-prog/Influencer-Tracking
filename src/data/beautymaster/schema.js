@@ -201,6 +201,23 @@ function daysSince(date, todayStart) {
 }
 
 /**
+ * 방문일이 너무 지나 더 이상 경보하지 않는 상태인지.
+ *
+ * deriveAlertFlags가 이 조건에서 단계 경보를 억제한다. 목록 섹션도 같은 판정을
+ * 써야 한다 — 따로 계산하면 "경보는 없는데 어느 구간에도 못 넣는" 행이 생기고,
+ * 그런 행이 Upcoming으로 흘러들어 과거 일정이 예정으로 보였다.
+ *
+ * @param {Date|null} scheduledTime
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {boolean}
+ */
+export function isStaleVisit(scheduledTime, today = new Date()) {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const since = daysSince(scheduledTime, todayStart);
+  return since !== null && since > ALERT_GRACE_DAYS.STALE;
+}
+
+/**
  * Evaluate boolean status combinations to produce alert flags.
  * Caller must pass a fully populated Influencer (alertFlags field ignored on input).
  *
@@ -226,7 +243,7 @@ export function deriveAlertFlags(influencer, today = new Date()) {
 
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const sinceVisit = daysSince(scheduledTime, todayStart);
-  const isStale = sinceVisit !== null && sinceVisit > ALERT_GRACE_DAYS.STALE;
+  const isStale = isStaleVisit(scheduledTime, today);
 
   // 원칙 1·2 — 완료됐거나 너무 오래된 건은 단계 경보를 내지 않는다
   if (!creditShared && !isStale) {

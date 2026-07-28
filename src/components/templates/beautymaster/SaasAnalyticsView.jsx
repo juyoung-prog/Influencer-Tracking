@@ -115,7 +115,7 @@ function FunnelBar({ rows }) {
   if (rows.length === 0) return <Typography sx={{ color: 'text.secondary' }}>No funnel data</Typography>;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 720 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       {rows.map(step => (
         <Box key={step.key} data-funnel-step={step.key} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography data-funnel-label sx={{ width: 84, flexShrink: 0, fontSize: 13, color: 'text.secondary' }}>
@@ -132,14 +132,91 @@ function FunnelBar({ rows }) {
               })}
             />
           </Box>
-          {/* 값은 고정폭으로 자릿수를 맞추고, 배지는 그 밖에 둔다 —
-              안에 넣으면 폭에 눌려 "0"과 "0%"가 두 줄로 갈라진다. */}
-          <Typography data-funnel-value sx={{ width: 74, flexShrink: 0, textAlign: 'right', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-            {step.value} {pct(step.ofInvited)}
+          {/* 수와 비율은 자릿수가 달라 붙여두면 어느 쪽이 어느 쪽인지 매번 읽어야 한다.
+              각각 고정폭 우측 정렬로 나눈다. 배지는 그 밖에 둔다 —
+              폭 안에 넣으면 눌려서 "0"과 "0%"가 두 줄로 갈라진다. */}
+          <Typography data-funnel-value sx={{ width: 40, flexShrink: 0, textAlign: 'right', fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+            {step.value}
           </Typography>
-          <Box sx={{ width: 96, flexShrink: 0 }}>{step.value === 0 && <NoDataBadge />}</Box>
+          <Typography sx={{ width: 40, flexShrink: 0, textAlign: 'right', fontSize: 13, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+            {pct(step.ofInvited)}
+          </Typography>
+          {step.value === 0 && <NoDataBadge />}
         </Box>
       ))}
+    </Box>
+  );
+}
+
+/**
+ * StageDropOff — 단계 사이에서 몇 명이 빠졌는지.
+ *
+ * 막대는 "각 단계에 몇 명 남았나"만 보여줘서 어디서 새는지가 안 보인다.
+ * Table 뷰의 % of previous를 그대로 쓰고(같은 rows에서 파생) 실제 감소 인원을 함께 적는다.
+ * 막대를 늘려서 빈 공간을 채우면 작은 값이 실선이 되므로, 폭 대신 정보를 넣는다.
+ *
+ * Props:
+ * @param {Array} rows - buildFunnelRows() 결과 [Required]
+ */
+function StageDropOff({ rows }) {
+  if (rows.length < 2) return null;
+
+  const pairs = rows.slice(1).map((cur, i) => ({
+    key: cur.key,
+    from: rows[i].label,
+    to: cur.label,
+    rate: cur.ofPrevious ?? 0,
+    delta: cur.value - rows[i].value,
+  }));
+
+  // 가장 많이 빠진 구간 하나만 강조한다 — 여러 개를 칠하면 강조가 아니게 된다
+  const worstDelta = Math.min(...pairs.map(p => p.delta));
+  const hasLoss = worstDelta < 0;
+
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 1 }}>
+        Stage drop-off
+      </Typography>
+      <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px', overflow: 'hidden' }}>
+        {pairs.map((p, i) => {
+          const isWorst = hasLoss && p.delta === worstDelta;
+          return (
+            <Box
+              key={p.key}
+              data-dropoff-step={p.key}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.875,
+                borderTop: i === 0 ? 'none' : '1px solid',
+                borderColor: 'divider',
+                backgroundColor: isWorst ? theme => alpha(theme.palette.warning.main, 0.06) : 'transparent',
+              }}
+            >
+              <Typography sx={{ flex: 1, minWidth: 0, fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {p.from} <Box component="span" sx={{ color: 'text.disabled' }}>→</Box> {p.to}
+              </Typography>
+              <Typography sx={{ width: 44, flexShrink: 0, textAlign: 'right', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                {pct(p.rate)}
+              </Typography>
+              <Typography
+                data-dropoff-delta
+                sx={{
+                  width: 52, flexShrink: 0, textAlign: 'right',
+                  fontSize: 12, fontVariantNumeric: 'tabular-nums',
+                  fontWeight: isWorst ? 600 : 400,
+                  color: isWorst ? 'warning.main' : 'text.secondary',
+                }}
+              >
+                {p.delta === 0 ? '0' : p.delta}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
     </Box>
   );
 }
@@ -385,7 +462,16 @@ function SaasAnalyticsView({
             </ToggleButtonGroup>
           }
         />
-        {funnelView === 'bar' ? <FunnelBar rows={funnelRows} /> : <FunnelTable rows={funnelRows} />}
+        {funnelView === 'bar' ? (
+          /* 막대는 폭을 늘리지 않는다 — 늘리면 작은 값이 실선이 되어 오히려 안 보인다.
+             남는 폭에는 막대가 답하지 못하는 것(어디서 새는지)을 넣는다. */
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '55fr 45fr' }, gap: 3, alignItems: 'start' }}>
+            <FunnelBar rows={funnelRows} />
+            <StageDropOff rows={funnelRows} />
+          </Box>
+        ) : (
+          <FunnelTable rows={funnelRows} />
+        )}
         {inviteGap && (
           <Typography sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
             Invite data covers {inviteGap.inviteStores.join(', ')} only —
@@ -400,38 +486,25 @@ function SaasAnalyticsView({
         )}
       </Box>
 
-      {/* Breakdown — Platform + Category */}
+      {/* Breakdown — Platform | Category | Tier 한 줄.
+          각 표의 첫 컬럼 헤더가 이미 그룹 이름이라 소제목을 따로 두지 않는다
+          (전에는 "Tier"가 섹션 제목·소제목·컬럼 헤더에 세 번 나왔다). */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Breakdown" />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1.5 }}>Platform</Typography>
-            <BreakdownTable groupHeader="Platform" rows={Object.entries(summary.byPlatform || {}).map(([p, s]) => ({ label: p, ...s }))} />
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1.5 }}>Category</Typography>
-            <BreakdownTable groupHeader="Category" rows={Object.entries(summary.byCategory || {}).map(([c, s]) => ({ label: c, ...s }))} />
-          </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 3, alignItems: 'start' }}>
+          <BreakdownTable groupHeader="Platform" rows={Object.entries(summary.byPlatform || {}).map(([p, st]) => ({ label: p, ...st }))} />
+          <BreakdownTable groupHeader="Category" rows={Object.entries(summary.byCategory || {}).map(([c, st]) => ({ label: c, ...st }))} />
+          <BreakdownTable groupHeader="Tier" rows={tierRows} />
         </Box>
       </Box>
 
-      {/* Tier & Store — 2행 또는 2열 테이블 */}
-      <Box>
-        <SectionTitle title={ selectedStore === ALL_STORES ? 'Tier & Store' : 'Tier' } />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1.5 }}>Tier</Typography>
-            <BreakdownTable groupHeader="Tier" rows={tierRows} />
-          </Box>
-          {/* 단일 스토어를 고른 상태에서는 행이 하나뿐이라 비교할 게 없다 */}
-          {selectedStore === ALL_STORES && (
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1.5 }}>Store</Typography>
-              <BreakdownTable groupHeader="Store" rows={storeRows} />
-            </Box>
-          )}
+      {/* Store — 단일 스토어를 고른 상태에서는 행이 하나뿐이라 비교할 게 없다 */}
+      {selectedStore === ALL_STORES && (
+        <Box>
+          <SectionTitle title="Store" />
+          <BreakdownTable groupHeader="Store" rows={storeRows} />
         </Box>
-      </Box>
+      )}
       </Box>
     </>
   );

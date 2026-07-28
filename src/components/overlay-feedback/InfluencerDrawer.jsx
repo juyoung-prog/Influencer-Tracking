@@ -1,4 +1,5 @@
 import Avatar from '@mui/material/Avatar';
+import { SAAS_FONT } from '../templates/beautymaster/SaasShell';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -51,7 +52,32 @@ function formatNum(val) {
  */
 function InfluencerDrawer({ influencer = null, open = false, onClose, templates = [] }) {
   return (
-    <Drawer anchor="right" open={open} onClose={onClose}>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      slotProps={{
+        paper: {
+          sx: {
+            /* Drawer도 포털로 <body> 아래 렌더돼 SaasShell의 폰트·크기 규칙이 닿지 않는다.
+               고치기 전에는 Pretendard와 Outfit 두 서체가 섞여 나왔다.
+               모달과 같은 방식으로 한 곳에서 규격을 건다. */
+            fontFamily: SAAS_FONT,
+            '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiAvatar-root': {
+              fontFamily: 'inherit',
+            },
+            '& button, & input, & select, & textarea': { fontFamily: 'inherit' },
+
+            // 화면이 쓰는 글자 단계(11~14px)에 맞춘다 — h5(20px)가 그대로 나오고 있었다
+            '& .MuiTypography-h5': { fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' },
+            '& .MuiChip-root': { borderRadius: '6px', height: 22, fontSize: 11 },
+            '& .MuiButton-root': { textTransform: 'none', fontSize: 13, fontWeight: 500, borderRadius: '6px' },
+            // 선·글자는 primary.dark (순수 #0000FF는 흰 배경에서 가장자리가 떨린다)
+            '& .MuiButton-textPrimary, & .MuiButton-outlinedPrimary, & a': { color: 'primary.dark' },
+          },
+        },
+      }}
+    >
       {influencer ? (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* ── Header ── */}
@@ -59,7 +85,8 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
             <Avatar
               src={influencer.imageUrl}
               alt={influencer.fullName}
-              sx={{ width: 48, height: 48, flexShrink: 0, fontSize: 16, fontWeight: 700 }}
+              // 기본값(흰 글자 + grey.400)은 대비 1.88:1로 AA 미달 — 목록 행과 같게 뒤집는다
+              sx={{ width: 48, height: 48, flexShrink: 0, fontSize: 16, fontWeight: 700, bgcolor: 'surface.muted', color: 'text.secondary' }}
             >
               {influencer.fullName?.slice(0, 2).toUpperCase()}
             </Avatar>
@@ -134,7 +161,7 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
                 View Content <OpenInNewIcon sx={{ fontSize: 14 }} />
               </Link>
             ) : (
-              <Typography variant="body2" color="text.disabled" sx={{ mb: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 No link
               </Typography>
             )}

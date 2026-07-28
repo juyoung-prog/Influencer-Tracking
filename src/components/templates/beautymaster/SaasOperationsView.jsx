@@ -17,9 +17,11 @@ import {
   ALERT_FLAGS,
   ALL_STORES,
   DEFAULT_INFLUENCER_FILTERS,
+  SCHEDULE_GROUPS,
   SHEET_STATUS,
   deriveKpiSummary,
   deriveStores,
+  isStaleVisit,
 } from '../../../data/beautymaster/schema.js';
 
 const PLATFORM_OPTIONS = ['Instagram', 'TikTok'];
@@ -194,7 +196,7 @@ function SaasOperationsView({
    * 접힌 섹션 키. Action required만 펼친 채로 시작한다 — 손댈 게 있는 쪽이 먼저 보여야 하고,
    * 긴 섹션을 접어 아래 섹션으로 바로 갈 수 있어야 한다.
    */
-  const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'completed']));
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'inProgress', 'stale', 'completed']));
   const [searchQuery, setSearchQuery] = useState('');
   const [internalFilters, setInternalFilters] = useState(DEFAULT_INFLUENCER_FILTERS);
 
@@ -257,10 +259,31 @@ function SaasOperationsView({
         label: 'Action required',
         items: filtered.filter(i => i.alertFlags.length > 0).sort(byTime),
       },
+      /* Upcoming은 "예정"이라는 뜻이어야 한다.
+         예전에는 "경보 없음 + 미완료"였을 뿐이라 날짜 조건이 아예 없었고,
+         90일이 지나 경보가 억제된 건들이 전부 여기로 흘러들었다
+         (실제로 17건 중 15건이 과거 일정, 미래는 0건이었다). */
       {
         key: 'upcoming',
         label: 'Upcoming',
-        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared).sort(byTime),
+        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+          && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).sort(byTime),
+      },
+      /* 방문일은 지났지만 아직 유예 기간이라 경보가 없는 건 */
+      {
+        key: 'inProgress',
+        label: 'In progress',
+        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+          && i.scheduleGroup !== SCHEDULE_GROUPS.TODAY && i.scheduleGroup !== SCHEDULE_GROUPS.UPCOMING
+          && !isStaleVisit(i.scheduledTime)).sort(byTime),
+      },
+      /* 90일이 넘어 경보가 억제된 건 — 지금까지 어느 구간에도 안 보였다.
+         닫힌 것도 진행 중인 것도 아니므로 이름을 그대로 붙여 드러낸다. */
+      {
+        key: 'stale',
+        label: 'Stale (90+ days)',
+        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+          && isStaleVisit(i.scheduledTime)).sort(byTime),
       },
       {
         key: 'completed',

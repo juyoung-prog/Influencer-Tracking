@@ -202,3 +202,46 @@ export const SectionCountMatchesRows = {
     await waitFor(check);
   },
 };
+
+/**
+ * Upcoming 구간에는 예정된 방문만 들어간다.
+ *
+ * 예전 조건은 "경보 없음 + 미완료"뿐이라 날짜를 보지 않았다. 90일이 지나 경보가
+ * 억제된 건들이 전부 여기로 흘러들어, 실데이터에서 17건 중 15건이 과거 일정이고
+ * 미래는 0건이었다. 지나간 건은 In progress / Stale로 나눠 이름과 내용을 맞췄다.
+ */
+export const UpcomingHoldsOnlyFutureVisits = {
+  play: async ({ canvasElement }) => {
+    const sections = [...canvasElement.querySelectorAll('[data-section]')]
+      .map(s => s.getAttribute('data-section'));
+    await expect(sections.length).toBeGreaterThan(0);
+
+    const upcoming = canvasElement.querySelector('[data-section="upcoming"]');
+    if (!upcoming) return;   // 예정 건이 없으면 구간 자체가 사라진다 — 그것도 정상이다
+
+    // 접혀 있으면 펼친다
+    const header = upcoming.querySelector('button');
+    if (header.getAttribute('aria-expanded') !== 'true') await userEvent.click(header);
+
+    const rows = await waitFor(() => {
+      const r = upcoming.querySelectorAll('[data-influencer-id]');
+      if (r.length === 0) throw new Error('rows not rendered');
+      return [...r];
+    });
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    for (const row of rows) {
+      const id = row.getAttribute('data-influencer-id');
+      const inf = MOCK_INFLUENCERS.find(i => i.id === id);
+      await expect(inf).toBeTruthy();
+      await expect(inf.alertFlags.length).toBe(0);
+      // 날짜가 있으면 오늘 이후여야 한다
+      if (inf.scheduledTime) {
+        const day = new Date(inf.scheduledTime);
+        day.setHours(0, 0, 0, 0);
+        await expect(day.getTime()).toBeGreaterThanOrEqual(todayStart.getTime());
+      }
+    }
+  },
+};

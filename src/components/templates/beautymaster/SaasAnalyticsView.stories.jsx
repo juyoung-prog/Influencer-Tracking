@@ -146,3 +146,50 @@ export const SingleStoreHidesStoreTable = {
     await expect(headers.length).toBeGreaterThan(0);
   },
 };
+
+/**
+ * Stage drop-off는 Table의 "% of previous"와 같은 값이어야 한다.
+ *
+ * 막대는 각 단계에 몇 명 남았는지만 보여줘서 어디서 새는지가 안 보인다.
+ * 옆에 붙인 이탈 표가 다른 계산을 쓰면 같은 화면에서 두 숫자가 갈라진다 —
+ * 두 뷰를 오가며 대조한다.
+ */
+export const DropOffMatchesTable = {
+  args: { inviteCounts: INVITE_COUNTS },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Bars' }));
+    const drop = await waitFor(() => {
+      const rows = [...canvasElement.querySelectorAll('[data-dropoff-step]')];
+      if (rows.length === 0) throw new Error('no drop-off rows');
+      return Object.fromEntries(rows.map(r => [
+        r.getAttribute('data-dropoff-step'),
+        r.children[1].textContent.trim(),
+      ]));
+    });
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Table' }));
+    const table = await waitFor(() => {
+      const t = canvasElement.querySelector('table');
+      if (!t) throw new Error('no table');
+      return t;
+    });
+    const ofPrevious = Object.fromEntries(
+      [...table.querySelectorAll('tbody tr[data-funnel-step]')]
+        .map(r => [r.getAttribute('data-funnel-step'), r.children[3].textContent.trim()])
+        .filter(([, v]) => v !== '—'),
+    );
+
+    await expect(drop).toEqual(ofPrevious);
+
+    // 가장 크게 빠진 구간 하나만 강조된다 — 여러 개면 강조가 아니다
+    await userEvent.click(canvas.getByRole('button', { name: 'Bars' }));
+    const emphasised = await waitFor(() => {
+      const all = [...canvasElement.querySelectorAll('[data-dropoff-delta]')];
+      if (all.length === 0) throw new Error('no deltas');
+      return all.filter(e => getComputedStyle(e).fontWeight === '600');
+    });
+    await expect(emphasised.length).toBe(1);
+  },
+};
