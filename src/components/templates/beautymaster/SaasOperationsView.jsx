@@ -60,29 +60,6 @@ const RAIL_WIDTH = 236;
 const RAIL_GUTTER = 2;
 
 /**
- * 24px 인셋으로 그어지는 divider.
- *
- * border를 컨테이너에 직접 주면 padding 바깥(border-box 전체)까지 선이 번져
- * 콘텐츠보다 좌우로 24px씩 튀어나온다. 의사요소로 그어 콘텐츠와 같은 그리드에 맞춘다.
- *
- * @param {object} theme - MUI theme
- * @param {'top'|'bottom'} side - 선을 그을 변 [기본값: 'bottom']
- * @returns {object} sx 조각
- */
-const insetDivider = (theme, side = 'bottom') => ({
-  position: 'relative',
-  [`&::${side === 'top' ? 'before' : 'after'}`]: {
-    content: '""',
-    position: 'absolute',
-    left: theme.spacing(CONTENT_PX),
-    right: theme.spacing(CONTENT_PX),
-    [side]: 0,
-    borderTop: '1px solid',
-    borderColor: theme.palette.divider,
-  },
-});
-
-/**
  * Visit schedule 레일의 시간 컬럼 폭.
  * "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 — 접히면 행 높이가 달라지고
  * 이름 컬럼 시작점이 행마다 어긋난다.
@@ -449,8 +426,9 @@ function SaasOperationsView({
           </Box>
         </Box>
 
-        {/* 목록 — 툴바 + 섹션 구분 테이블, 자체 스크롤 */}
-        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* 목록 — KPI + 툴바 + 탭 + 섹션. 좌우 인셋은 이 컨테이너 한 곳에서만 관리한다.
+            자식들이 각자 padding을 두면 기준선이 갈라지므로 자식에는 가로 padding을 주지 않는다. */}
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', px: CONTENT_PX }}>
         {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
             목록 컬럼 안에 있으므로 툴바·탭·섹션과 같은 인셋을 쓴다.
             덕분에 레일과의 세로 경계선이 화면 위끝까지 끊기지 않고 이어진다. */}
@@ -461,7 +439,6 @@ function SaasOperationsView({
             alignItems: 'center',
             flexWrap: 'wrap',
             rowGap: 2,
-            px: CONTENT_PX,
             py: 2,
           }}
         >
@@ -499,17 +476,17 @@ function SaasOperationsView({
           )}
         </Box>
           <Box
-            sx={theme => ({
+            sx={{
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
               flexWrap: 'wrap',
-              px: CONTENT_PX,
               py: 2,
-              ...insetDivider(theme, 'top'),
-              ...insetDivider(theme),
-            })}
+              borderTop: '1px solid',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
           >
             <TextField
               value={searchQuery}
@@ -596,15 +573,15 @@ function SaasOperationsView({
               pill/카드 없이 텍스트 + 2px 하단 인디케이터로만 표현한다.
               위쪽 여백(10px)으로 필터 툴바와 띄워 세 층(필터 → 상태 → 결과)을 갈라 보이게 한다. */}
           <Box
-            sx={theme => ({
+            sx={{
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               gap: 2.5,
-              px: CONTENT_PX,
               mt: 1.25,
-              ...insetDivider(theme),
-            })}
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
           >
             {STATUS_TABS.map(t => {
               const isActive = statusFilter === t.id;
@@ -638,7 +615,7 @@ function SaasOperationsView({
             })}
           </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: CONTENT_PX, pb: 2 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}
