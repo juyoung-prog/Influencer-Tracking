@@ -647,3 +647,46 @@ export const FocusRingIsNotClipped = {
     }
   },
 };
+
+/**
+ * 검색 결과는 접힌 구간 안에 숨지 않는다.
+ *
+ * UPCOMING/IN PROGRESS/STALE/COMPLETED는 기본 접힘이다. 검색은 특정 인물을 찾는
+ * 동작인데 결과가 그 안에 들어가면 "COMPLETED 1"만 보이고 행은 하나도 안 보인다 —
+ * 찾았는데 안 보이는 상태가 된다. 실데이터에서 "Stephanie" 검색이 그랬다.
+ *
+ * 접힘 상태 자체는 남겨서, 검색어를 지우면 원래대로 돌아온다.
+ */
+export const SearchRevealsCollapsedMatches = {
+  play: async ({ canvasElement }) => {
+    const input = canvasElement.querySelector('input[placeholder]');
+
+    // 기본 접힘인 구간에 있는 사람을 고른다
+    const collapsedFirst = canvasElement.querySelector('[data-section]:not([data-section="attention"]) button');
+    if (!collapsedFirst) return;
+    await expect(collapsedFirst.getAttribute('aria-expanded')).toBe('false');
+
+    const target = MOCK_INFLUENCERS.find(i => i.alertFlags.length === 0 && i.creditShared);
+    await expect(target).toBeTruthy();
+
+    await userEvent.type(input, target.fullName);
+
+    await waitFor(async () => {
+      const sections = [...canvasElement.querySelectorAll('[data-section]')];
+      await expect(sections.length).toBeGreaterThan(0);
+      // 헤더가 말하는 수와 실제로 그려진 행 수가 같아야 한다
+      for (const sec of sections) {
+        const claimed = Number(sec.querySelector('button').innerText.match(/(\d+)\s*$/)?.[1]);
+        await expect(sec.querySelectorAll('[data-influencer-id]').length).toBe(claimed);
+      }
+      await expect(canvasElement.querySelector(`[data-influencer-id="${target.id}"]`)).toBeTruthy();
+    });
+
+    // 검색어를 지우면 접힘이 돌아온다 — 사용자가 접어둔 상태를 빼앗지 않는다
+    await userEvent.clear(input);
+    await waitFor(async () => {
+      const again = canvasElement.querySelector('[data-section]:not([data-section="attention"]) button');
+      await expect(again.getAttribute('aria-expanded')).toBe('false');
+    });
+  },
+};

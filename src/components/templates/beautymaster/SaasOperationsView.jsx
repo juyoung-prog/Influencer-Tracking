@@ -311,6 +311,8 @@ function SaasOperationsView({
     });
   }, [scoped, statusFilter, searchQuery]);
 
+  const isSearching = searchQuery.trim() !== '';
+
   const sections = useMemo(() => {
     const byTime = (a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0);
     const all = [
@@ -826,7 +828,11 @@ function SaasOperationsView({
             )}
 
             {!showSkeleton && sections.map(section => {
-              const isCollapsed = collapsedSections.has(section.key);
+              /* 검색 중에는 접힘을 무시한다.
+                 검색은 특정 인물을 찾는 동작인데, 결과가 접힌 구간에 들어가면
+                 "COMPLETED 1"만 보이고 행은 하나도 안 보인다 — 찾았는데 안 보인다.
+                 접힘 상태 자체는 유지해서 검색어를 지우면 원래대로 돌아온다. */
+              const isCollapsed = !isSearching && collapsedSections.has(section.key);
               return (
                 <Box
                   key={section.key}
