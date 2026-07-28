@@ -42,11 +42,13 @@ const CATEGORY_OPTIONS = [
  * 결과가 자정이 되는데, 그걸 "12:00 AM"으로 보여주면 없는 정보를 만드는 것이라 비운다.
  *
  * @param {Influencer} inf
- * @returns {string} 예: "5:00 PM" / "—"
+ * @returns {string} 예: "17:00" / "—"
  */
 function formatVisitTime(inf) {
   if (!inf.scheduledTime || !inf.hasScheduledTimeOfDay) return '—';
-  return inf.scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  // 24시간제 — AM/PM이 빠져 폭이 절반으로 줄고, 자릿수가 고정돼 세로로 훑기 쉽다.
+  // en-GB를 쓰는 이유는 en-US + hour12:false가 자정을 "24:00"으로 내는 엔진이 있어서다.
+  return inf.scheduledTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 /**
@@ -115,54 +117,69 @@ function railAlertLabel(inf) {
 const RAIL_WIDTH = 180;
 
 /**
- * 레일 시각 컬럼 폭. "12:00 PM"(가장 긴 형태)이 한 줄에 들어가야 한다 —
+ * 레일 시각 컬럼 폭. 24시간제라 "13:30" 다섯 글자가 최대치다 —
  * 접히면 행 높이가 달라지고 이름 시작 위치가 행마다 어긋난다.
  */
-const TIME_COL_WIDTH = 52;
+const TIME_COL_WIDTH = 36;
 
 /**
- * 좌측 레일용 날짜 그룹 — Today + 날짜별.
+ * 좌측 레일 구조 — 섹션(TODAY / UPCOMING / PAST) 안에 날짜 그룹.
  *
- * 예전에는 지난 건을 "Past" 한 덩어리로 묶고 날짜를 행마다 적어서, 같은 날이
- * 일곱 줄이면 "Jul 11"이 일곱 번 반복됐다. 날짜를 헤더로 올리면 행에는 시각만
- * 남아 한 줄로 줄어든다.
+ * 날짜 그룹만 두면 "JUL 8"이 지난 날인지 예정인지 알 수 없다. 반대로 경과일을
+ * 헤더마다 병기하면 인덱스에 같은 정보가 계속 반복된다. 그래서 방향은 섹션이
+ * 한 번만 말하고, 그 아래에서 날짜가 반복 없이 묶인다.
  *
  * @param {Influencer[]} influencers
- * @returns {Array<{key,label,isToday,items}>}
+ * @returns {Array<{key,label,count,isToday,dates}>} dates는 [{key,label,items}]
  */
-function buildScheduleGroups(influencers) {
-  const today = { key: 'today', label: 'Today', isToday: true, items: [] };
-  const byDate = {};
+function buildScheduleSections(influencers) {
+  const todayItems = [];
+  const upcoming = {};
+  const past = {};
 
   for (const inf of influencers) {
     const g = inf.scheduleGroup;
     if (g === 'today') {
-      today.items.push(inf);
+      todayItems.push(inf);
       continue;
     }
     // 날짜가 없으면 인덱스에 놓을 자리가 없다 — 목록에서 "Date TBD"로 보인다
     if (!inf.scheduledTime || (g !== 'upcoming' && g !== 'past')) continue;
 
+    const bucket = g === 'upcoming' ? upcoming : past;
     const t = inf.scheduledTime;
     const k = `${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`;
-    if (!byDate[k]) {
-      byDate[k] = {
+    if (!bucket[k]) {
+      bucket[k] = {
         key: k,
         label: t.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         sortDate: t,
-        isToday: false,
         items: [],
       };
     }
-    byDate[k].items.push(inf);
+    bucket[k].items.push(inf);
   }
 
-  // Today는 0건이어도 항상 넣는다 — 빈 자리가 아니라 "오늘 없음"을 말해주기 위함
-  const groups = [today, ...Object.values(byDate).sort((a, b) => a.sortDate - b.sortDate)];
-  for (const grp of groups) {
-    grp.items.sort((a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0));
-  }
-  return groups;
+  const toDates = obj => Object.values(obj)
+    .sort((a, b) => a.sortDate - b.sortDate)
+    .map(d => ({ ...d, items: d.items.slice().sort(byScheduledTime) }));
+
+  const sections = [
+    // Today는 0건이어도 남긴다 — 빈 자리가 아니라 "오늘 없음"을 말해주기 위함
+    { key: 'today', label: 'Today', isToday: true, count: todayItems.length,
+      dates: [{ key: 'today-items', label: null, items: todayItems.slice().sort(byScheduledTime) }] },
+    { key: 'upcoming', label: 'Upcoming', isToday: false, dates: toDates(upcoming) },
+    { key: 'past', label: 'Past', isToday: false, dates: toDates(past) },
+  ];
+
+  return sections
+    .map(sec => ({ ...sec, count: sec.dates.reduce((n, d) => n + d.items.length, 0) }))
+    .filter(sec => sec.key === 'today' || sec.count > 0);
+}
+
+/** 시각 오름차순. 한쪽이라도 시각이 없으면 순서를 바꾸지 않는다 */
+function byScheduledTime(a, b) {
+  return a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0;
 }
 
 /**
@@ -313,9 +330,9 @@ function SaasOperationsView({
       .filter(s => s.items.length > 0);
   }, [filtered]);
 
-  const scheduleGroups = useMemo(() => buildScheduleGroups(filtered), [filtered]);
+  const scheduleSections = useMemo(() => buildScheduleSections(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
-  const hasScheduledVisit = scheduleGroups.some(g => g.items.length > 0);
+  const hasScheduledVisit = scheduleSections.some(sec => sec.count > 0);
   const hasFilter = statusFilter !== 'all'
     || selectedStore !== ALL_STORES
     || activeFilters.platform !== null
@@ -418,13 +435,10 @@ function SaasOperationsView({
                 No visits scheduled
               </Typography>
             ) : (
-              scheduleGroups.map(grp => {
-                const isToday = grp.key === 'today';
-                return (
-                <Box key={grp.key} sx={{ mb: 1 }}>
-                  {/* 본 테이블의 섹션 헤더(ACTION REQUIRED 등)와 같은 표면·타이포를 쓴다 —
-                      sunken 배경, 위아래 1px divider, 11px/600/0.04em uppercase, muted 카운트.
-                      레일은 폭이 좁아 카운트를 우측 정렬해도 라벨과 멀어지지 않는다. */}
+              scheduleSections.map(sec => (
+                <Box key={sec.key} sx={{ mb: 1.5 }}>
+                  {/* 섹션 헤더 — 방향(지난 것 / 오늘 / 예정)을 여기서 한 번만 말한다.
+                      본 테이블의 섹션 헤더와 같은 표면·타이포를 쓴다. */}
                   <Box
                     sx={{
                       display: 'flex',
@@ -445,79 +459,98 @@ function SaasOperationsView({
                         fontSize: 11,
                         fontWeight: 600,
                         letterSpacing: '0.04em',
-                        color: isToday ? 'primary.dark' : 'text.secondary',
+                        color: sec.isToday ? 'primary.dark' : 'text.secondary',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
-                      {grp.label.toUpperCase()} · {grp.items.length}
+                      {sec.label.toUpperCase()} · {sec.count}
                     </Typography>
                   </Box>
-                  <Box sx={{ pt: 0.5 }}>
-                  {grp.items.length === 0 && (
-                    <Typography sx={{ px: 0.75, py: 0.5, fontSize: 11, color: 'text.secondary' }}>
+
+                  {sec.count === 0 && (
+                    <Typography sx={{ px: 0.75, pt: 0.75, fontSize: 11, color: 'text.secondary' }}>
                       No visits today
                     </Typography>
                   )}
-                  {grp.items.map(inf => {
-                    const alert = railAlertLabel(inf);
-                    return (
-                    <Box
-                      key={inf.id}
-                      data-rail-row={inf.id}
-                      onClick={() => onSelect?.(inf)}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.75,
-                        px: 0.75,
-                        py: 0.375,
-                        borderRadius: '6px',
-                        cursor: onSelect ? 'pointer' : 'default',
-                        backgroundColor: selectedId === inf.id ? 'action.selected' : 'transparent',
-                        '&:hover': { backgroundColor: 'action.hover' },
-                      }}
-                    >
-                      {/* 고정 폭 + nowrap — 접히면 행 높이가 달라지고 이름 시작 위치가 어긋난다 */}
-                      <Typography
-                        sx={{
-                          width: TIME_COL_WIDTH,
-                          flexShrink: 0,
-                          whiteSpace: 'nowrap',
-                          fontSize: 11,
-                          color: 'text.secondary',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {formatVisitTime(inf)}
-                      </Typography>
-                      <Typography
-                        title={inf.fullName || undefined}
-                        sx={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      >
-                        {abbreviateName(inf.fullName)}
-                      </Typography>
-                      {/* 미해결 표시는 점 하나로 충분하다 — 구체적 상태는 오른쪽 목록과
-                          상세 패널이 이미 말한다. 색·모양만으로 전달하지 않도록
-                          상태 문구를 title/aria-label로 붙인다. */}
-                      <Box
-                        sx={{ width: 6, height: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {alert && (
+
+                  {sec.dates.map(day => (
+                    <Box key={day.key} sx={{ pt: 0.5 }}>
+                      {/* 날짜 헤더 — 섹션보다 한 단 약하게. 두 층이 같은 무게면 위계가 사라진다 */}
+                      {day.label && (
+                        <Typography
+                          sx={{
+                            px: 0.75,
+                            fontSize: 10,
+                            lineHeight: 1.5,
+                            fontWeight: 600,
+                            letterSpacing: '0.04em',
+                            color: 'text.secondary',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {day.label.toUpperCase()} · {day.items.length}
+                        </Typography>
+                      )}
+                      {day.items.map(inf => {
+                        const alert = railAlertLabel(inf);
+                        return (
                           <Box
-                            role="img"
-                            aria-label={alert}
-                            title={alert}
-                            sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'warning.main' }}
-                          />
-                        )}
-                      </Box>
+                            key={inf.id}
+                            data-rail-row={inf.id}
+                            onClick={() => onSelect?.(inf)}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.75,
+                              px: 0.75,
+                              // 인덱스라 촘촘해도 된다 — 한 화면에 더 많은 날이 들어온다
+                              py: 0.125,
+                              borderRadius: '4px',
+                              cursor: onSelect ? 'pointer' : 'default',
+                              backgroundColor: selectedId === inf.id ? 'action.selected' : 'transparent',
+                              '&:hover': { backgroundColor: 'action.hover' },
+                            }}
+                          >
+                            {/* 고정 폭 + nowrap — 접히면 행 높이가 달라지고 이름 시작 위치가 어긋난다 */}
+                            <Typography
+                              sx={{
+                                width: TIME_COL_WIDTH,
+                                flexShrink: 0,
+                                whiteSpace: 'nowrap',
+                                fontSize: 11,
+                                lineHeight: 1.5,
+                                color: 'text.secondary',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {formatVisitTime(inf)}
+                            </Typography>
+                            <Typography
+                              title={inf.fullName || undefined}
+                              sx={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            >
+                              {abbreviateName(inf.fullName)}
+                            </Typography>
+                            {/* 미해결 표시는 점 하나로 충분하다 — 구체적 상태는 오른쪽 목록과
+                                상세 패널이 이미 말한다. 색·모양만으로 전달하지 않도록
+                                상태 문구를 title/aria-label로 붙인다. */}
+                            <Box sx={{ width: 6, height: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {alert && (
+                                <Box
+                                  role="img"
+                                  aria-label={alert}
+                                  title={alert}
+                                  sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'warning.main' }}
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                        );
+                      })}
                     </Box>
-                    );
-                  })}
-                  </Box>
+                  ))}
                 </Box>
-                );
-              })
+              ))
             )}
           </Box>
         </Box>

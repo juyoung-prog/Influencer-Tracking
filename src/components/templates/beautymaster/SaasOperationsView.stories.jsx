@@ -200,10 +200,13 @@ export const UpcomingHoldsOnlyFutureVisits = {
 };
 
 /**
- * 레일은 인덱스다 — 한 줄, 시각 + 축약 이름 + 점 하나.
+ * 레일은 인덱스다 — 두 층 헤더 + 한 줄 행.
  *
- * 날짜는 그룹 헤더("JUL 8 · 6")가 말한다. 예전에는 행마다 날짜를 적어서 같은 날이
- * 일곱 줄이면 "Jul 11"이 일곱 번 반복됐다.
+ * 섹션(TODAY / UPCOMING / PAST)이 방향을 한 번만 말하고, 그 아래 날짜 그룹이
+ * "JUL 8 · 6"으로 묶는다. 날짜 그룹만 두면 그 날이 지난 날인지 예정인지 알 수 없고,
+ * 헤더마다 경과일을 적으면 같은 정보가 계속 반복된다.
+ *
+ * 행에는 24시간제 시각만 남는다 — AM/PM이 빠져 폭이 줄고 자릿수가 고정된다.
  *
  * 상태 문구("No visit")를 점으로 되돌린 건 정보를 줄이려는 게 아니다. 구체적 상태는
  * 오른쪽 목록과 상세 패널이 이미 말하므로 레일에서는 "미해결 있음"만 알면 된다.
@@ -221,18 +224,24 @@ export const RailIsAnIndex = {
     const heights = new Set(rows.map(r => Math.round(r.getBoundingClientRect().height)));
     await expect(heights.size).toBe(1);
 
-    // 행에는 날짜가 없다 — 시각만 남는다
+    // 행에는 날짜가 없고, 시각은 24시간제다 (AM/PM 없음)
     for (const row of rows) {
       const time = row.children[0].textContent.trim();
-      await expect(time).toMatch(/^(\d{1,2}:\d{2}\s?(AM|PM)|—)$/);
+      await expect(time).toMatch(/^(\d{2}:\d{2}|—)$/);
     }
 
-    // 그룹 헤더가 "라벨 · 건수" 형태로 날짜를 대신한다
-    const headers = [...rail.querySelectorAll('span')]
+    // 섹션 헤더가 방향을 말한다 — TODAY는 0건이어도 항상 있다
+    const sections = [...rail.querySelectorAll('span')]
       .map(e => e.textContent.trim())
-      .filter(t => /·\s*\d+$/.test(t));
-    await expect(headers.length).toBeGreaterThan(0);
-    await expect(headers.some(h => h.startsWith('TODAY'))).toBe(true);
+      .filter(t => /^(TODAY|UPCOMING|PAST) · \d+$/.test(t));
+    await expect(sections.some(t => t.startsWith('TODAY'))).toBe(true);
+    await expect(sections.some(t => /^(UPCOMING|PAST)/.test(t))).toBe(true);
+
+    // 그 아래 날짜 그룹이 "JUL 8 · 6" 형태로 묶는다
+    const days = [...rail.querySelectorAll('p')]
+      .map(e => e.textContent.trim())
+      .filter(t => /^[A-Z]{3} \d{1,2} · \d+$/.test(t));
+    await expect(days.length).toBeGreaterThan(0);
   },
 };
 
