@@ -51,9 +51,17 @@ export const Default = {
 export const Analytics = {
   args: {
     ...Default.args,
+    // 시트의 Number 탭 구조 그대로 store → tier → category 3단계.
+    // 2단계로 두면 합계가 0이 되어 Responded 단계가 통째로 사라진다.
     inviteCounts: {
-      Duluth: { tier1: 40, tier2: 25 },
-      Atlanta: { tier1: 30, tier2: 20 },
+      Duluth: {
+        tier1: { general: 40, specific: 6, kbeauty: 9 },
+        tier2: { general: 25, specific: 4, kbeauty: 5 },
+      },
+      Atlanta: {
+        tier1: { general: 30, specific: 3, kbeauty: 4 },
+        tier2: { general: 20, specific: 2, kbeauty: 3 },
+      },
     },
     defaultView: 'analytics',
   },
