@@ -148,6 +148,30 @@ export const RailAlertLabels = {
 };
 
 /**
+ * 레일은 날짜와 시각을 함께 보여준다.
+ *
+ * Past 그룹은 여러 날짜가 한 덩어리로 묶여 있어 시각만 있으면 그게 1월인지 10월인지
+ * 알 수 없었다. 동시에, 시트에 시각이 없는 건은 파싱하면 자정이 되는데 그걸
+ * "12:00 AM"으로 보여주면 없는 정보를 만들어내는 것이라 날짜만 쓴다.
+ */
+export const RailShowsDateAndTime = {
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    const cells = [...rail.querySelectorAll('*')]
+      .filter(e => !e.children.length && /^[A-Z][a-z]{2}\s\d/.test(e.textContent.trim()))
+      .map(e => e.textContent.trim());
+    await expect(cells.length).toBeGreaterThan(0);
+
+    // 모든 일정 셀이 날짜로 시작한다
+    for (const c of cells) await expect(c).toMatch(/^[A-Z][a-z]{2} \d{1,2}/);
+    // 시각이 붙은 건이 실제로 있다
+    await expect(cells.some(c => /·\s\d{1,2}:\d{2}\s?(AM|PM)/.test(c))).toBe(true);
+    // 자정을 지어내지 않는다
+    await expect(cells.some(c => /12:00\s?AM/.test(c))).toBe(false);
+  },
+};
+
+/**
  * 섹션 헤더의 수는 그 섹션이 실제로 그린 행 수와 같아야 한다.
  *
  * 예전에는 상단 "Needs attention" 배너가 같은 개념을 다른 모수로 세어 두 숫자가

@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import { expect } from 'storybook/test';
+import { defaultTheme } from '../../styles/themes';
 import InfluencerListRow from './InfluencerListRow';
 import { deriveAlertFlags, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
 
@@ -260,5 +261,64 @@ export const OverdueEmphasis = {
     const m = getComputedStyle(overdue).color.match(/[\d.]+/g).map(Number);
     const [L1, L2] = [lum(m.slice(0, 3)), lum([255, 255, 255])].sort((a, b) => b - a);
     await expect((L1 + 0.05) / (L2 + 0.05)).toBeGreaterThan(4.5);
+  },
+};
+
+/**
+ * 심각도는 3단계다 — 막힘(error) > 지연(warning) > 부가정보(중립).
+ *
+ * 예전엔 stage 라벨 · overdue 수치 · contact 상태가 **모두 앰버**라 한 행에 같은
+ * 경고색이 세 줄 겹쳤고, 그러면 무엇이 급한지 알 수 없어진다.
+ *
+ * 그래서 규칙은 "경고색 한 줄"이 아니라 **"같은 경고색이 두 번 나오지 않는다"**이다.
+ * 앰버(지연) 위에 레드(막힘)가 겹치는 건 정상이다 — 서로 다른 층위라 눈이
+ * 레드 → 앰버 순으로 읽힌다. 문제는 같은 색이 반복돼 층위가 사라지는 것이다.
+ * overdue는 "얼마나"를 말하는 수치라 중립색이다.
+ */
+export const SeverityHierarchy = {
+  name: 'Severity Hierarchy',
+  render: () => {
+    const rows = [
+      make({ id: 'h0', fullName: 'Oh Seulgi', scheduledTime: D('2026-06-28T10:00:00'), attend: true, collaboShared: true, creditShared: true }),
+      make({ id: 'h1', fullName: 'Shin Dahye', scheduledTime: D('2026-07-02T13:00:00'), attend: true, collaboShared: false }),
+      make({ id: 'h2', fullName: 'Choi Yuna', scheduledTime: D('2026-07-10T15:00:00'), attend: false, contactReason: 'reschedule-request', contactStatus: 'pending-reply', lastContactDate: D('2026-07-07') }),
+      make({ id: 'h3', fullName: 'Han Yerin', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'no-response', lastContactDate: D('2026-07-05') }),
+    ];
+    return (
+      <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+        { rows.map(inf => (
+          <InfluencerListRow key={ inf.id } influencer={ inf } onClick={ () => {} } isSelected={ false } />
+        )) }
+      </Box>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const rgb = hex => {
+      const h = hex.replace('#', '');
+      return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
+    };
+    const alertColors = [rgb(defaultTheme.palette.warning.main), rgb(defaultTheme.palette.error.main)];
+
+    const rows = [...canvasElement.querySelectorAll('[data-influencer-id]')];
+    await expect(rows.length).toBe(4);
+
+    let sawAlert = false;
+    for (const row of rows) {
+      const hits = [...row.querySelectorAll('*')]
+        .filter(e => !e.children.length && e.textContent.trim())
+        .map(e => getComputedStyle(e).color)
+        .filter(c => alertColors.includes(c));
+      // 같은 경고색은 한 행에 한 번만 — 이게 무너지면 층위가 사라진다
+      for (const c of alertColors) {
+        await expect(hits.filter(h => h === c).length).toBeLessThanOrEqual(1);
+      }
+      if (hits.length) sawAlert = true;
+    }
+    await expect(sawAlert).toBe(true);   // 전부 무채색이 되어버린 것도 아니다
+
+    // 회신이 끊긴 건은 레드까지 올라간다
+    const urgent = [...canvasElement.querySelectorAll('*')]
+      .find(e => !e.children.length && /no reply/.test(e.textContent));
+    await expect(getComputedStyle(urgent).color).toBe(rgb(defaultTheme.palette.error.main));
   },
 };

@@ -331,6 +331,7 @@ function SaasOperationsView({
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
         {/* Visit schedule — 보조 패널, 자체 스크롤 */}
         <Box
+          data-rail
           sx={{
             width: { xs: '100%', md: RAIL_WIDTH },
             // 좁은 화면에서는 화면을 다 먹지 않도록 높이를 제한하고 안에서 스크롤한다
