@@ -182,7 +182,7 @@ function SaasShell({
       }}
     >
       {/* 레일 자리 확보 — 사이드바가 펼쳐져도 본문이 밀리지 않게 흐름에 폭만 남긴다 */}
-      <Box aria-hidden sx={{ width: RAIL_WIDTH, flexShrink: 0, display: { xs: 'none', md: 'block' } }} />
+      <Box aria-hidden sx={{ width: RAIL_WIDTH, flexShrink: 0 }} />
 
       {/* Sidebar — 하나의 구조. 폭과 라벨 표시만 바뀐다. md 미만 숨김 */}
       <Box
@@ -194,7 +194,7 @@ function SaasShell({
           left: 0,
           width: RAIL_WIDTH,
           zIndex: theme.zIndex.appBar,
-          display: { xs: 'none', md: 'flex' },
+          display: 'flex',
           flexDirection: 'column',
           borderRight: '1px solid',
           borderColor: 'divider',
@@ -218,13 +218,19 @@ function SaasShell({
             overflow: 'hidden',
             transition: theme.transitions.create('opacity', { duration: 150 }),
           },
-          '&:hover, &:focus-within': {
-            width: EXPANDED_WIDTH,
-            backgroundColor: 'background.paper',
-            boxShadow: '4px 0 12px rgba(0, 0, 0, 0.04)',
-            [`& .${WIDTH_CLASS}`]: { width: EXPANDED_ROW_WIDTH },
-            [`& .${LABEL_CLASS}`]: { opacity: 1 },
-            [`& .${SYNC_CLASS}`]: { opacity: 1 },
+          /* 펼침은 마우스가 있는 기기에서만 한다.
+             터치에서는 탭한 뒤 :hover와 :focus-within이 그대로 남아 레일이
+             펼쳐진 채 고정된다 — 390px 화면에서 264px면 화면의 68%를 가린다.
+             터치 기기에서는 56px 아이콘 레일로만 쓴다(라벨은 접근성 이름으로 남는다). */
+          '@media (hover: hover) and (pointer: fine)': {
+            '&:hover, &:focus-within': {
+              width: EXPANDED_WIDTH,
+              backgroundColor: 'background.paper',
+              boxShadow: '4px 0 12px rgba(0, 0, 0, 0.04)',
+              [`& .${WIDTH_CLASS}`]: { width: EXPANDED_ROW_WIDTH },
+              [`& .${LABEL_CLASS}`]: { opacity: 1 },
+              [`& .${SYNC_CLASS}`]: { opacity: 1 },
+            },
           },
           '@media (prefers-reduced-motion: reduce)': {
             transition: 'none',

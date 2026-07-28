@@ -180,3 +180,36 @@ export const Syncing = {
     await expect(refresh).toBeDisabled();
   },
 };
+
+/**
+ * 사이드바는 모든 폭에서 보인다.
+ *
+ * 예전에는 md 미만에서 display:none이었다. 뷰 전환 수단이 이것뿐이라 폰에서는
+ * Operations에 갇혀 Analytics·Workflow·Settings·Refresh에 전혀 닿을 수 없었다.
+ *
+ * 펼침은 마우스가 있는 기기에서만 한다 — 터치에서는 탭한 뒤 :hover와
+ * :focus-within이 남아 레일이 펼쳐진 채 고정되고, 390px 화면에서 264px면
+ * 화면의 68%를 가린다. (hover: hover) 미디어 쿼리는 이 러너에서 흉내낼 수
+ * 없어서, 터치 동작은 실제 터치 뷰포트로 확인했다 — 여기서는 "숨기지 않는다"와
+ * "여섯 컨트롤이 모두 있다"를 지킨다.
+ */
+export const NavIsReachableAtEveryWidth = {
+  play: async ({ canvasElement }) => {
+    const nav = canvasElement.querySelector('nav');
+    await expect(nav).toBeTruthy();
+    await expect(getComputedStyle(nav).display).not.toBe('none');
+
+    // 뷰 3개 + 유틸리티 3개가 모두 조작 가능해야 한다
+    const labels = [...nav.querySelectorAll('button, a')]
+      .map(e => e.textContent.trim())
+      .filter(Boolean);
+    for (const want of ['Operations', 'Analytics', 'Workflow', 'Refresh', 'Open Google Sheet', 'Settings']) {
+      await expect(labels).toContain(want);
+    }
+
+    // 흐름에 자리를 차지하는 spacer도 함께 살아 있어야 본문이 레일 아래로 숨지 않는다
+    const spacer = canvasElement.querySelector('[aria-hidden]');
+    await expect(spacer).toBeTruthy();
+    await expect(getComputedStyle(spacer).display).not.toBe('none');
+  },
+};
