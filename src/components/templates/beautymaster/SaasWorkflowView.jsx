@@ -132,8 +132,8 @@ const FILE_DEFS = [
  */
 function FileCard({ kind, name, desc, href = null, note = '' }) {
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 1.5 }}>
-      <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px', p: 1.5 }}>
+      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>
         {kind}
       </Typography>
       {href ? (
@@ -187,7 +187,7 @@ function TagRow({ files, tools, handoff }) {
     lineHeight: 1.6,
     px: 0.75,
     py: 0.25,
-    borderRadius: '4px',
+    borderRadius: '6px',
     whiteSpace: 'nowrap',
   };
   return (
@@ -301,6 +301,10 @@ function SaasWorkflowView({
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+      {/* 산문 위주의 안내 문서라 한 줄 길이를 읽을 수 있게 폭을 묶고, 넓은 화면에서
+          오른쪽만 비어 보이지 않도록 가운데 정렬한다. 제목·통계·아코디언이 모두
+          이 한 컨테이너 안에 있어야 좌우 기준선이 갈라지지 않는다. */}
+      <Box sx={{ maxWidth: 880, mx: 'auto' }}>
       <Box sx={{ mb: 3 }}>
         <Typography component="h1" sx={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
           Influencer workflow
@@ -328,7 +332,7 @@ function SaasWorkflowView({
         ))}
       </Box>
 
-      <Box sx={{ maxWidth: 800 }}>
+      <Box>
         {PHASES.map(phase => (
           <Accordion
             key={phase.num}
@@ -336,7 +340,7 @@ function SaasWorkflowView({
             sx={{
               border: '1px solid',
               borderColor: 'divider',
-              borderRadius: '8px',
+              borderRadius: '6px',
               mb: 1,
               boxShadow: 'none',
               '&.Mui-expanded': { mb: 1 },
@@ -426,6 +430,7 @@ function SaasWorkflowView({
             note={getFileNote(file, selectedStore)}
           />
         ))}
+      </Box>
       </Box>
       </Box>
     </>

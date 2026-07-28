@@ -8,6 +8,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import SaasKpiItem from './SaasKpiItem';
 import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
 import { ALL_STORES, deriveAnalyticsSummary, deriveStores } from '../../../data/beautymaster/schema.js';
@@ -29,38 +30,6 @@ function SectionTitle({ title, action }) {
         {title}
       </Typography>
       {action}
-    </Box>
-  );
-}
-
-/**
- * SummaryCard — KPI 요약 카드 (border only, no shadow)
- *
- * Props:
- * @param {string} label - 라벨 [Required]
- * @param {string} value - 값 [Required]
- * @param {string} description - 부가 설명 [Optional]
- */
-function SummaryCard({ label, value, description }) {
-  return (
-    <Box
-      sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: '8px',
-        p: 2,
-        minWidth: 120,
-      }}
-    >
-      <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'text.secondary', mb: 0.5 }}>
-        {label}
-      </Typography>
-      <Typography sx={{ fontSize: 24, fontWeight: 600, lineHeight: 1, mb: 0.5, fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </Typography>
-      {description && (
-        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{description}</Typography>
-      )}
     </Box>
   );
 }
@@ -96,7 +65,7 @@ function FunnelBar({ funnel }) {
           <Typography sx={{ width: 80, flexShrink: 0, fontSize: 13, color: 'text.secondary' }}>
             {step.label}
           </Typography>
-          <Box sx={{ flex: 1, height: 18, backgroundColor: 'surface.muted', borderRadius: '4px', overflow: 'hidden' }}>
+          <Box sx={{ flex: 1, height: 18, backgroundColor: 'surface.muted', borderRadius: '6px', overflow: 'hidden' }}>
             <Box
               sx={{
                 width: `${(step.value / max) * 100}%`,
@@ -124,7 +93,7 @@ function FunnelBar({ funnel }) {
  */
 function BreakdownTable({ groupHeader, rows }) {
   return (
-    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}>
+    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
       <Table size="small">
         <TableHead>
           <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75 } }}>
@@ -268,10 +237,12 @@ function SaasAnalyticsView({
       {/* Summary — KPI 카드 행 */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Campaign Summary" />
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <SummaryCard label="Tracked" value={filtered.length} />
-          <SummaryCard label="Visit rate" value={pct(visitRate)} />
-          <SummaryCard label="Upload rate" value={pct(uploadRate)} />
+        {/* Operations와 같은 KPI 스트립 — 카드가 아니라 배경 위에 직접 놓고
+            좌측 divider로만 셀을 나눈다. 같은 지표를 화면마다 다르게 그리지 않는다. */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', rowGap: 2 }}>
+          <SaasKpiItem label="Tracked" value={filtered.length} isFirst />
+          <SaasKpiItem label="Visit rate" value={pct(visitRate)} />
+          <SaasKpiItem label="Upload rate" value={pct(uploadRate)} />
         </Box>
       </Box>
 

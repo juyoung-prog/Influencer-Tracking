@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import { expect, waitFor } from 'storybook/test';
 import SheetSettingsModal from './SheetSettingsModal';
 
 export default {
@@ -143,5 +144,48 @@ export const Trigger = {
         />
       </Box>
     );
+  },
+};
+
+/**
+ * 팝업도 화면과 같은 규격을 써야 한다.
+ *
+ * Dialog는 포털로 <body> 아래 렌더되므로 SaasShell에 건 폰트·컨트롤 규칙이 DOM상
+ * 닿지 않는다. 실제로 이 모달만 Pretendard 16px / 4px radius / floating label로
+ * 리뉴얼 전 Material 스타일이 남아 있었다. 셸 안쪽을 지키는 SingleTypeface 테스트도
+ * 포털 밖이라 잡지 못한다 — 그래서 여기서 따로 본다.
+ *
+ * (canvasElement가 아니라 document에서 찾는다. 포털이라 캔버스 밖에 있다.)
+ */
+export const MatchesDesignSystem = {
+  render: () => <SheetSettingsModal open onClose={() => {}} onSave={() => {}} />,
+  play: async () => {
+    const paper = await waitFor(() => {
+      const el = document.querySelector('.MuiDialog-paper');
+      if (!el) throw new Error('dialog not mounted');
+      return el;
+    });
+
+    const fonts = new Set();
+    const sizes = new Set();
+    for (const el of paper.querySelectorAll('*')) {
+      if (el.children.length || !el.textContent.trim()) continue;
+      const cs = getComputedStyle(el);
+      fonts.add(cs.fontFamily.split(',')[0].replace(/"/g, '').trim());
+      sizes.add(parseFloat(cs.fontSize));
+    }
+
+    // 서체는 하나 — 화면과 같은 Inter
+    await expect([...fonts]).toEqual(['Inter Variable']);
+
+    // 글자 크기는 화면이 쓰는 단계 안에 있어야 한다.
+    // floating label이 scale(0.75)로 줄어 9.75px가 되던 것이 여기서 걸린다.
+    for (const size of sizes) await expect(size).toBeGreaterThanOrEqual(11);
+
+    // 입력 높이·radius는 Operations 툴바와 같은 36px / 6px
+    for (const input of paper.querySelectorAll('.MuiInputBase-root')) {
+      await expect(Math.round(input.getBoundingClientRect().height)).toBe(36);
+      await expect(getComputedStyle(input).borderRadius).toBe('6px');
+    }
   },
 };

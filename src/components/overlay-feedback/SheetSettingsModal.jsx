@@ -6,11 +6,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import { SAAS_FONT } from '../templates/beautymaster/SaasShell';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
 import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
@@ -58,6 +58,33 @@ function toCsvUrl(url) {
 
 function emptySource() {
   return { label: '', processingUrl: '', doneUrl: '' };
+}
+
+/**
+ * Field — 라벨을 필드 위에 고정으로 두는 입력 래퍼.
+ *
+ * MUI 기본 floating label은 shrink 시 scale(0.75)로 줄어 9.75px가 되고, notch 폭이
+ * 라벨 크기에 묶여 있어 크기를 바꾸면 글자가 테두리를 파고든다. 앱의 다른 화면에는
+ * floating label이 아예 없으므로 그 관용구를 버리고 라벨을 위에 고정한다.
+ *
+ * Props:
+ * @param {string} label - 필드 라벨 [Required]
+ * @param {boolean} isRequired - 필수 표시(*) 여부 [Optional, 기본값: false]
+ * @param {object} sx - 래퍼 Box에 적용할 sx [Optional]
+ * @param {node} children - 입력 컨트롤 [Required]
+ *
+ * Example usage:
+ * <Field label="Label"><TextField size="small" /></Field>
+ */
+function Field({ label, isRequired = false, sx, children }) {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, ...sx }}>
+      <Typography component="label" sx={{ fontSize: 11, fontWeight: 500, color: 'text.secondary' }}>
+        {label}{isRequired && ' *'}
+      </Typography>
+      {children}
+    </Box>
+  );
 }
 
 /**
@@ -156,8 +183,40 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 6 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: {
+            /* Dialog는 포털로 <body> 아래 렌더되므로 SaasShell에 건 폰트·컨트롤 규칙이
+               DOM상 닿지 않는다. 같은 규격을 여기 한 곳에서 다시 건다 —
+               컨트롤마다 sx를 흩뿌리면 다음에 또 갈라진다. */
+            fontFamily: SAAS_FONT,
+            borderRadius: '6px',
+            '& .MuiTypography-root, & .MuiButton-root, & .MuiInputBase-root, & .MuiFormLabel-root, & .MuiFormHelperText-root': {
+              fontFamily: 'inherit',
+            },
+            // 폼 요소는 font-family를 상속하지 않고 UA 기본값을 쓴다
+            '& button, & input, & select, & textarea': { fontFamily: 'inherit' },
+
+            // 입력 규격을 Operations 툴바와 맞춘다 (36px / 6px / 13px)
+            '& .MuiInputBase-root': { borderRadius: '6px', fontSize: 13, minHeight: 36 },
+            '& .MuiInputLabel-root': { fontSize: 13 },
+            '& .MuiFormHelperText-root': { fontSize: 11, marginLeft: 0 },
+
+            // 버튼도 flat — 대문자 변환·그림자 없음
+            '& .MuiButton-root': { textTransform: 'none', fontSize: 13, fontWeight: 500, borderRadius: '6px' },
+            // 선·글자는 primary.dark — 순수 #0000FF는 흰 배경 위에서 가장자리가 떨린다.
+            // 채워진 Save 버튼은 면이라 브랜드색 그대로 둔다.
+            '& .MuiButton-textPrimary, & .MuiButton-outlinedPrimary': { color: 'primary.dark' },
+          },
+        },
+      }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 6, fontSize: 14, fontWeight: 600, py: 1.75 }}>
         <SettingsOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
         Google Sheets Settings
         <IconButton onClick={onClose} size="small" sx={{ position: 'absolute', right: 12, top: 12 }}>
@@ -186,21 +245,22 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
               sx={{
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: 1,
+                borderRadius: '6px',
                 p: 2,
                 mb: 1.5,
               }}
             >
               {/* Source header */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                <TextField
-                  label="Label"
-                  placeholder="GA, FL, G10…"
-                  value={src.label}
-                  onChange={e => updateSource(idx, 'label', e.target.value)}
-                  size="small"
-                  sx={{ width: 120 }}
-                />
+                <Field label="Label">
+                  <TextField
+                    placeholder="GA, FL, G10…"
+                    value={src.label}
+                    onChange={e => updateSource(idx, 'label', e.target.value)}
+                    size="small"
+                    sx={{ width: 120 }}
+                  />
+                </Field>
                 {sources.length > 1 && (
                   <IconButton
                     size="small"
@@ -213,37 +273,36 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
               </Box>
 
               {/* Processing URL */}
-              <TextField
-                label="Processing tab URL"
-                placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml"
-                value={src.processingUrl}
-                onChange={e => updateSource(idx, 'processingUrl', e.target.value)}
-                fullWidth
-                size="small"
-                required
-                sx={{ mb: 0.5 }}
-                helperText={csvUrl
-                  ? `→ ${csvUrl}`
-                  : src.processingUrl ? 'URL 형식을 확인하세요' : '탭 우클릭 → 링크 복사'}
-                error={Boolean(src.processingUrl && !csvUrl)}
-                FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
-              />
+              <Field label="Processing tab URL" isRequired sx={{ mb: 0.5 }}>
+                <TextField
+                  placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml"
+                  value={src.processingUrl}
+                  onChange={e => updateSource(idx, 'processingUrl', e.target.value)}
+                  fullWidth
+                  size="small"
+                  helperText={csvUrl
+                    ? `→ ${csvUrl}`
+                    : src.processingUrl ? 'URL 형식을 확인하세요' : '탭 우클릭 → 링크 복사'}
+                  error={Boolean(src.processingUrl && !csvUrl)}
+                  FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } }}
+                />
+              </Field>
 
               {/* Done URL */}
-              <TextField
-                label="Done tab URL (optional)"
-                placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
-                value={src.doneUrl}
-                onChange={e => updateSource(idx, 'doneUrl', e.target.value)}
-                fullWidth
-                size="small"
-                sx={{ mb: 1.5, mt: 1 }}
-                helperText={doneCsv
-                  ? `→ ${doneCsv}`
-                  : src.doneUrl ? 'URL 형식을 확인하세요' : '없으면 비워두세요'}
-                error={Boolean(src.doneUrl && !doneCsv)}
-                FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
-              />
+              <Field label="Done tab URL (optional)" sx={{ mb: 1.5, mt: 1 }}>
+                <TextField
+                  placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
+                  value={src.doneUrl}
+                  onChange={e => updateSource(idx, 'doneUrl', e.target.value)}
+                  fullWidth
+                  size="small"
+                  helperText={doneCsv
+                    ? `→ ${doneCsv}`
+                    : src.doneUrl ? 'URL 형식을 확인하세요' : '없으면 비워두세요'}
+                  error={Boolean(src.doneUrl && !doneCsv)}
+                  FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } }}
+                />
+              </Field>
 
               {/* Test row */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -290,68 +349,62 @@ function SheetSettingsModal({ open, onClose, config = null, onSave, stores = [] 
         <Divider sx={{ mb: 2 }} />
 
         {/* Invite counts (Number tab) */}
-        <TextField
-          label="Invite counts tab URL (optional)"
-          placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
-          value={inviteCountsUrl}
-          onChange={e => setInviteCountsUrl(e.target.value)}
-          fullWidth
-          size="small"
-          sx={{ mb: 2.5 }}
-          helperText={inviteCountsCsvUrl
-            ? `→ ${inviteCountsCsvUrl}`
-            : inviteCountsUrl ? 'URL 형식을 확인하세요' : '스토어×티어×카테고리별 초대 인원 "Number" 탭. 없으면 비워두세요'}
-          error={Boolean(inviteCountsUrl && !inviteCountsCsvUrl)}
-          FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
-        />
+        <Field label="Invite counts tab URL (optional)" sx={{ mb: 2.5 }}>
+          <TextField
+            placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
+            value={inviteCountsUrl}
+            onChange={e => setInviteCountsUrl(e.target.value)}
+            fullWidth
+            size="small"
+            helperText={inviteCountsCsvUrl
+              ? `→ ${inviteCountsCsvUrl}`
+              : inviteCountsUrl ? 'URL 형식을 확인하세요' : '스토어×티어×카테고리별 초대 인원 "Number" 탭. 없으면 비워두세요'}
+            error={Boolean(inviteCountsUrl && !inviteCountsCsvUrl)}
+            FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } }}
+          />
+        </Field>
 
         {/* Message templates (Messages tab) */}
-        <TextField
-          label="Messages tab URL (optional)"
-          placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
-          value={messageTemplatesUrl}
-          onChange={e => setMessageTemplatesUrl(e.target.value)}
-          fullWidth
-          size="small"
-          sx={{ mb: 2.5 }}
-          helperText={messageTemplatesCsvUrl
-            ? `→ ${messageTemplatesCsvUrl}`
-            : messageTemplatesUrl ? 'URL 형식을 확인하세요' : '편집 가능한 발신 메시지 템플릿 "Messages" 탭. 없으면 기본 템플릿 사용'}
-          error={Boolean(messageTemplatesUrl && !messageTemplatesCsvUrl)}
-          FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' } }}
-        />
+        <Field label="Messages tab URL (optional)" sx={{ mb: 2.5 }}>
+          <TextField
+            placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml?gid=…"
+            value={messageTemplatesUrl}
+            onChange={e => setMessageTemplatesUrl(e.target.value)}
+            fullWidth
+            size="small"
+            helperText={messageTemplatesCsvUrl
+              ? `→ ${messageTemplatesCsvUrl}`
+              : messageTemplatesUrl ? 'URL 형식을 확인하세요' : '편집 가능한 발신 메시지 템플릿 "Messages" 탭. 없으면 기본 템플릿 사용'}
+            error={Boolean(messageTemplatesUrl && !messageTemplatesCsvUrl)}
+            FormHelperTextProps={{ sx: { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } }}
+          />
+        </Field>
 
         {/* Global settings */}
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel>Polling interval</InputLabel>
-            <Select
-              value={interval}
-              label="Polling interval"
-              onChange={e => setInterval(e.target.value)}
-            >
-              {INTERVAL_OPTIONS.map(o => (
-                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>How often to check for updates</FormHelperText>
-          </FormControl>
-
-          {stores.length > 0 && (
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>Default store</InputLabel>
-              <Select
-                value={defaultStore}
-                label="Default store"
-                onChange={e => setDefaultStore(e.target.value)}
-              >
-                <MenuItem value="all">All Stores</MenuItem>
-                {stores.map(s => (
-                  <MenuItem key={s} value={s}>{s}</MenuItem>
+          <Field label="Polling interval">
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select value={interval} onChange={e => setInterval(e.target.value)}>
+                {INTERVAL_OPTIONS.map(o => (
+                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
                 ))}
               </Select>
-              <FormHelperText>Filter on app open</FormHelperText>
+              <FormHelperText>How often to check for updates</FormHelperText>
             </FormControl>
+          </Field>
+
+          {stores.length > 0 && (
+            <Field label="Default store">
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <Select value={defaultStore} onChange={e => setDefaultStore(e.target.value)}>
+                  <MenuItem value="all">All Stores</MenuItem>
+                  {stores.map(s => (
+                    <MenuItem key={s} value={s}>{s}</MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>Filter on app open</FormHelperText>
+              </FormControl>
+            </Field>
           )}
         </Box>
       </DialogContent>
