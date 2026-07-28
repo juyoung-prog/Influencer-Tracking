@@ -54,6 +54,11 @@ const STATUS_TABS = [
  */
 const CONTENT_PX = 3;
 
+/** Visit schedule 레일 폭 */
+const RAIL_WIDTH = 236;
+/** 레일과 목록 사이 거터 (theme.spacing 단위) */
+const RAIL_GUTTER = 2;
+
 /**
  * 24px 인셋으로 그어지는 divider.
  *
@@ -306,17 +311,23 @@ function SaasOperationsView({
         </Alert>
       )}
 
-      {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외) */}
+      {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
+          레일+거터 위에 걸쳐 있어 프레임 기준으로 두면 아래 목록보다 훨씬 왼쪽에서 시작한다.
+          레일 폭 + 거터만큼 더 들여 목록 컬럼과 같은 세로선에 맞춘다(레일이 숨는 md 미만은 제외). */}
       <Box
-        sx={{
+        sx={theme => ({
           flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           flexWrap: 'wrap',
           rowGap: 2,
-          px: 3,
+          pl: {
+            xs: theme.spacing(CONTENT_PX),
+            md: `calc(${RAIL_WIDTH}px + ${theme.spacing(RAIL_GUTTER)} + ${theme.spacing(CONTENT_PX)})`,
+          },
+          pr: CONTENT_PX,
           py: 2,
-        }}
+        })}
       >
         <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
         <SaasKpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
@@ -355,11 +366,11 @@ function SaasOperationsView({
       {/* 본문 — Visit schedule 레일 + 목록, 한 화면에 나란히.
           gap으로 16px 거터를 둬 두 영역이 하나의 표처럼 붙어 보이지 않게 한다.
           구분은 거터(여백) + 레일 우측의 얇은 divider가 함께 만든다. */}
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: RAIL_GUTTER }}>
         {/* Visit schedule — 좌측 고정 레일(보조 패널), 자체 스크롤 */}
         <Box
           sx={{
-            width: 236,
+            width: RAIL_WIDTH,
             flexShrink: 0,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
