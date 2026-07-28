@@ -281,10 +281,18 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
   const result = [];
 
   for (const row of rows) {
-    const fullName = row['full name'] || '';
+    const rawName = (row['full name'] || '').trim();
+    const socialHandle = (row['social account'] || '').trim();
 
-    // Rows without a full name are either blank rows or section dividers
-    if (!fullName) {
+    /* 이름 칸이 비었다고 전부 빈 줄은 아니다.
+       Done 탭에 이름만 안 적힌 실제 방문 기록이 있었다 — 바코드·소셜 계정·방문일이
+       있고 attend가 TRUE인데, "이름 없음 = 빈 줄"로 보고 통째로 버려서
+       인원·방문·업로드 집계가 그만큼 적게 나왔다.
+
+       소셜 계정이 있으면 사람을 특정할 수 있으므로 그 계정을 이름 자리에 쓴다.
+       (실데이터 기준 이 조건에 걸리는 행은 2건이고, 나머지 963개 빈 줄은 그대로 걸러진다.) */
+    const isMarkerOrBlank = !rawName && !socialHandle;
+    if (isMarkerOrBlank) {
       const allVals = Object.values(row).join(' ').toLowerCase();
       if (allVals.includes('done')) {
         currentStatus = SHEET_STATUS.DONE;
@@ -294,6 +302,8 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       }
       continue;
     }
+
+    const fullName = rawName || socialHandle;
 
     const barcode = row['barcode'] || '';
     const rawTime = TIME_KEYS.map(k => row[k]).find(v => v) || '';
@@ -311,6 +321,8 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       creditType: row['type'] || '',
       imageUrl: row['image'] || '',
       fullName,
+      /** 시트의 full name 칸에 값이 있었는지. false면 소셜 계정을 이름 자리에 쓴 것이다 */
+      hasFullName: Boolean(rawName),
       socialAccountUrl: resolveSocialUrl(fullName, row['social account'], row['platform'] || ''),
       email: row['email'] || '',
       scheduledTime,

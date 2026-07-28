@@ -96,7 +96,8 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {'general'|'kbeauty'|'specific'} category
  * @property {string} creditType
  * @property {string} imageUrl
- * @property {string} fullName
+ * @property {string} fullName - 시트에 이름이 없으면 소셜 계정을 대신 쓴다
+ * @property {boolean} hasFullName - 이름 칸에 실제 값이 있었는지
  * @property {string} socialAccountUrl
  * @property {string} email
  * @property {Date|null} scheduledTime
@@ -585,6 +586,7 @@ export function createInfluencer(overrides = {}) {
     creditType: '',
     imageUrl: '',
     fullName: '',
+    hasFullName: true,
     socialAccountUrl: '',
     email: '',
     scheduledTime: null,
