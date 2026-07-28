@@ -310,8 +310,13 @@ function SaasOperationsView({
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
-            borderRight: { xs: 'none', md: '1px solid' },
-            borderBottom: { xs: '1px solid', md: 'none' },
+            // shorthand(border-right: '1px solid')를 반응형으로 주면 색이 빠진 선언이라
+            // border-color가 currentColor로 리셋돼 선이 거의 검정으로 나온다.
+            // longhand로 나눠 굵기만 브레이크포인트별로 바꾸고 색은 divider로 고정한다.
+            borderRightWidth: { xs: 0, md: '1px' },
+            borderBottomWidth: { xs: '1px', md: 0 },
+            borderRightStyle: 'solid',
+            borderBottomStyle: 'solid',
             borderColor: 'divider',
             minHeight: 0,
           }}
