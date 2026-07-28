@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import { expect } from 'storybook/test';
 import InfluencerListRow from './InfluencerListRow';
 import { deriveAlertFlags, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
 
@@ -232,4 +233,31 @@ export const TimeNotSet = {
       />
     </Box>
   ),
+};
+
+/**
+ * 위험 신호 대비 — "Nd overdue"는 이 행에서 가장 중요한 신호인데
+ * 이전에는 text.disabled(2.68:1)로 가장 흐렸다. warning.main(5.93:1)으로 올려
+ * WCAG AA를 통과시키고 위계를 뒤집었다. 아바타도 1.88 → 5.59:1.
+ */
+export const OverdueEmphasis = {
+  render: () => (
+    <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+      <InfluencerListRow
+        influencer={make({ id: 'x', fullName: 'Shin Dahye', scheduledTime: D('2026-05-02T13:00:00'), attend: false })}
+        onClick={() => {}}
+      />
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const overdue = [...canvasElement.querySelectorAll('span,p')]
+      .find(e => /\d+d overdue/.test(e.textContent) && !e.children.length);
+    await expect(overdue).toBeTruthy();
+
+    // 대비 4.5:1 이상 (흰 배경 기준)
+    const lum = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const m = getComputedStyle(overdue).color.match(/[\d.]+/g).map(Number);
+    const [L1, L2] = [lum(m.slice(0, 3)), lum([255, 255, 255])].sort((a, b) => b - a);
+    await expect((L1 + 0.05) / (L2 + 0.05)).toBeGreaterThan(4.5);
+  },
 };

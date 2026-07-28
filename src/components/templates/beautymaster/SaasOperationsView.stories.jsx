@@ -121,3 +121,51 @@ export const NarrowViewport = {
     await expect(rail).toBeVisible();
   },
 };
+
+/**
+ * 레일 상태 표시 — 경보가 있는 행은 이름 아래 짧은 상태 문구가 붙는다.
+ * 이전에는 색 점(•) 하나로 "경보 있음"만 알렸는데, 어떤 문제인지 알 수 없고
+ * 색·모양으로만 전달돼 텍스트 대체물이 없었다(WCAG 1.4.1).
+ */
+export const RailAlertLabels = {
+  play: async ({ canvasElement }) => {
+    const rail = [...canvasElement.querySelectorAll('p')]
+      .find(p => p.textContent.trim() === 'VISIT SCHEDULE').parentElement;
+
+    // 색 점은 더 이상 쓰지 않는다
+    const dots = [...rail.querySelectorAll('div')].filter(d => {
+      const s = getComputedStyle(d);
+      return s.borderRadius === '50%' && parseFloat(s.width) <= 6;
+    });
+    await expect(dots).toHaveLength(0);
+
+    // 대신 상태 문구가 보인다
+    const labels = [...rail.querySelectorAll('p')]
+      .map(p => p.textContent.trim())
+      .filter(t => ['No visit', 'No upload', 'No credit', 'No-show', 'Reschedule'].includes(t));
+    await expect(labels.length).toBeGreaterThan(0);
+  },
+};
+
+/**
+ * Needs attention 배너와 ACTION REQUIRED 섹션은 **같은 목록**에서 센다.
+ * KPI 모수로 세면 상태 탭·검색을 걸었을 때 갈라지는데, Review가 그 섹션으로 가는
+ * 동작이라 다른 수를 말하면 안 된다.
+ */
+export const CountsStayInSync = {
+  play: async ({ canvasElement }) => {
+    const read = () => {
+      const t = canvasElement.innerText;
+      return [t.match(/Needs attention — (\d+)/)?.[1], t.match(/ACTION REQUIRED\s*(\d+)/)?.[1]];
+    };
+    const [b1, s1] = read();
+    await expect(b1).toBe(s1);
+
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Processing' }));
+    await waitFor(async () => {
+      const [b2, s2] = read();
+      await expect(b2).toBe(s2);
+    });
+  },
+};
