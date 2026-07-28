@@ -132,7 +132,8 @@ function buildScheduleGroups(influencers) {
  *
  * flat-SaaS 시안 Operations 뷰 — 기존 대시보드 Operations 탭(SchedulePanel + InfluencerPanel)과
  * 같은 구성: Visit schedule 레일과 인플루언서 목록이 한 화면에 나란히 있고, 각자 스크롤한다.
- * 상단은 KPI 스트립(배경 직접 배치) + Needs attention 배너(Review 클릭 시 목록을 attention으로 필터).
+ * KPI 스트립(배경 직접 배치) + Needs attention 배너는 목록 컬럼 안 최상단에 있다 —
+ * 레일 위에 걸치면 세로 경계선이 KPI 아래에서야 시작해 KPI만 떠 보인다.
  * 목록은 Action required / Upcoming / Completed 섹션으로 나뉘고, 각 섹션은 접을 수 있다.
  * 행은 컬럼으로 흩뿌리지 않고 InfluencerListRow의 요약 행(아바타+이름·시간·카테고리 /
  * 티어·플랫폼 / 상태·overdue·연락사유)으로 한 사람 정보를 한 덩어리로 읽게 한다.
@@ -311,57 +312,6 @@ function SaasOperationsView({
         </Alert>
       )}
 
-      {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
-          레일+거터 위에 걸쳐 있어 프레임 기준으로 두면 아래 목록보다 훨씬 왼쪽에서 시작한다.
-          레일 폭 + 거터만큼 더 들여 목록 컬럼과 같은 세로선에 맞춘다(레일이 숨는 md 미만은 제외). */}
-      <Box
-        sx={theme => ({
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          rowGap: 2,
-          pl: {
-            xs: theme.spacing(CONTENT_PX),
-            md: `calc(${RAIL_WIDTH}px + ${theme.spacing(RAIL_GUTTER)} + ${theme.spacing(CONTENT_PX)})`,
-          },
-          pr: CONTENT_PX,
-          py: 2,
-        })}
-      >
-        <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
-        <SaasKpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
-        <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
-        <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
-
-        {kpi.alertCount > 0 && (
-          <Box
-            sx={theme => ({
-              ml: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-              px: 1.5,
-              py: 0.875,
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: alpha(theme.palette.warning.main, 0.32),
-              backgroundColor: alpha(theme.palette.warning.main, 0.06),
-            })}
-          >
-            <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-              Needs attention — {kpi.alertCount}
-            </Typography>
-            <Button
-              size="small"
-              onClick={() => setStageFilter('attention')}
-              sx={{ textTransform: 'none', fontSize: 13, fontWeight: 600, minWidth: 0, py: 0 }}
-            >
-              Review →
-            </Button>
-          </Box>
-        )}
-      </Box>
 
       {/* 본문 — Visit schedule 레일 + 목록, 한 화면에 나란히.
           gap으로 16px 거터를 둬 두 영역이 하나의 표처럼 붙어 보이지 않게 한다.
@@ -374,7 +324,6 @@ function SaasOperationsView({
             flexShrink: 0,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
-            borderTop: '1px solid',
             borderRight: '1px solid',
             borderColor: 'divider',
             minHeight: 0,
@@ -502,6 +451,53 @@ function SaasOperationsView({
 
         {/* 목록 — 툴바 + 섹션 구분 테이블, 자체 스크롤 */}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* KPI 스트립 — 배경 위 직접 배치, 카드 없음 (Total 제외).
+            목록 컬럼 안에 있으므로 툴바·탭·섹션과 같은 인셋을 쓴다.
+            덕분에 레일과의 세로 경계선이 화면 위끝까지 끊기지 않고 이어진다. */}
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            rowGap: 2,
+            px: CONTENT_PX,
+            py: 2,
+          }}
+        >
+          <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
+          <SaasKpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
+          <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
+          <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
+
+          {kpi.alertCount > 0 && (
+            <Box
+              sx={theme => ({
+                ml: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.25,
+                px: 1.5,
+                py: 0.875,
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: alpha(theme.palette.warning.main, 0.32),
+                backgroundColor: alpha(theme.palette.warning.main, 0.06),
+              })}
+            >
+              <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                Needs attention — {kpi.alertCount}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => setStageFilter('attention')}
+                sx={{ textTransform: 'none', fontSize: 13, fontWeight: 600, minWidth: 0, py: 0 }}
+              >
+                Review →
+              </Button>
+            </Box>
+          )}
+        </Box>
           <Box
             sx={theme => ({
               flexShrink: 0,
