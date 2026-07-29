@@ -265,7 +265,7 @@ function SaasShell({
             component="img"
             src={ logoUrl }
             alt="BeautyMaster"
-            sx={{ width: LOGO_SIZE, height: LOGO_SIZE, flexShrink: 0, borderRadius: '5px', display: 'block' }}
+            sx={{ width: LOGO_SIZE, height: LOGO_SIZE, flexShrink: 0, borderRadius: '6px', display: 'block' }}
           />
           <Typography className={LABEL_CLASS} sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>
             Influencer Tracking Dashboard

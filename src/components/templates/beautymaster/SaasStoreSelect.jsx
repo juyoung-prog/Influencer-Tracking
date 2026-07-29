@@ -29,6 +29,8 @@ function SaasStoreSelect({ stores, value = ALL_STORES, onChange, sx }) {
       size="small"
       sx={{
         height: 36,
+        // 선택한 매장 이름 길이에 따라 폭이 변하면 옆의 칩들이 밀린다
+        minWidth: 120,
         fontSize: 12,
         borderRadius: '6px',
         backgroundColor: 'background.paper',

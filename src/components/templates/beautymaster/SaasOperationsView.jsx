@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -311,6 +311,8 @@ function SaasOperationsView({
     });
   }, [scoped, statusFilter, searchQuery]);
 
+  const listScrollerRef = useRef(null);
+
   const isSearching = searchQuery.trim() !== '';
 
   const sections = useMemo(() => {
@@ -360,6 +362,26 @@ function SaasOperationsView({
   const scheduleSections = useMemo(() => buildScheduleSections(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
   const hasScheduledVisit = scheduleSections.some(sec => sec.count > 0);
+  /* 레일에서 고른 사람이 목록에서도 보이게 한다.
+     선택하면 행이 강조되지만 목록이 수백 줄이라 화면 밖에 남는 경우가 많았다 —
+     실측에서 강조된 행이 2429px 아래에 있었다. 드로어는 열리므로 누구인지는 알지만,
+     닫고 나면 그 사람이 목록 어디에 있었는지 알 수 없다.
+
+     접힌 구간에 있으면 먼저 펼치고, 펼쳐진 다음 렌더에서 스크롤한다. */
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const row = listScrollerRef.current?.querySelector(`[data-influencer-id="${CSS.escape(selectedId)}"]`);
+    if (!row) return;
+
+    // 이미 보이면 건드리지 않는다 — 목록에서 직접 고른 경우 화면이 튀면 안 된다
+    const view = listScrollerRef.current.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    if (box.top >= view.top && box.bottom <= view.bottom) return;
+
+    row.scrollIntoView({ block: 'center' });
+  }, [selectedId, sections]);
+
   const hasFilter = statusFilter !== 'all'
     || selectedStore !== ALL_STORES
     || activeFilters.platform !== null
@@ -798,7 +820,7 @@ function SaasOperationsView({
           </Box>
           </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', pb: 2 }}>
+          <Box ref={ listScrollerRef } sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}
@@ -828,11 +850,13 @@ function SaasOperationsView({
             )}
 
             {!showSkeleton && sections.map(section => {
-              /* 검색 중에는 접힘을 무시한다.
-                 검색은 특정 인물을 찾는 동작인데, 결과가 접힌 구간에 들어가면
+              /* 검색 중이거나 그 구간에 선택된 사람이 있으면 접힘을 무시한다.
+                 둘 다 "특정 인물을 보려는" 동작인데, 대상이 접힌 구간에 들어가면
                  "COMPLETED 1"만 보이고 행은 하나도 안 보인다 — 찾았는데 안 보인다.
-                 접힘 상태 자체는 유지해서 검색어를 지우면 원래대로 돌아온다. */
-              const isCollapsed = !isSearching && collapsedSections.has(section.key);
+                 접힘 상태 자체는 유지해서 검색어를 지우면 원래대로 돌아온다.
+                 (이펙트에서 setState로 펼치면 렌더가 연쇄된다 — 여기서 계산한다.) */
+              const holdsSelection = selectedId != null && section.items.some(inf => inf.id === selectedId);
+              const isCollapsed = !isSearching && !holdsSelection && collapsedSections.has(section.key);
               return (
                 <Box
                   key={section.key}

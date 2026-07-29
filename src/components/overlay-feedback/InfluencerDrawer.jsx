@@ -62,6 +62,11 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
             /* Drawer도 포털로 <body> 아래 렌더돼 SaasShell의 폰트·크기 규칙이 닿지 않는다.
                고치기 전에는 Pretendard와 Outfit 두 서체가 섞여 나왔다.
                모달과 같은 방식으로 한 곳에서 규격을 건다. */
+            /* 폭을 내용에 맡기면 긴 이메일·프로필 URL 하나가 패널을 늘려서
+               사람마다 드로어 폭이 달라진다. 폭은 여기서 정하고, 끊을 곳 없는
+               긴 토큰은 링크 쪽에서 줄바꿈시킨다. */
+            width: { xs: '100%', sm: 420 },
+            '& a': { overflowWrap: 'anywhere' },
             fontFamily: SAAS_FONT,
             '& .MuiTypography-root, & .MuiButton-root, & .MuiChip-root, & .MuiAvatar-root': {
               fontFamily: 'inherit',

@@ -183,9 +183,17 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
       <Typography
         variant="caption"
         color="text.secondary"
+        title={`${tier === 'tier2' ? 'T2' : 'T1'} · ${platform}`}
         sx={{
           flex: '0 0 100px',
+          /* flex 항목의 기본 min-width:auto는 nowrap 내용의 최소 폭을 하한으로 잡는다.
+             그래서 "T1 · Tiktok, Instagram"처럼 긴 값이 들어오면 100px 기준을 무시하고
+             126px로 늘어나, 그 행만 컬럼 시작점이 26px 왼쪽으로 밀렸다.
+             0으로 풀어 기준 폭을 지키게 하고, 넘치는 값은 줄임표로 처리한다(전체는 title에). */
+          minWidth: 0,
           whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
           flexShrink: 0,
           // 접힌 줄에서는 아바타 폭(28) + gap(16)만큼 들여써서 이름과 세로선을 맞춘다
           '@container (max-width: 420px)': { flex: '0 0 auto', marginLeft: '44px' },

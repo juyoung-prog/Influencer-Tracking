@@ -27,10 +27,12 @@ const pct = rate => `${Math.round((rate || 0) * 100)}%`;
 function SectionTitle({ title, action }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-      <Typography component="h2" sx={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
+      {/* 퍼널 제목은 데이터에서 만들어져 길이가 변한다. 액션이 밀리거나
+          두 줄이 된 제목에 세로 중앙 정렬돼 어긋나지 않도록 몫을 나눠 둔다. */}
+      <Typography component="h2" sx={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
         {title}
       </Typography>
-      {action}
+      <Box sx={{ flexShrink: 0 }}>{action}</Box>
     </Box>
   );
 }
@@ -540,7 +542,10 @@ function SaasAnalyticsView({
           (전에는 "Tier"가 섹션 제목·소제목·컬럼 헤더에 세 번 나왔다). */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Breakdown" />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 3, alignItems: 'start' }}>
+        {/* 표가 정확히 3개다. auto-fit을 쓰면 넓은 화면에서 트랙이 5개까지 생겨
+            빈 칸이 남고, 2열로 두면 좁은 구간에서 세 번째 표만 혼자 떨어진다.
+            md부터 3열로 고정하고 그 아래는 한 줄씩 쌓는다. */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 3, alignItems: 'start' }}>
           <BreakdownTable groupHeader="Platform" rows={Object.entries(summary.byPlatform || {}).map(([p, st]) => ({ label: p, ...st }))} />
           <BreakdownTable groupHeader="Category" rows={Object.entries(summary.byCategory || {}).map(([c, st]) => ({ label: c, ...st }))} />
           <BreakdownTable groupHeader="Tier" rows={tierRows} />
