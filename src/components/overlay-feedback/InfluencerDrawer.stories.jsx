@@ -163,3 +163,39 @@ export const MatchesDesignSystem = {
     await expect([...fonts]).toEqual(['Inter Variable']);
   },
 };
+
+/**
+ * 드로어 폭은 내용이 아니라 계약이 정한다.
+ *
+ * 폭 지정이 없으면 긴 이메일이나 프로필 URL 하나가 패널을 늘려서 사람마다
+ * 드로어 폭이 달라진다. 끊을 곳 없는 긴 토큰은 링크 쪽에서 줄바꿈시킨다.
+ */
+export const WidthIsFixedRegardlessOfContent = {
+  render: () => (
+    <InfluencerDrawer
+      influencer={ {
+        ...fullInfluencer,
+        fullName: 'Very Long Name Person',
+        email: 'a.very.long.email.address.that.never.breaks@an-extremely-long-domain-name.example.com',
+        socialAccountUrl: 'https://www.instagram.com/an_extremely_long_handle_that_will_not_wrap_on_its_own/',
+      } }
+      open
+      onClose={ () => {} }
+      templates={ DEFAULT_MESSAGE_TEMPLATES }
+    />
+  ),
+  play: async () => {
+    const paper = await waitFor(() => {
+      const el = document.querySelector('.MuiDrawer-paper');
+      if (!el) throw new Error('drawer not mounted');
+      return el;
+    });
+
+    await expect(Math.round(paper.getBoundingClientRect().width)).toBe(420);
+
+    // 긴 토큰이 패널을 밀지 않는지 — 링크가 자기 폭 안에서 끊겨야 한다
+    for (const link of paper.querySelectorAll('a')) {
+      await expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(paper.getBoundingClientRect().right + 1);
+    }
+  },
+};

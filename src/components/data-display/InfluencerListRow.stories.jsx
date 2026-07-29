@@ -367,3 +367,40 @@ export const NarrowWidthWraps = {
     await expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth + 1);
   },
 };
+
+/**
+ * 긴 플랫폼 값이 들어와도 컬럼 폭이 변하지 않는다.
+ *
+ * flex 항목의 기본 min-width:auto는 nowrap 내용의 최소 폭을 하한으로 잡는다.
+ * 그래서 "T1 · Tiktok, Instagram"이 들어오면 100px 기준을 무시하고 126px로 늘어나,
+ * 그 행만 컬럼 시작점이 26px 왼쪽으로 밀렸다 — 목록에서 세로선이 어긋나 보인다.
+ * 실데이터에 콤마로 두 플랫폼을 적는 행이 있다.
+ */
+export const LongPlatformKeepsColumnWidth = {
+  name: 'Long platform',
+  render: () => (
+    <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+      <InfluencerListRow influencer={ make({ id: 'p1', fullName: 'Kim Minjung', platform: 'Instagram' }) } onClick={ () => {} } />
+      <InfluencerListRow influencer={ make({ id: 'p2', fullName: 'Lee Jiyeon', platform: 'Tiktok, Instagram' }) } onClick={ () => {} } />
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const cells = [...canvasElement.querySelectorAll('[data-influencer-id]')].map(row => {
+      const cell = [...row.children].find(c => /^T[12] · /.test(c.textContent.trim()));
+      const box = cell.getBoundingClientRect();
+      return { text: cell.textContent.trim(), left: Math.round(box.left), width: Math.round(box.width) };
+    });
+    await expect(cells.length).toBe(2);
+    await expect(cells[1].text).toContain(',');
+
+    // 긴 값이 있어도 두 행의 컬럼 시작점과 폭이 같아야 한다
+    await expect(cells[0].width).toBe(cells[1].width);
+    await expect(cells[0].left).toBe(cells[1].left);
+
+    // 넘치는 값은 줄임표로 자르고 전체는 title로 남긴다
+    const longCell = [...canvasElement.querySelectorAll('[data-influencer-id]')][1]
+      .querySelector('[title]');
+    await expect(longCell.getAttribute('title')).toContain('Tiktok, Instagram');
+    await expect(getComputedStyle(longCell).textOverflow).toBe('ellipsis');
+  },
+};

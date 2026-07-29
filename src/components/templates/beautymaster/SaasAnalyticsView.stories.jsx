@@ -284,3 +284,32 @@ export const SmallSamplesShowRawCounts = {
     await expect(sawSmall).toBe(true);
   },
 };
+
+/**
+ * Breakdown은 표가 정확히 3개다 — 빈 칸이 남지 않아야 한다.
+ *
+ * 2열로 두면 세 번째 표가 혼자 다음 줄로 내려가 옆이 비고,
+ * auto-fit으로 두면 넓은 화면에서 트랙이 5개까지 생겨 빈 트랙이 남는다.
+ * md부터 3열로 고정한다.
+ */
+export const BreakdownFillsItsRow = {
+  play: async ({ canvasElement }) => {
+    const grid = await waitFor(() => {
+      const el = [...canvasElement.querySelectorAll('div')]
+        .find(d => getComputedStyle(d).display === 'grid' && d.querySelectorAll('table').length === 3);
+      if (!el) throw new Error('breakdown grid not found');
+      return el;
+    });
+
+    const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ');
+    await expect(tracks.length).toBe(3);
+
+    // 표 3개가 모두 같은 줄에 있어야 한다 — 하나가 내려가면 옆이 빈다
+    const tops = new Set([...grid.children].map(c => Math.round(c.getBoundingClientRect().top)));
+    await expect(tops.size).toBe(1);
+
+    // 트랙 폭이 균등해야 한다 (minmax(0, 1fr))
+    const widths = new Set(tracks.map(t => Math.round(parseFloat(t))));
+    await expect(widths.size).toBe(1);
+  },
+};

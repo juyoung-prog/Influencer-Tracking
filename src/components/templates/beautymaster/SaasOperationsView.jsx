@@ -820,7 +820,7 @@ function SaasOperationsView({
           </Box>
           </Box>
 
-          <Box ref={ listScrollerRef } sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', pb: 2 }}>
+          <Box ref={ listScrollerRef } data-list-scroller sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', pb: 2 }}>
             {showSkeleton && Array.from({ length: 8 }).map((_, i) => (
               <Box
                 key={`skeleton-${i}`}

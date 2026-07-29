@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import SaasOperationsView from './SaasOperationsView';
@@ -687,6 +688,71 @@ export const SearchRevealsCollapsedMatches = {
     await waitFor(async () => {
       const again = canvasElement.querySelector('[data-section]:not([data-section="attention"]) button');
       await expect(again.getAttribute('aria-expanded')).toBe('false');
+    });
+  },
+};
+
+/**
+ * SelectionHarness — 선택 상태를 실제로 들고 있는 래퍼.
+ *
+ * 스토리 render 콜백에 useState를 두면 hooks 규칙 위반이고, onSelect에 스파이만
+ * 넘기면 selectedId가 갱신되지 않아 클릭해도 아무 일이 일어나지 않는다.
+ */
+function SelectionHarness() {
+  const [selectedId, setSelectedId] = useState(null);
+  return (
+    <SaasOperationsView
+      influencers={ MANY }
+      stores={ deriveStores(MANY) }
+      selectedStore={ ALL_STORES }
+      selectedId={ selectedId }
+      onSelect={ inf => setSelectedId(inf.id) }
+    />
+  );
+}
+
+/**
+ * 레일에서 고른 사람이 목록에서도 보이는 자리로 온다.
+ *
+ * 선택하면 행이 강조되지만 목록이 수백 줄이라 화면 밖에 남는 경우가 많았다 —
+ * 실측에서 강조된 행이 2429px 아래에 있었다. 드로어로 누구인지는 알지만
+ * 닫고 나면 그 사람이 목록 어디였는지 알 수 없다.
+ *
+ * 목록이 스크롤될 만큼 길어야 의미가 있어서 목업을 여러 벌 복제해 쓴다.
+ */
+const MANY = Array.from({ length: 8 }, (_, k) =>
+  MOCK_INFLUENCERS.map(inf => ({ ...inf, id: `${inf.id}-c${k}` })),
+).flat();
+
+export const RailSelectionScrollsListIntoView = {
+  render: () => <SelectionHarness />,
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+    /* 구조로 찾으면 앱이 실제로 스크롤하는 요소와 다른 걸 잡는다 —
+       처음에 바깥 박스를 잡아서 경계가 15px 어긋났다. 같은 앵커를 쓴다. */
+    const scroller = canvasElement.querySelector('[data-list-scroller]');
+    await expect(scroller).toBeTruthy();
+
+    // 목록에 그려져 있으면서 지금은 화면 밖인 행을 레일에서 찾는다
+    const target = [...rail.querySelectorAll('[data-rail-row]')].find(r => {
+      const row = canvasElement.querySelector(`[data-influencer-id="${CSS.escape(r.getAttribute('data-rail-row'))}"]`);
+      if (!row) return false;
+      const view = scroller.getBoundingClientRect();
+      const box = row.getBoundingClientRect();
+      return box.bottom > view.bottom || box.top < view.top;
+    });
+    if (!target) return;   // 전부 보이면 검증할 게 없다
+
+    const id = target.getAttribute('data-rail-row');
+    await userEvent.click(target);
+
+    await waitFor(async () => {
+      const row = canvasElement.querySelector(`[data-influencer-id="${CSS.escape(id)}"]`);
+      await expect(row).toBeTruthy();
+      const view = scroller.getBoundingClientRect();
+      const box = row.getBoundingClientRect();
+      await expect(box.top).toBeGreaterThanOrEqual(view.top - 1);
+      await expect(box.bottom).toBeLessThanOrEqual(view.bottom + 1);
     });
   },
 };
