@@ -95,6 +95,19 @@ const STATUS_TABS = [
 const CONTENT_PX = 3;
 
 /**
+ * 콘텐츠 영역 폭 상한.
+ *
+ * 1440px 노트북을 기준으로 맞춘 값이다 — 그 화면에서는 상한에 닿지 않아 자연스럽게
+ * 꽉 차고, 2560px에서는 남는 공간이 오른쪽 한 덩어리로 모인다.
+ * 넓은 화면을 채우려고 폭을 늘리지 않는다: 행이 화면 전체로 늘어나면 이름과 상태
+ * 사이가 1,000px 넘게 벌어져 같은 행인데 시각적으로 끊긴다.
+ *
+ * 레일 오른쪽 남은 공간 안에서 가운데로 놓는다 — 넓은 모니터에서 콘텐츠가
+ * 왼쪽으로 쏠려 오른쪽에 큰 빈 덩어리가 생기는 것을 피한다.
+ */
+const CONTENT_MAX_WIDTH = 1500;
+
+/**
  * 레일에서 쓰는 짧은 경보 라벨.
  * 이전에는 색 점(•) 하나로 "경보 있음"만 알렸는데, 어떤 문제인지 알 수 없고
  * 색·모양으로만 전달돼 텍스트 대체물이 없었다(WCAG 1.4.1).
@@ -121,11 +134,13 @@ function railAlertLabel(inf) {
 }
 
 /**
- * Visit schedule 레일 폭.
+ * Visit schedule 레일 폭 — 화면 크기와 무관한 고정값.
+ *
  * 레일은 콘텐츠가 아니라 인덱스다 — 어느 날 누가 있는지만 훑고, 자세한 내용은
  * 오른쪽 목록과 상세 패널이 맡는다. 날짜를 그룹 헤더로 올려 행을 한 줄로 줄였다.
+ * 화면이 넓어져도 인덱스가 같이 넓어질 이유는 없으므로 고정한다.
  */
-const RAIL_WIDTH = 180;
+const RAIL_WIDTH = 250;
 
 /**
  * 레일 시각 컬럼 폭. 24시간제라 "13:30" 다섯 글자가 최대치다 —
@@ -231,6 +246,7 @@ function byScheduledTime(a, b) {
  * @param {string[]} stores - 스토어 선택 옵션 목록. 없으면 influencers에서 파생 [Optional]
  * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
  * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
+ *   주지 않으면(좁은 화면) 그 자리는 그냥 여백으로 남는다 [Optional, 기본값: null]
  *
  * Example usage:
  * <SaasOperationsView influencers={influencers} onSelect={handleSelect} />
@@ -660,8 +676,11 @@ function SaasOperationsView({
         </Box>
 
         {/* 목록 — KPI + 툴바 + 탭 + 섹션. 좌우 인셋은 이 컨테이너 한 곳에서만 관리한다.
-            자식들이 각자 padding을 두면 기준선이 갈라지므로 자식에는 가로 padding을 주지 않는다. */}
-        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', px: CONTENT_PX }}>
+            자식들이 각자 padding을 두면 기준선이 갈라지므로 자식에는 가로 padding을 주지 않는다.
+
+            폭 상한도 여기 한 곳에 건다 — 목록만 묶으면 KPI·툴바·탭이 전폭으로 남아
+            섹션마다 끝나는 자리가 달라진다. 초과분은 mx:auto가 좌우로 반씩 나눈다. */}
+        <Box data-content-column sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', px: CONTENT_PX, maxWidth: CONTENT_MAX_WIDTH, mx: 'auto' }}>
           {/* 상단 고정 묶음 — 스크롤하지 않지만 아래 목록과 같은 스크롤바 거터를 예약해
               좌우 기준선을 맞춘다. 예약하지 않으면 목록만 스크롤바 폭만큼 좁아진다.
 
@@ -681,7 +700,13 @@ function SaasOperationsView({
             alignItems: 'center',
             flexWrap: 'wrap',
             rowGap: 2,
-            py: 2,
+            /* 아래 padding만 작다 — 광학 보정이다.
+               위쪽 마지막 잉크는 22px 숫자인데 그 글자 상자에 baseline 아래 여유가
+               약 9px 붙어 있어서, pt·pb를 똑같이 16px로 주면 눈에는 26px 대 17px로
+               보인다(구분선이 아래쪽에 붙어 보인다). 상자가 아니라 **글자 바닥**을
+               기준으로 맞춰 아래 구분선 간격(17px)과 같게 만든다. */
+            pt: 2,
+            pb: 1.25,
           }}
         >
           <SaasKpiItem label="Agreement" value={kpi.agreementCount} total={kpi.total} isFirst />
@@ -941,6 +966,7 @@ function SaasOperationsView({
             })}
           </Box>
         </Box>
+
       </Box>
     </>
   );

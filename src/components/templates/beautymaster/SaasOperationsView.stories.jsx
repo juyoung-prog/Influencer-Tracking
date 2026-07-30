@@ -756,3 +756,73 @@ export const RailSelectionScrollsListIntoView = {
     });
   },
 };
+
+/**
+ * 콘텐츠가 레일 오른쪽 남은 공간의 가운데에 놓이는지.
+ *
+ * 좌우 여백이 같아야 "가운데"다. 레일은 콘텐츠 컬럼의 직전 형제라 그 사이 틈을
+ * 왼쪽 기준으로, 부모 행의 오른쪽 끝까지를 오른쪽 기준으로 잰다.
+ * `mx: 'auto'`가 빠지면 왼쪽 틈이 0이 되고 남는 공간이 전부 오른쪽으로 몰린다.
+ */
+export const ContentIsCenteredInRemainingSpace = {
+  play: async ({ canvasElement }) => {
+    const column = await waitFor(() => {
+      const el = canvasElement.querySelector('[data-content-column]');
+      if (!el?.getBoundingClientRect().width) throw new Error('content column not laid out yet');
+      return el;
+    });
+
+    const colBox = column.getBoundingClientRect();
+    const rowBox = column.parentElement.getBoundingClientRect();
+    const railBox = column.previousElementSibling.getBoundingClientRect();
+
+    const gapLeft = Math.round(colBox.left - railBox.right);
+    const gapRight = Math.round(rowBox.right - colBox.right);
+
+    // 상한을 넘지 않는다 — 넘으면 행이 화면 전체로 늘어나 이름과 상태가 끊긴다
+    await expect(Math.round(colBox.width)).toBeLessThanOrEqual(1500);
+
+    // 상한에 닿지 않는 좁은 뷰포트에서는 양쪽 틈이 0이라 가운데 정렬이 자명하게 참이다.
+    // 남는 공간이 실제로 있을 때만 반씩 갈렸는지 따진다.
+    if (gapLeft + gapRight > 2) {
+      await expect(Math.abs(gapLeft - gapRight)).toBeLessThanOrEqual(2);
+    }
+  },
+};
+
+/**
+ * KPI 스트립과 검색창 사이 구분선이 위아래 같은 간격으로 보이는지.
+ *
+ * `pt`와 `pb`를 똑같이 주면 **눈에는 안 맞는다**. 위쪽 마지막 잉크는 22px 숫자인데
+ * 그 글자 상자에 baseline 아래 여유가 약 9px 붙어 있어서, 16px씩 주면 실제로는
+ * 26px 대 17px로 보이고 구분선이 아래쪽에 붙는다(픽셀로 확인했다).
+ * 그래서 아래 padding만 줄인 광학 보정이 들어가 있다.
+ *
+ * 이 스토리가 막는 건 "대칭으로 정리한다"며 `py: 2`로 되돌리는 회귀다 —
+ * 코드만 보면 그게 맞아 보이지만 화면에서는 다시 어긋난다.
+ */
+export const KpiDividerIsOpticallyBalanced = {
+  play: async ({ canvasElement }) => {
+    // 필터 바(위아래 1px 보더 + 검색 input)를 찾고, 그 직전 형제가 KPI 스트립이다
+    const strip = await waitFor(() => {
+      const col = canvasElement.querySelector('[data-content-column]');
+      const bar = [...(col?.querySelectorAll('div') || [])].find(b => {
+        const st = getComputedStyle(b);
+        return st.borderTopWidth === '1px' && st.borderBottomWidth === '1px' && b.querySelector('input');
+      });
+      if (!bar?.previousElementSibling) throw new Error('KPI strip not mounted');
+      return bar.previousElementSibling;
+    });
+
+    const { paddingTop, paddingBottom } = getComputedStyle(strip);
+    const top = parseFloat(paddingTop);
+    const bottom = parseFloat(paddingBottom);
+
+    // 아래가 더 작아야 한다 — 같으면 광학 보정이 사라진 것이다
+    await expect(bottom).toBeLessThan(top);
+
+    // 글자 상자 여유(약 9px)만큼만 줄인다. 더 줄이면 이번엔 위로 붙는다.
+    await expect(top - bottom).toBeGreaterThanOrEqual(4);
+    await expect(top - bottom).toBeLessThanOrEqual(10);
+  },
+};
