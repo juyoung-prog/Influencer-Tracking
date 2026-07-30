@@ -199,3 +199,58 @@ export const WidthIsFixedRegardlessOfContent = {
     }
   },
 };
+
+/**
+ * 패널 표기가 목록 행과 같은 규칙을 쓰는지.
+ *
+ * 세 화면(목록·레일·패널)이 같은 사람을 다르게 불렀다 — 목록은 "Aurora Garcia"인데
+ * 패널은 시트 원본 그대로 "Aurora garcia", 아바타는 목록이 두 글자 + 색인데
+ * 패널은 한 글자 + 회색, 플랫폼은 목록이 "TikTok"인데 패널은 "Tiktok"이었다.
+ * 행을 눌러 패널을 열면 방금 본 것과 다른 것이 나오는 셈이라 같은 출처로 묶었다.
+ */
+export const DisplayMatchesTheListRow = {
+  render: () => (
+    <InfluencerDrawer
+      influencer={ {
+        ...fullInfluencer,
+        fullName: 'aurora garcia',
+        platform: 'Tiktok',
+      } }
+      open
+      onClose={ () => {} }
+      templates={ DEFAULT_MESSAGE_TEMPLATES }
+    />
+  ),
+  play: async () => {
+    const paper = await waitFor(() => {
+      const el = document.querySelector('.MuiDrawer-paper');
+      if (!el) throw new Error('drawer not mounted');
+      return el;
+    });
+
+    // 이름 — 각 단어 첫 글자만 올린다
+    await expect(paper.querySelector('.MuiTypography-subtitle1').textContent).toBe('Aurora Garcia');
+
+    // 아바타 — 두 글자에 이름에서 뽑은 색. 회색 기본값이 아니어야 한다
+    const avatar = paper.querySelector('.MuiAvatar-root');
+    await expect(avatar.textContent).toBe('AG');
+    const st = getComputedStyle(avatar);
+    await expect(st.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+
+    // 목록과 같은 대비 기준(AA 4.5:1)을 여기서도 지킨다
+    const lum = rgb => {
+      const [r, g, b] = rgb.match(/\d+/g).map(Number).map(v => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const [hi, lo] = [lum(st.backgroundColor), lum(st.color)].sort((a, b) => b - a);
+    await expect((hi + 0.05) / (lo + 0.05)).toBeGreaterThanOrEqual(4.5);
+
+    // 플랫폼 — 시트가 "Tiktok"으로 적어도 공식 표기로 통일한다
+    const chips = [...paper.querySelectorAll('.MuiChip-label')].map(c => c.textContent);
+    await expect(chips).toContain('TikTok');
+    await expect(chips).not.toContain('Tiktok');
+  },
+};

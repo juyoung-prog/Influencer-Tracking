@@ -12,6 +12,8 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import StatusIconRow from '../data-display/StatusIconRow';
+import { normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
+import { avatarInitials, avatarTint } from '../../utils/influencerAvatar.js';
 import MessageTemplateMenu from './MessageTemplateMenu';
 
 const CATEGORY_LABEL = { general: 'General', kbeauty: 'K-Beauty', specific: 'Specific' };
@@ -51,6 +53,11 @@ function formatNum(val) {
  * <InfluencerDrawer influencer={selected} open={drawerOpen} onClose={handleClose} templates={messageTemplates} />
  */
 function InfluencerDrawer({ influencer = null, open = false, onClose, templates = [] }) {
+  /* 표기는 목록과 같은 규칙을 쓴다 — 시트에 성이 소문자인 행이 있어 패널만
+     "Aurora garcia"로 나왔다. 원본 fullName은 그대로 두고 표시만 바꾼다. */
+  const displayName = toDisplayName(influencer?.fullName || '');
+  const tint = avatarTint(displayName);
+
   return (
     <Drawer
       anchor="right"
@@ -89,18 +96,20 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
           <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', gap: 1.5, borderBottom: 1, borderColor: 'divider' }}>
             <Avatar
               src={influencer.imageUrl}
-              alt={influencer.fullName}
-              // 기본값(흰 글자 + grey.400)은 대비 1.88:1로 AA 미달 — 목록 행과 같게 뒤집는다
-              sx={{ width: 48, height: 48, flexShrink: 0, fontSize: 16, fontWeight: 700, bgcolor: 'surface.muted', color: 'text.secondary' }}
+              alt={displayName}
+              /* 이니셜·색을 목록 행과 같은 규칙에서 뽑는다 — 행을 눌러 패널을 열었을 때
+                 방금 본 원과 다른 원이 나오면 안 된다. 기본값(흰 글자 + grey.400)은
+                 대비 1.88:1로 AA 미달이었다. */
+              sx={{ width: 48, height: 48, flexShrink: 0, fontSize: 16, fontWeight: 700, bgcolor: tint.bg, color: tint.fg }}
             >
-              {influencer.fullName?.slice(0, 2).toUpperCase()}
+              {avatarInitials(displayName)}
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                {influencer.fullName}
+                {displayName}
               </Typography>
               <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, flexWrap: 'wrap' }}>
-                <Chip label={influencer.platform} size="small" variant="outlined" />
+                <Chip label={normalizePlatform(influencer.platform)} size="small" variant="outlined" />
                 <Chip label={influencer.tier === 'tier2' ? 'Tier 2' : 'Tier 1'} size="small" variant="outlined" />
                 {influencer.category && (
                   <Chip label={CATEGORY_LABEL[influencer.category] || influencer.category} size="small" variant="outlined" />
@@ -225,7 +234,7 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
                         sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
                         variant="body2"
                       >
-                        {influencer.platform} Profile <OpenInNewIcon sx={{ fontSize: 13 }} />
+                        {normalizePlatform(influencer.platform)} Profile <OpenInNewIcon sx={{ fontSize: 13 }} />
                       </Link>
                     </Box>
                   )}

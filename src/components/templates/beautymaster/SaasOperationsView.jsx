@@ -22,6 +22,7 @@ import {
   deriveKpiSummary,
   deriveStores,
   isStaleVisit,
+  toDisplayName,
 } from '../../../data/beautymaster/schema.js';
 
 const PLATFORM_OPTIONS = ['Instagram', 'TikTok'];
@@ -53,6 +54,9 @@ function formatVisitTime(inf) {
 
 /**
  * 좁은 레일에서 쓰는 이름 축약. "Kientazya Hawkins" → "Kientazya H."
+ *
+ * 표기가 정규화된 이름을 받는다 — 목록은 "Aurora Garcia"인데 레일만 "Aurora g."면
+ * 같은 사람을 두 화면이 다르게 부르는 꼴이 된다.
  *
  * 말줄임("Kientazya H…")보다 성을 줄이는 쪽이 식별에 낫다 — 이름 앞부분이 온전히
  * 남기 때문이다. 전체 이름은 title로 남겨 마우스로 확인할 수 있게 한다.
@@ -646,10 +650,10 @@ function SaasOperationsView({
                               {formatVisitTime(inf)}
                             </Typography>
                             <Typography
-                              title={inf.fullName || undefined}
+                              title={toDisplayName(inf.fullName) || undefined}
                               sx={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                             >
-                              {abbreviateName(inf.fullName)}
+                              {abbreviateName(toDisplayName(inf.fullName))}
                             </Typography>
                             {/* 미해결 표시는 점 하나로 충분하다 — 구체적 상태는 오른쪽 목록과
                                 상세 패널이 이미 말한다. 색·모양만으로 전달하지 않도록

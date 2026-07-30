@@ -826,3 +826,30 @@ export const KpiDividerIsOpticallyBalanced = {
     await expect(top - bottom).toBeLessThanOrEqual(10);
   },
 };
+
+/**
+ * 레일 이름이 목록과 같은 표기를 쓰는지.
+ *
+ * 레일은 축약("Aurora G.")하지만 축약 **전에** 정규화가 끝나 있어야 한다.
+ * 안 그러면 목록은 "Aurora Garcia"인데 레일은 "Aurora g."가 되어 같은 사람을
+ * 두 화면이 다르게 부른다. title에도 정규화된 전체 이름이 들어간다.
+ */
+export const RailNamesUseTheSameCapitalization = {
+  args: {
+    influencers: MOCK_INFLUENCERS.map((inf, i) => (
+      i === 0 ? { ...inf, fullName: 'aurora garcia' } : inf
+    )),
+  },
+  play: async ({ canvasElement }) => {
+    const rail = await waitFor(() => {
+      const el = canvasElement.querySelector('[data-rail-scroller]') || canvasElement;
+      const hit = [...el.querySelectorAll('[title]')].find(n => /aurora/i.test(n.getAttribute('title')));
+      if (!hit) throw new Error('rail row not rendered yet');
+      return hit;
+    });
+
+    await expect(rail.getAttribute('title')).toBe('Aurora Garcia');
+    // 성은 이니셜로 줄지만 대문자다 — 소문자 "g."가 남으면 정규화가 축약 뒤에 온 것이다
+    await expect(rail.textContent).toBe('Aurora G.');
+  },
+};
