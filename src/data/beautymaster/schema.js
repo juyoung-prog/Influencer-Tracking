@@ -99,6 +99,7 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {string} fullName - 시트에 이름이 없으면 소셜 계정을 대신 쓴다
  * @property {boolean} hasFullName - 이름 칸에 실제 값이 있었는지
  * @property {string} socialAccountUrl
+ * @property {string} socialHandle - 프로필 링크에서 되짚은 핸들(@ 없이). 없으면 ''
  * @property {string} email
  * @property {Date|null} scheduledTime
  * @property {boolean} hasScheduledTimeOfDay - 시트 셀에 시각까지 적혀 있었는지.
@@ -218,6 +219,45 @@ export function isStaleVisit(scheduledTime, today = new Date()) {
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const since = daysSince(scheduledTime, todayStart);
   return since !== null && since > ALERT_GRACE_DAYS.STALE;
+}
+
+/**
+ * 시트의 플랫폼 표기를 공식 표기로 맞춘다.
+ *
+ * 시트에는 "Tiktok" 처럼 제각각 적혀 있는데 필터 칩은 PLATFORMS 상수("TikTok")를 쓴다.
+ * 표기가 갈리면 같은 값인데 화면에서 다르게 보인다. 필터 매칭은 소문자 비교라
+ * 이 정규화가 필터 동작을 바꾸지는 않는다.
+ *
+ * @param {string} raw - 시트 원본. "Instagram, Tiktok" 처럼 쉼표로 여럿일 수 있다
+ * @returns {string} 첫 플랫폼의 공식 표기
+ */
+/**
+ * 표시용 이름 정규화. "aurora garcia" -> "Aurora Garcia".
+ *
+ * 시트에 성을 소문자로 적은 행이 섞여 있어 목록에서 그 행만 튄다. 표시 단계에서만
+ * 손대고 원본(fullName)은 그대로 둔다 — 검색·정렬·키는 원본을 쓴다.
+ *
+ * 각 단어의 **첫 글자만** 올리고 나머지는 건드리지 않는다. 전체를 소문자로 깔고
+ * 첫 글자만 올리는 흔한 구현은 이미 맞게 적힌 이름을 망가뜨린다:
+ * "JMag" -> "Jmag", "MuhammadPoe" -> "Muhammadpoe", "O'Brien" -> "O'brien".
+ * 첫 글자가 문자가 아니면(핸들 "_d1stylez_" 등) 그 단어는 손대지 않는다.
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+export function toDisplayName(raw) {
+  return (raw || '')
+    .split(/(\s+)/)
+    .map(part => (/^\p{L}/u.test(part) ? part[0].toLocaleUpperCase() + part.slice(1) : part))
+    .join('');
+}
+
+export function normalizePlatform(raw) {
+  const first = (raw || '').split(',')[0].trim();
+  const key = first.toLowerCase();
+  if (key.includes('tiktok')) return PLATFORMS.TIKTOK;
+  if (key.includes('instagram')) return PLATFORMS.INSTAGRAM;
+  return first;
 }
 
 /**
@@ -392,12 +432,6 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   const avgViews = list => {
     const valid = list.map(i => i.views).filter(v => v != null);
     return valid.length === 0 ? null : Math.round(valid.reduce((s, v) => s + v, 0) / valid.length);
-  };
-  const normalizePlatform = raw => {
-    const p = raw.split(',')[0].trim().toLowerCase();
-    if (p.includes('tiktok')) return 'TikTok';
-    if (p.includes('instagram')) return 'Instagram';
-    return raw.split(',')[0].trim();
   };
   const countOpinions = list => {
     const withOp = list.filter(i => i.opinion);
@@ -588,6 +622,7 @@ export function createInfluencer(overrides = {}) {
     fullName: '',
     hasFullName: true,
     socialAccountUrl: '',
+    socialHandle: '',
     email: '',
     scheduledTime: null,
     hasScheduledTimeOfDay: false,

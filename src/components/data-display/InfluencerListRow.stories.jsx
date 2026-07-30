@@ -11,6 +11,8 @@ function make(overrides = {}) {
     id: 'inf-0',
     sheetStatus: 'Processing',
     fullName: 'Kim Minjung',
+    hasFullName: true,
+    socialHandle: 'kimminjung',
     imageUrl: '',
     platform: 'Instagram',
     tier: 'tier1',
@@ -265,15 +267,15 @@ export const OverdueEmphasis = {
 };
 
 /**
- * 심각도는 3단계다 — 막힘(error) > 지연(warning) > 부가정보(중립).
+ * 강조는 행마다 다른 값에 간다.
  *
- * 예전엔 stage 라벨 · overdue 수치 · contact 상태가 **모두 앰버**라 한 행에 같은
- * 경고색이 세 줄 겹쳤고, 그러면 무엇이 급한지 알 수 없어진다.
+ * 예전에는 stage 라벨("Visit Unconfirmed")이 앰버였다. 그런데 그 값은 대부분의 행이
+ * 같아서 강조해도 행을 고르는 데 도움이 안 되고, 정작 우선순위를 정하는 경과일은
+ * 회색이었다. 강조를 경과일로 옮기고 상태 라벨은 회색으로 내렸다.
  *
- * 그래서 규칙은 "경고색 한 줄"이 아니라 **"같은 경고색이 두 번 나오지 않는다"**이다.
- * 앰버(지연) 위에 레드(막힘)가 겹치는 건 정상이다 — 서로 다른 층위라 눈이
- * 레드 → 앰버 순으로 읽힌다. 문제는 같은 색이 반복돼 층위가 사라지는 것이다.
- * overdue는 "얼마나"를 말하는 수치라 중립색이다.
+ * 동시에 "Visit Unconfirmed"와 "No-show"가 같은 사실을 두 줄로 말하던 것을 정리했다 —
+ * 섹션 분류가 alertFlags 로 돌아가므로 연락 상태가 공식 값이고, stage 라벨은
+ * 그것이 없을 때만 나온다. 결과적으로 상태 블록은 최대 2줄이다.
  */
 export const SeverityHierarchy = {
   name: 'Severity Hierarchy',
@@ -297,29 +299,35 @@ export const SeverityHierarchy = {
       const h = hex.replace('#', '');
       return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
     };
-    const alertColors = [rgb(defaultTheme.palette.warning.main), rgb(defaultTheme.palette.error.main)];
+    const amber = rgb(defaultTheme.palette.warning.main);
 
     const rows = [...canvasElement.querySelectorAll('[data-influencer-id]')];
     await expect(rows.length).toBe(4);
 
-    let sawAlert = false;
     for (const row of rows) {
-      const hits = [...row.querySelectorAll('*')]
-        .filter(e => !e.children.length && e.textContent.trim())
-        .map(e => getComputedStyle(e).color)
-        .filter(c => alertColors.includes(c));
-      // 같은 경고색은 한 행에 한 번만 — 이게 무너지면 층위가 사라진다
-      for (const c of alertColors) {
-        await expect(hits.filter(h => h === c).length).toBeLessThanOrEqual(1);
-      }
-      if (hits.length) sawAlert = true;
-    }
-    await expect(sawAlert).toBe(true);   // 전부 무채색이 되어버린 것도 아니다
+      const lines = [...row.children[3].querySelectorAll('*')]
+        .filter(el => !el.children.length && el.textContent.trim());
 
-    // 회신이 끊긴 건은 레드까지 올라간다
-    const urgent = [...canvasElement.querySelectorAll('*')]
-      .find(e => !e.children.length && /no reply/.test(e.textContent));
-    await expect(getComputedStyle(urgent).color).toBe(rgb(defaultTheme.palette.error.main));
+      // 상태 블록은 최대 2줄 — 같은 사실을 두 번 말하지 않는다
+      await expect(lines.length).toBeLessThanOrEqual(2);
+
+      for (const line of lines) {
+        const isOverdue = /\d+d overdue/.test(line.textContent);
+        // 강조는 경과일에만. 상태 라벨은 회색이라 행마다 다른 값이 먼저 눈에 든다
+        if (isOverdue) await expect(getComputedStyle(line).color).toBe(amber);
+        else await expect(getComputedStyle(line).color).not.toBe(amber);
+      }
+    }
+
+    // "Visit Unconfirmed"와 연락 상태가 한 행에 같이 나오지 않는다
+    for (const row of rows) {
+      const text = row.children[3].textContent;
+      if (/No-show|Reschedule/.test(text)) await expect(text).not.toContain('Visit Unconfirmed');
+    }
+
+    // 회신이 끊긴 건은 경과일을 숫자로 말한다
+    const noReply = rows.map(r => r.children[3].textContent).find(t => /no reply/.test(t));
+    await expect(noReply).toMatch(/\d+d no reply/);
   },
 };
 
@@ -369,6 +377,59 @@ export const NarrowWidthWraps = {
 };
 
 /**
+ * 세 속성이 한 컬럼에 필터 바와 같은 순서로 모인다.
+ *
+ * 예전에는 카테고리만 왼쪽에 칩으로 붙고 티어·플랫폼은 오른쪽에 역순("T2 · Instagram")이라,
+ * 같은 세 속성이 화면에서 순서도 위치도 갈라져 있었다. 한 열로 모아야 세로로 훑을 수 있다.
+ * 셋 다 맨 텍스트다 — 동등한 속성인데 하나만 칩이면 무게가 달라 보인다.
+ */
+export const AttributesMatchFilterOrder = {
+  name: 'Attribute column',
+  render: () => (
+    <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+      <InfluencerListRow influencer={ make({ id: 'a1', fullName: 'Kim Minjung', platform: 'Instagram', tier: 'tier2', category: 'general' }) } onClick={ () => {} } />
+      {/* 시트에는 "Tiktok" 으로 적혀 있어도 화면은 공식 표기 "TikTok" 이어야 한다 */}
+      <InfluencerListRow influencer={ make({ id: 'a2', fullName: 'Lee Jiyeon', platform: 'Tiktok', tier: 'tier1', category: 'kbeauty' }) } onClick={ () => {} } />
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const rows = [...canvasElement.querySelectorAll('[data-influencer-id]')];
+    const cells = rows.map(row => row.children[2]);
+
+    // 필터 바 칩 순서와 같다: 플랫폼 → 티어 → 카테고리 (구분자 없이 하위 컬럼으로)
+    const valuesOf = cell => [...cell.children].map(c => c.textContent.trim());
+    await expect(valuesOf(cells[0])).toEqual(['Instagram', 'T2', 'General']);
+    await expect(valuesOf(cells[1])).toEqual(['TikTok', 'T1', 'K-Beauty']);
+
+    // 세 값이 각각 세로로 정렬된다 — 앞 값 길이에 뒤 값이 밀리면 훑을 수 없다
+    for (const i of [0, 1, 2]) {
+      const xs = cells.map(c => Math.round(c.children[i].getBoundingClientRect().x));
+      await expect(new Set(xs).size).toBe(1);
+    }
+
+    // 왼쪽에 카테고리 칩이 남아 있지 않다 — 테두리 있는 카테고리 노드 0건
+    for (const row of rows) {
+      const chips = [...row.querySelectorAll('*')].filter(el => {
+        const cs = getComputedStyle(el);
+        return cs.borderStyle === 'solid' && cs.borderWidth !== '0px'
+          && /General|K-Beauty|Specific/.test(el.textContent);
+      });
+      await expect(chips.length).toBe(0);
+    }
+
+    // 세 속성이 같은 무게 — 하위 컬럼에 별도 표면(테두리·배경)이 없고 색도 같다
+    for (const cell of cells) {
+      for (const sub of cell.children) {
+        const cs = getComputedStyle(sub);
+        await expect(cs.borderWidth).toBe('0px');
+        await expect(cs.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+        await expect(cs.color).toBe(getComputedStyle(cells[0].children[0]).color);
+      }
+    }
+  },
+};
+
+/**
  * 긴 플랫폼 값이 들어와도 컬럼 폭이 변하지 않는다.
  *
  * flex 항목의 기본 min-width:auto는 nowrap 내용의 최소 폭을 하한으로 잡는다.
@@ -386,21 +447,199 @@ export const LongPlatformKeepsColumnWidth = {
   ),
   play: async ({ canvasElement }) => {
     const cells = [...canvasElement.querySelectorAll('[data-influencer-id]')].map(row => {
-      const cell = [...row.children].find(c => /^T[12] · /.test(c.textContent.trim()));
+      const cell = row.children[2];   // 속성 컬럼(하위 컬럼 3개를 감싼 Box)
       const box = cell.getBoundingClientRect();
       return { text: cell.textContent.trim(), left: Math.round(box.left), width: Math.round(box.width) };
     });
     await expect(cells.length).toBe(2);
-    await expect(cells[1].text).toContain(',');
+    // 순서는 필터 바와 같다 — 플랫폼이 맨 앞
+    await expect(cells[0].text.startsWith('Instagram')).toBe(true);
 
     // 긴 값이 있어도 두 행의 컬럼 시작점과 폭이 같아야 한다
     await expect(cells[0].width).toBe(cells[1].width);
     await expect(cells[0].left).toBe(cells[1].left);
 
-    // 넘치는 값은 줄임표로 자르고 전체는 title로 남긴다
+    /* 시트에 "Tiktok, Instagram" 처럼 여럿이 적혀 있어도 컬럼은 첫 플랫폼의
+       공식 표기만 쓴다 — 컬럼 폭이 값 길이에 흔들리면 세로 정렬이 깨진다.
+       전체 조합은 title 로 남는다. */
     const longCell = [...canvasElement.querySelectorAll('[data-influencer-id]')][1]
       .querySelector('[title]');
-    await expect(longCell.getAttribute('title')).toContain('Tiktok, Instagram');
-    await expect(getComputedStyle(longCell).textOverflow).toBe('ellipsis');
+    await expect(longCell.getAttribute('title')).toBe('TikTok · T1 · K-Beauty');
+    await expect(cells[1].text).toContain('TikTok');
+    // 줄임표는 값이 담긴 하위 컬럼에 걸린다(title 을 든 래퍼가 아니라)
+    for (const sub of longCell.children) {
+      await expect(getComputedStyle(sub).textOverflow).toBe('ellipsis');
+    }
+  },
+};
+
+/**
+ * 핸들이 왼쪽 블록의 두 번째 줄에 시각과 한 줄을 공유하는지.
+ *
+ * 이름+날짜만으로는 넓은 화면에서 행 가운데가 비어 폭을 정당화하지 못했다.
+ * 핸들은 그 여백을 메우면서 실제 쓸모(DM 보낼 때 필요)가 있는 값이다.
+ * 줄을 새로 만들지 않는 게 중요하다 — 행 높이가 커지면 한 화면에 들어가는 사람이 줄어든다.
+ */
+export const HandleSharesTheDateLine = {
+  args: { influencer: make({ fullName: 'Jasmin Bean', socialHandle: 'jasminbean' }) },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelectorAll('.MuiTypography-caption')[0];
+    await expect(line.textContent).toBe('@jasminbean · Jul 5 · 11:00 AM');
+
+    // 한 줄이어야 한다 — caption 한 줄 높이를 크게 넘지 않는지
+    await expect(line.getBoundingClientRect().height).toBeLessThan(24);
+  },
+};
+
+/**
+ * 핸들이 없는 행은 예전처럼 날짜·시각만.
+ *
+ * 시트의 social account 칸에 자기소개가 적힌 행이 있어서(파서가 걸러낸다) 핸들이
+ * 빈 값으로 온다. 그때 "@" 하나만 남거나 " · "가 앞에 붙으면 안 된다.
+ */
+export const NoHandleKeepsDateOnly = {
+  args: { influencer: make({ fullName: 'Rosalia Serrano', socialHandle: '' }) },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelectorAll('.MuiTypography-caption')[0];
+    await expect(line.textContent).toBe('Jul 5 · 11:00 AM');
+    await expect(line.textContent).not.toContain('@');
+  },
+};
+
+/**
+ * 이름 칸이 비어 핸들이 이름 자리에 올라온 행은 같은 값을 두 번 쓰지 않는다.
+ *
+ * 파서는 이름이 없으면 소셜 계정을 이름으로 쓴다(hasFullName: false). 그 행에서
+ * 핸들 줄까지 넣으면 "_d1stylez_" 아래 "@_d1stylez_"가 되어 같은 말을 두 번 한다.
+ */
+export const HandleAsNameIsNotRepeated = {
+  args: { influencer: make({ fullName: '_d1stylez_', hasFullName: false, socialHandle: '_d1stylez_' }) },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelectorAll('.MuiTypography-caption')[0];
+    await expect(line.textContent).toBe('Jul 5 · 11:00 AM');
+  },
+};
+
+/**
+ * 아바타 이니셜 — 성이 없어도 두 글자.
+ *
+ * 한 글자만 쓰면("Nicole" → "N") 나머지가 두 글자인 열에서 그 행만 비어 보인다.
+ * 앞의 기호는 이니셜이 될 수 없다 — 핸들이 이름 자리에 온 행이 "_D"가 됐다.
+ */
+export const AvatarInitialsAlwaysTwoChars = {
+  render: () => (
+    <Box sx={{ width: 720 }}>
+      {[
+        { fullName: 'Nicole', socialHandle: 'nicole' },
+        { fullName: 'YULEIDYS', socialHandle: '' },
+        { fullName: '_d1stylez_', hasFullName: false, socialHandle: '_d1stylez_' },
+        { fullName: 'Maria Jose Doubront', socialHandle: 'dearmariajose' },
+      ].map((o, i) => (
+        <InfluencerListRow key={ i } influencer={ make({ id: `ini-${i}`, ...o }) } onClick={ () => {} } />
+      ))}
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const initials = [...canvasElement.querySelectorAll('.MuiAvatar-root')].map(a => a.textContent);
+    await expect(initials).toEqual(['NI', 'YU', 'D1', 'MJ']);
+    // 기호가 이니셜에 남지 않는다
+    for (const t of initials) await expect(t).toMatch(/^[A-Z0-9]{2}$/);
+  },
+};
+
+/**
+ * 이니셜이 같은 사람이 인접해도 아바타 색으로 갈린다.
+ *
+ * 실제 데이터 191명에서 "이니셜이 같은 서로 다른 사람이 인접한" 쌍은 두 건이다 —
+ * Aurora Garcia/Alexis Garrett(AG), Sherian McGhee/Sharon Mijares(SM). 둘 다 여기 넣는다.
+ * 처음 쓴 `h*31 + c` 해시는 앞부분이 비슷한 이름을 같은 칸에 떨어뜨려 AG 쌍이 같은
+ * 색이 됐다(이 스토리가 잡아냈다). 지금은 FNV-1a에 10칸이다.
+ *
+ * 해시는 100%를 보장하지 않는다(동일 이니셜 쌍 전체로는 97%). 이 스토리가 지키는 건
+ * **실제로 붙어 앉는 쌍이 갈리는지**와 대비가 AA를 넘는지다.
+ */
+export const CollidingInitialsGetDifferentTints = {
+  render: () => (
+    <Box sx={{ width: 720 }}>
+      {['Aurora Garcia', 'Alexis Garrett', 'Sherian McGhee', 'Sharon Mijares'].map((n, i) => (
+        <InfluencerListRow key={ n } influencer={ make({ id: `dup-${i}`, fullName: n, socialHandle: `h${i}` }) } onClick={ () => {} } />
+      ))}
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const avatars = [...canvasElement.querySelectorAll('.MuiAvatar-root')];
+    await expect(avatars.map(a => a.textContent)).toEqual(['AG', 'AG', 'SM', 'SM']);
+
+    const bg = avatars.map(a => getComputedStyle(a).backgroundColor);
+    const fg = avatars.map(a => getComputedStyle(a).color);
+    // 붙어 앉는 두 쌍이 각각 갈려야 한다
+    await expect(bg[0]).not.toBe(bg[1]);
+    await expect(bg[2]).not.toBe(bg[3]);
+    await expect(fg[0]).not.toBe(fg[1]);
+    await expect(fg[2]).not.toBe(fg[3]);
+
+    // 색은 보조 신호 — 글자 대비는 네 아바타 모두 AA(4.5:1)를 넘어야 한다
+    const lum = rgb => {
+      const [r, g, b] = rgb.match(/\d+/g).map(Number).map(v => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    for (const a of avatars) {
+      const st = getComputedStyle(a);
+      const [hi, lo] = [lum(st.backgroundColor), lum(st.color)].sort((x, y) => y - x);
+      await expect((hi + 0.05) / (lo + 0.05)).toBeGreaterThanOrEqual(4.5);
+    }
+  },
+};
+
+/**
+ * 같은 사람은 어디에 있어도 같은 색.
+ *
+ * 색을 목록 순서(index)로 매기면 필터를 걸거나 섹션이 접힐 때마다 같은 사람의 색이
+ * 바뀌어, 색이 사람을 가리키는 신호로 쓸 수 없게 된다. 시트에는 같은 사람이 방문마다
+ * 여러 행으로 들어오는 경우도 있어(Santana Williams 등) 그 행들이 묶여 보여야 한다.
+ */
+export const SamePersonKeepsTheSameTint = {
+  render: () => (
+    <Box sx={{ width: 720 }}>
+      {['Santana Williams', 'Camila Castro', 'Santana Williams'].map((n, i) => (
+        <InfluencerListRow key={ i } influencer={ make({ id: `same-${i}`, fullName: n, socialHandle: `h${i}` }) } onClick={ () => {} } />
+      ))}
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const bg = [...canvasElement.querySelectorAll('.MuiAvatar-root')].map(a => getComputedStyle(a).backgroundColor);
+    // 떨어져 있어도 같은 이름이면 같은 색 (0번과 2번)
+    await expect(bg[0]).toBe(bg[2]);
+    await expect(bg[0]).not.toBe(bg[1]);
+  },
+};
+
+/**
+ * 표시 이름 정규화 — 시트에 성을 소문자로 적은 행이 목록에서 튀지 않게.
+ *
+ * 전체를 소문자로 깔고 첫 글자만 올리는 흔한 구현은 이미 맞게 적힌 이름을 망가뜨린다.
+ * 여기서 지키는 건 그 반대 방향이다: 첫 글자만 올리고 나머지는 손대지 않는다.
+ */
+export const NameCapitalizationIsNormalized = {
+  render: () => (
+    <Box sx={{ width: 720 }}>
+      {['Aurora garcia', 'Jakkah kebbay', 'Nathalia JMag', 'Karima MuhammadPoe', "O'Brien Smith"].map((n, i) => (
+        <InfluencerListRow key={ n } influencer={ make({ id: `cap-${i}`, fullName: n, socialHandle: `h${i}` }) } onClick={ () => {} } />
+      ))}
+    </Box>
+  ),
+  play: async ({ canvasElement }) => {
+    const names = [...canvasElement.querySelectorAll('.MuiTypography-body2')].map(e => e.textContent);
+    await expect(names).toEqual([
+      'Aurora Garcia',
+      'Jakkah Kebbay',
+      // 이미 대문자가 섞인 이름은 그대로 — 소문자로 깔면 JMag·MuhammadPoe가 망가진다
+      'Nathalia JMag',
+      'Karima MuhammadPoe',
+      "O'Brien Smith",
+    ]);
   },
 };

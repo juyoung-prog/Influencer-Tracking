@@ -26,6 +26,28 @@ const CSV = [
 
 const parsed = parseInfluencerCsv(CSV, SHEET_STATUS.PROCESSING, 'T_');
 
+/**
+ * 핸들 전용 픽스처 — "social account" 칸에 실제로 들어오는 네 가지 모양.
+ *
+ * 이 칸은 사람이 손으로 적어서 형태가 제각각이다. 목록 행이 이 값을 "@핸들"로
+ * 그대로 내보내기 때문에, 파서가 여기서 걸러주지 않으면 화면에 자기소개가 붙는다.
+ */
+const HANDLE_CSV = [
+  'no.,store,month,barcode,platform,category,type,total cost,image,full name,social account,email,time,agreement,attend,collabo shared,collabo link,upload date,credit shared,credit used',
+  // 1) 평범한 핸들
+  '1,G10,2026-07,G10INF2026,Instagram,General,,,,Jasmin Bean,jasminbean,,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 2) @가 붙은 핸들
+  '2,G10,2026-07,G10INF2026,Instagram,General,,,,Silvia Cusati,@silviacusati,,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 3) 칸에 URL을 통째로 붙여 넣은 행
+  '3,G10,2026-07,G10INF2026,TikTok,General,,,,Cherii Dluxx,https://www.tiktok.com/@cheriidluxx/,,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 4) 핸들이 아니라 자기소개가 적힌 행 — 화면에 "@Rosalia | UGC content creator"로 나갔었다
+  '4,G10,2026-07,G10INF2026,Instagram,General,,,,Rosalia Serrano,Rosalia | UGC content creator,,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 5) 4번과 같은 쓰레기 칸이지만 이름이 오버라이드 목록에 있는 행 — 링크가 살아나므로 핸들도 살아난다
+  '5,G10,2026-07,G10INF2026,TikTok,General,,,,Jakkah kebbay,\u{1F36D}Jakkah\u{1F380},,7/8/2026 2pm,TRUE,TRUE,,,,,',
+].join('\n');
+
+const handleRows = parseInfluencerCsv(HANDLE_CSV, SHEET_STATUS.PROCESSING, 'H_');
+
 export default {
   title: 'BeautyMaster/Data/parseInfluencerCsv',
   parameters: { layout: 'padded' },
@@ -85,5 +107,56 @@ export const RowContract = {
 
     // id는 시트별 접두사로 갈라 둔다 — 두 탭의 행 번호가 겹쳐 다른 사람이 열리던 적이 있다
     for (const inf of parsed) await expect(inf.id.startsWith('T_')).toBe(true);
+  },
+};
+
+/**
+ * "social account" 칸이 핸들이 되는 규칙.
+ *
+ * 목록 행이 이름 아래에 "@핸들"을 그대로 찍기 때문에, 이 칸의 지저분한 값이
+ * 그대로 화면에 나간다. 실제로 그랬다 — "@Rosalia | UGC content creator".
+ * URL에서 되짚기만 하면 걸러진다고 봤던 게 틀렸다: 링크를 만드는 쪽은 셀 내용을
+ * 검증하지 않고 URL 틀에 끼워 넣기만 해서, 쓰레기가 URL을 타고 그대로 따라온다.
+ *
+ * 그래서 핸들 문법으로 한 번 더 거른다. 없는 값은 만들지 않는다 — 핸들이 없으면
+ * 행은 날짜·시각만 보여준다(InfluencerListRow.NoHandleKeepsDateOnly).
+ */
+export const HandleContract = {
+  render: () => (
+    <Box sx={{ fontSize: 13 }}>
+      <Typography sx={{ fontSize: 14, fontWeight: 600, mb: 1 }}>
+        social account 칸 → 핸들
+      </Typography>
+      {handleRows.map(inf => (
+        <Box key={ inf.id } sx={{ display: 'flex', gap: 2, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ width: 160, fontWeight: 500 }}>{inf.fullName}</Box>
+          <Box sx={{ width: 160, color: inf.socialHandle ? 'text.primary' : 'text.secondary' }}>
+            {inf.socialHandle ? `@${inf.socialHandle}` : '핸들 없음 → 날짜만'}
+          </Box>
+          <Box sx={{ color: 'text.secondary', fontSize: 12 }}>{inf.socialAccountUrl || '—'}</Box>
+        </Box>
+      ))}
+    </Box>
+  ),
+  play: async () => {
+    const by = Object.fromEntries(handleRows.map(i => [i.fullName, i]));
+
+    // 평범한 핸들, @ 접두, URL 통째 — 셋 다 같은 모양으로 정리된다
+    await expect(by['Jasmin Bean'].socialHandle).toBe('jasminbean');
+    await expect(by['Silvia Cusati'].socialHandle).toBe('silviacusati');
+    await expect(by['Cherii Dluxx'].socialHandle).toBe('cheriidluxx');
+
+    // 자기소개가 적힌 칸은 핸들이 아니다 — 빈 값이어야 화면이 날짜만 보여준다
+    await expect(by['Rosalia Serrano'].socialHandle).toBe('');
+
+    // 같은 쓰레기 칸이라도 오버라이드로 링크가 살아난 행은 핸들도 살아난다.
+    // 목록 핸들과 상세 패널 링크가 같은 출처를 쓴다는 뜻이다.
+    await expect(by['Jakkah kebbay'].socialHandle).toBe('oyastormm');
+    await expect(by['Jakkah kebbay'].socialAccountUrl).toContain('oyastormm');
+
+    // 통과한 값은 전부 핸들 문법을 지킨다 — 공백·기호가 화면에 나가지 않는다
+    for (const inf of handleRows) {
+      if (inf.socialHandle) await expect(inf.socialHandle).toMatch(/^[A-Za-z0-9._]{1,30}$/);
+    }
   },
 };

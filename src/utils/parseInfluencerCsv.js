@@ -231,6 +231,30 @@ function resolveSocialUrl(fullName, raw, platform) {
   return normalizeSocialUrl(raw, platform);
 }
 
+/**
+ * 프로필 URL에서 순수 핸들만 뽑는다. "https://www.tiktok.com/@oyastormm" -> "oyastormm".
+ *
+ * 시트의 "social account" 칸을 직접 쓰지 않고 **이미 정규화된 URL**에서 되짚는 이유는,
+ * 그 칸에 핸들이 아닌 자기소개가 들어온 행이 있어서다("Toni | Lifestyle + UGC Creator" 등).
+ * resolveSocialUrl이 오버라이드로 그런 행을 이미 정리했으므로, 여기서 되짚으면
+ * 상세 패널 링크와 목록 핸들이 언제나 같은 사람을 가리킨다.
+ * URL을 못 만든 행은 핸들도 없다 — 없는 값을 만들지 않는다.
+ *
+ * @param {string} url
+ * @returns {string} 핸들(@ 없이) 또는 ''
+ */
+function handleFromUrl(url) {
+  if (!url) return '';
+  const path = url.split('?')[0].split('#')[0].replace(/\/+$/, '');
+  const last = path.split('/').pop() || '';
+  const handle = last.replace(/^@/, '').trim();
+  /* 핸들 문법에 맞는 값만 통과시킨다. normalizeSocialUrl은 셀 내용을 검증하지 않고
+     URL 틀에 끼워 넣기만 하므로, 자기소개가 적힌 칸은 그대로 URL에 실려 온다
+     (오버라이드가 없는 행에서 "@Rosalia | UGC content creator"가 핸들로 나왔다).
+     Instagram·TikTok 핸들은 영숫자·밑줄·점만 쓰고 30자를 넘지 않는다. */
+  return /^[A-Za-z0-9._]{1,30}$/.test(handle) ? handle : '';
+}
+
 function parseOpinion(val) {
   if (!val) return null;
   const upper = val.trim().toUpperCase();
@@ -309,6 +333,8 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
     const rawTime = TIME_KEYS.map(k => row[k]).find(v => v) || '';
     const scheduledTime = parseDate(rawTime);
 
+    const socialUrl = resolveSocialUrl(fullName, row['social account'], row['platform'] || '');
+
     const partial = {
       id: `${idPrefix}${currentStatus}_${result.length}`,
       sheetStatus: currentStatus,
@@ -323,7 +349,9 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       fullName,
       /** 시트의 full name 칸에 값이 있었는지. false면 소셜 계정을 이름 자리에 쓴 것이다 */
       hasFullName: Boolean(rawName),
-      socialAccountUrl: resolveSocialUrl(fullName, row['social account'], row['platform'] || ''),
+      socialAccountUrl: socialUrl,
+      /** 목록 행에 보여줄 핸들(@ 없이). 상세 패널 링크와 같은 출처에서 되짚은 값이다 */
+      socialHandle: handleFromUrl(socialUrl),
       email: row['email'] || '',
       scheduledTime,
       hasScheduledTimeOfDay: hasTimeOfDay(rawTime),
