@@ -92,6 +92,13 @@ export const AlertUploadPending = {
   },
 };
 
+/**
+ * 상태 라벨 중 유일하게 색을 얻는 값.
+ *
+ * 나머지 라벨은 회색이다 — 대부분의 행이 같은 값이라 색을 줘봐야 신호가 안 된다.
+ * "Credit Not Sent"만 다르다: 업로드까지 끝났는데 크레딧이 안 나간 건이고,
+ * 우리가 실제로 해야 할 행동이 남은 유일한 상태다. 목록에서도 구간 맨 위로 올라간다.
+ */
 export const AlertCreditNotSent = {
   name: 'Alert — Credit Not Sent',
   args: {
@@ -105,6 +112,16 @@ export const AlertCreditNotSent = {
       uploadDate: D('2026-07-01'),
     }),
     isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const label = [...canvasElement.querySelectorAll('span')]
+      .find(e => e.textContent === 'Credit Not Sent');
+    await expect(label).toBeTruthy();
+
+    const h = defaultTheme.palette.error.main.replace('#', '');
+    const red = `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
+    await expect(getComputedStyle(label).color).toBe(red);
+    await expect(getComputedStyle(label).fontWeight).toBe('600');
   },
 };
 

@@ -853,3 +853,53 @@ export const RailNamesUseTheSameCapitalization = {
     await expect(rail.textContent).toBe('Aurora G.');
   },
 };
+
+/**
+ * 크레딧 미발송 건은 어느 구간에 있든 그 구간 맨 위에 온다.
+ *
+ * 날짜순으로만 두면 "업로드는 끝났는데 크레딧만 안 나간" 건 — 이 앱에서 우리가
+ * 실제로 해야 하는 유일한 행동 — 이 오래된 일정들 사이에 묻힌다.
+ * 상태 라벨도 유일하게 색을 얻는다(error). 순서와 색이 같은 조건에서 나와야
+ * "빨간 줄이 위에 모여 있다"가 성립한다.
+ */
+export const CreditNotSentRisesToTheTop = {
+  play: async ({ canvasElement }) => {
+    const isCreditPending = inf => inf.collaboShared && !inf.creditShared;
+    let checkedSections = 0;
+    let checkedLabels = 0;
+
+    for (const section of canvasElement.querySelectorAll('[data-section]')) {
+      const header = section.querySelector('button');
+      if (header.getAttribute('aria-expanded') !== 'true') await userEvent.click(header);
+
+      const rows = await waitFor(() => {
+        const r = [...section.querySelectorAll('[data-influencer-id]')];
+        if (r.length === 0) throw new Error('rows not rendered');
+        return r;
+      });
+
+      const pending = rows.map(row => isCreditPending(
+        MOCK_INFLUENCERS.find(i => i.id === row.getAttribute('data-influencer-id')),
+      ));
+      if (!pending.includes(true)) continue;
+      checkedSections += 1;
+
+      // 미발송 건 뒤에 일반 건이 오는 건 되지만, 그 반대는 안 된다
+      const lastPending = pending.lastIndexOf(true);
+      await expect(pending.slice(0, lastPending + 1).every(Boolean)).toBe(true);
+
+      for (const row of rows.slice(0, lastPending + 1)) {
+        const label = [...row.querySelectorAll('span')].find(n => n.textContent === 'Credit Not Sent');
+        // 연락 상태(No-show 등)가 있는 행은 그쪽이 공식 문구라 stage 라벨을 대신한다
+        if (!label) continue;
+        // 같은 행의 시각 줄이 text.secondary 기준선이다 — 라벨이 거기에 섞이면 안 된다
+        const secondary = row.querySelector('.MuiTypography-caption');
+        await expect(getComputedStyle(label).color).not.toBe(getComputedStyle(secondary).color);
+        checkedLabels += 1;
+      }
+    }
+
+    await expect(checkedSections).toBeGreaterThan(0);
+    await expect(checkedLabels).toBeGreaterThan(0);
+  },
+};

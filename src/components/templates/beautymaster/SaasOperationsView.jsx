@@ -337,11 +337,17 @@ function SaasOperationsView({
 
   const sections = useMemo(() => {
     const byTime = (a, b) => (a.scheduledTime && b.scheduledTime ? a.scheduledTime - b.scheduledTime : 0);
+    /* "Credit Not Sent"는 어느 섹션에 있든 그 섹션 맨 위로 올린다.
+       업로드까지 끝났는데 크레딧만 안 나간 건이고, 이 앱에서 우리가 실제로 해야 할
+       유일한 행동이다 — 날짜순에 묻히면 유예 기간(7일)이 지나서야 눈에 띈다.
+       판정 조건은 InfluencerListRow의 getCurrentStage와 같다(라벨과 순서가 어긋나면 안 된다). */
+    const isCreditPending = inf => inf.collaboShared && !inf.creditShared;
+    const byPriority = (a, b) => (isCreditPending(b) ? 1 : 0) - (isCreditPending(a) ? 1 : 0) || byTime(a, b);
     const all = [
       {
         key: 'attention',
         label: 'Action required',
-        items: filtered.filter(i => i.alertFlags.length > 0).sort(byTime),
+        items: filtered.filter(i => i.alertFlags.length > 0).sort(byPriority),
       },
       /* Upcoming은 "예정"이라는 뜻이어야 한다.
          예전에는 "경보 없음 + 미완료"였을 뿐이라 날짜 조건이 아예 없었고,
@@ -351,7 +357,7 @@ function SaasOperationsView({
         key: 'upcoming',
         label: 'Upcoming',
         items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
-          && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).sort(byTime),
+          && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).sort(byPriority),
       },
       /* 방문일은 지났지만 아직 유예 기간이라 경보가 없는 건 */
       {
@@ -359,7 +365,7 @@ function SaasOperationsView({
         label: 'In progress',
         items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
           && i.scheduleGroup !== SCHEDULE_GROUPS.TODAY && i.scheduleGroup !== SCHEDULE_GROUPS.UPCOMING
-          && !isStaleVisit(i.scheduledTime)).sort(byTime),
+          && !isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
       /* 90일이 넘어 경보가 억제된 건 — 지금까지 어느 구간에도 안 보였다.
          닫힌 것도 진행 중인 것도 아니므로 이름을 그대로 붙여 드러낸다. */
@@ -367,12 +373,12 @@ function SaasOperationsView({
         key: 'stale',
         label: 'Stale (90+ days)',
         items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
-          && isStaleVisit(i.scheduledTime)).sort(byTime),
+          && isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
       {
         key: 'completed',
         label: 'Completed',
-        items: filtered.filter(i => i.alertFlags.length === 0 && i.creditShared).sort(byTime),
+        items: filtered.filter(i => i.alertFlags.length === 0 && i.creditShared).sort(byPriority),
       },
     ];
     return all

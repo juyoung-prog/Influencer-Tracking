@@ -12,9 +12,11 @@ const ATTR_PLATFORM_W = 72;
 const ATTR_TIER_W = 22;
 const ATTR_CATEGORY_W = 62;
 
+/* isUrgent인 단계만 상태 컬럼에서 색을 얻는다 — 나머지는 회색으로 남는다.
+   전부 색을 주면 행마다 색이 달라 목록이 신호등이 되고, 정작 손대야 하는 건이 묻힌다. */
 function getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup }) {
   if (creditShared)  return { label: 'Completed',        color: 'success.main',   show: true };
-  if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main',     show: true };
+  if (collaboShared) return { label: 'Credit Not Sent',  color: 'error.main',     show: true, isUrgent: true };
   if (attend)        return { label: 'Awaiting Upload',  color: 'text.secondary', show: true };
   const isFuture = scheduleGroup === 'upcoming' || scheduleGroup === 'today';
   if (isFuture)      return { label: 'Scheduled',        color: 'text.secondary',  show: false };
@@ -261,7 +263,8 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
       <Box sx={{ flex: '0 0 176px', minWidth: 0, flexShrink: 0, '@container (max-width: 420px)': { flex: '1 1 auto' } }}>
         {/* 경과일이 이 행에서 유일하게 행마다 다르고 우선순위를 정하는 값이다 —
             그래서 여기에 강조가 간다. 상태 라벨은 대부분의 행이 같은 값이라 회색으로.
-            (예전에는 반대였다: "Visit Unconfirmed"가 앰버, 경과일이 회색) */}
+            (예전에는 반대였다: "Visit Unconfirmed"가 앰버, 경과일이 회색)
+            예외는 "Credit Not Sent" 하나다 — 돈이 실제로 안 나간 건이라 회색에 섞이면 안 된다. */}
         {daysOverdue != null && (
           <Typography
             variant="caption"
@@ -284,7 +287,13 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
           stage.show && (
             <Typography
               variant="caption"
-              sx={{ display: 'block', color: 'text.secondary', fontSize: '0.6875rem', lineHeight: 1.3 }}
+              sx={{
+                display: 'block',
+                color: stage.isUrgent ? stage.color : 'text.secondary',
+                fontWeight: stage.isUrgent ? 600 : 400,
+                fontSize: '0.6875rem',
+                lineHeight: 1.3,
+              }}
             >
               {stage.label}
             </Typography>
