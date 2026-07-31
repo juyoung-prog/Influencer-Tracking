@@ -56,25 +56,21 @@ function daysSinceContact(lastContactDate) {
   return days > 0 ? days : 0;
 }
 
-function getContactAlert(alertFlags, contactStatus, lastContactDate, requestedDate) {
+function getContactAlert(alertFlags, lastContactDate, requestedDate) {
   const flag = alertFlags.find(f => CONTACT_ALERT_LABEL[f]);
   if (!flag) return null;
 
   const label = CONTACT_ALERT_LABEL[flag];
-  const isNoResponse = contactStatus === CONTACT_STATUSES.NO_RESPONSE;
   const requestedSuffix = requestedDate
     ? ` → ${requestedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
     : '';
 
-  if (isNoResponse && lastContactDate) {
-    return { text: `${label} · ${daysSinceContact(lastContactDate)}d no reply${requestedSuffix}`, isUrgent: true };
-  }
-
-  /* "awaiting reply"만으로는 언제 연락했는지 알 수 없다 — 어제 보낸 건과
-     3주 전 보낸 건이 같은 문구가 된다. 보낸 날짜가 있으면 경과일을 병기한다. */
+  /* "무응답"은 별도 상태가 아니다(구 no-response는 폐기) — "awaiting reply"에
+     경과일을 병기하면 어제 보낸 건과 3주 전 보낸 건이 저절로 갈린다.
+     오래 기다린 건을 상태 전환 없이 숫자가 말해 준다. */
   const waited = lastContactDate ? daysSinceContact(lastContactDate) : null;
   const waitedSuffix = waited != null ? ` · ${waited}d` : '';
-  return { text: `${label} · awaiting reply${waitedSuffix}${requestedSuffix}`, isUrgent: false };
+  return { text: `${label} · awaiting reply${waitedSuffix}${requestedSuffix}` };
 }
 
 /**
@@ -152,7 +148,10 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
 
   const stage = getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup });
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);
-  const contactAlert = getContactAlert(alertFlags, contactStatus, lastContactDate, requestedDate);
+  const contactAlert = getContactAlert(alertFlags, lastContactDate, requestedDate);
+  /* 종결 상태 — 경보도 단계 문구도 아닌 "Dropped" 한 단어만 조용히 남긴다.
+     행은 목록에 남는다: 다음 캠페인 때 노쇼 이력을 확인하는 근거가 된다. */
+  const isDropped = contactStatus === CONTACT_STATUSES.DROPPED;
 
   return (
     <ButtonBase
@@ -265,39 +264,50 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
             그래서 여기에 강조가 간다. 상태 라벨은 대부분의 행이 같은 값이라 회색으로.
             (예전에는 반대였다: "Visit Unconfirmed"가 앰버, 경과일이 회색)
             예외는 "Credit Not Sent" 하나다 — 돈이 실제로 안 나간 건이라 회색에 섞이면 안 된다. */}
-        {daysOverdue != null && (
+        {isDropped ? (
           <Typography
             variant="caption"
-            sx={{ display: 'block', color: 'warning.main', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
+            sx={{ display: 'block', color: 'text.disabled', fontSize: '0.6875rem', lineHeight: 1.3 }}
           >
-            {daysOverdue}d overdue
-          </Typography>
-        )}
-        {/* 연락 상태가 있으면 그게 공식 상태값이다 — 섹션 분류가 alertFlags 로 돌아간다.
-            "Visit Unconfirmed"는 같은 사실(방문 미확인)을 다시 말하는 표시용 파생값이라
-            둘이 함께 나오면 3줄이 되고 한 줄이 잉여가 된다. 연락 상태를 남긴다. */}
-        {contactAlert ? (
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', color: 'text.secondary', fontSize: '0.6875rem', lineHeight: 1.3 }}
-          >
-            {contactAlert.text}
+            Dropped
           </Typography>
         ) : (
-          stage.show && (
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                color: stage.isUrgent ? stage.color : 'text.secondary',
-                fontWeight: stage.isUrgent ? 600 : 400,
-                fontSize: '0.6875rem',
-                lineHeight: 1.3,
-              }}
-            >
-              {stage.label}
-            </Typography>
-          )
+          <>
+            {daysOverdue != null && (
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', color: 'warning.main', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
+              >
+                {daysOverdue}d overdue
+              </Typography>
+            )}
+            {/* 연락 상태가 있으면 그게 공식 상태값이다 — 섹션 분류가 alertFlags 로 돌아간다.
+                "Visit Unconfirmed"는 같은 사실(방문 미확인)을 다시 말하는 표시용 파생값이라
+                둘이 함께 나오면 3줄이 되고 한 줄이 잉여가 된다. 연락 상태를 남긴다. */}
+            {contactAlert ? (
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', color: 'text.secondary', fontSize: '0.6875rem', lineHeight: 1.3 }}
+              >
+                {contactAlert.text}
+              </Typography>
+            ) : (
+              stage.show && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    color: stage.isUrgent ? stage.color : 'text.secondary',
+                    fontWeight: stage.isUrgent ? 600 : 400,
+                    fontSize: '0.6875rem',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {stage.label}
+                </Typography>
+              )
+            )}
+          </>
         )}
       </Box>
     </ButtonBase>

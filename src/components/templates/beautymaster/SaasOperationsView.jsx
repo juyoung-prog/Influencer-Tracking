@@ -16,6 +16,7 @@ import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALERT_FLAGS,
   ALL_STORES,
+  CONTACT_STATUSES,
   DEFAULT_INFLUENCER_FILTERS,
   SCHEDULE_GROUPS,
   SHEET_STATUS,
@@ -135,6 +136,32 @@ const RAIL_ALERT_LABEL = {
 function railAlertLabel(inf) {
   const flag = inf.alertFlags.find(f => RAIL_ALERT_LABEL[f]);
   return flag ? RAIL_ALERT_LABEL[flag] : null;
+}
+
+/**
+ * Action required 안의 "일 종류" 칩. 실무 리듬은 배칭이다 — "오늘은 업로드 리마인드만
+ * 다 돌리자"를 지원하려면 같은 종류의 일을 골라 볼 수 있어야 한다.
+ * 라벨은 행 상태 문구와 **정확히 같은 어휘**를 쓴다(행 라벨은 InfluencerListRow가 소유) —
+ * 같은 것이 화면에서 두 이름으로 불리면 그때부터 학습 부담이 생긴다.
+ * 순서는 긴급도: 돈(Credit) → 연락 대기 → 단계 지연.
+ */
+const ATTENTION_TYPES = [
+  { key: 'credit', label: 'Credit Not Sent', flag: ALERT_FLAGS.COLLABO_NO_CREDIT },
+  { key: 'noshow', label: 'No-show', flag: ALERT_FLAGS.NO_SHOW_UNRESOLVED },
+  { key: 'reschedule', label: 'Reschedule', flag: ALERT_FLAGS.RESCHEDULE_PENDING },
+  { key: 'upload', label: 'Awaiting Upload', flag: ALERT_FLAGS.ATTEND_NO_COLLABO },
+  { key: 'visit', label: 'Visit Unconfirmed', flag: ALERT_FLAGS.AGREEMENT_NO_ATTEND },
+];
+
+/**
+ * 이 인플루언서의 일 종류 키. 판정 우선순위는 행 표시와 같다 —
+ * 연락 경보(노쇼 > 일정변경)가 단계 라벨보다 먼저다.
+ * 칩으로 골랐을 때 행에 다른 라벨이 보이면 필터를 불신하게 된다.
+ */
+const TYPE_PRECEDENCE = ['noshow', 'reschedule', 'credit', 'upload', 'visit'];
+const TYPE_FLAG_BY_KEY = Object.fromEntries(ATTENTION_TYPES.map(t => [t.key, t.flag]));
+function attentionTypeOf(inf) {
+  return TYPE_PRECEDENCE.find(k => inf.alertFlags.includes(TYPE_FLAG_BY_KEY[k])) ?? null;
 }
 
 /**
@@ -276,7 +303,9 @@ function SaasOperationsView({
    * 접힌 섹션 키. Action required만 펼친 채로 시작한다 — 손댈 게 있는 쪽이 먼저 보여야 하고,
    * 긴 섹션을 접어 아래 섹션으로 바로 갈 수 있어야 한다.
    */
-  const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'inProgress', 'stale', 'completed']));
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'inProgress', 'stale', 'completed', 'dropped']));
+  /** Action required 안의 일 종류 필터(배칭용) — 섹션 스코프 일시 상태라 승격하지 않는다 */
+  const [attentionType, setAttentionType] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [internalFilters, setInternalFilters] = useState(DEFAULT_INFLUENCER_FILTERS);
 
@@ -343,11 +372,29 @@ function SaasOperationsView({
        판정 조건은 InfluencerListRow의 getCurrentStage와 같다(라벨과 순서가 어긋나면 안 된다). */
     const isCreditPending = inf => inf.collaboShared && !inf.creditShared;
     const byPriority = (a, b) => (isCreditPending(b) ? 1 : 0) - (isCreditPending(a) ? 1 : 0) || byTime(a, b);
+    /* Dropped는 종결이라 경보가 전부 꺼진다 — 그대로 두면 "경보 없음 + 미완료" 조건에
+       걸려 In progress/Stale로 흘러든다. 포기한 사람이 "진행 중"에 앉으면 섹션이라는
+       약속이 깨지므로, 다른 모든 구간에서 명시적으로 빼고 맨 아래 자기 구간에 모은다. */
+    const isDropped = inf => inf.contactStatus === CONTACT_STATUSES.DROPPED;
+    /* 일 종류 칩 — 카운트는 종류 필터 **이전**의 전체에서 센다(칩이 자기 분모를 지우면 안 된다).
+       헤더 카운트도 전체를 유지한다 — Needs attention 배너와 같은 수여야 하고,
+       칩은 "지금 무엇을 보느냐"지 "일이 몇 개냐"를 바꾸는 게 아니다. */
+    const attentionAll = filtered.filter(i => i.alertFlags.length > 0).sort(byPriority);
+    const typeCounts = {};
+    for (const inf of attentionAll) {
+      const k = attentionTypeOf(inf);
+      if (k) typeCounts[k] = (typeCounts[k] || 0) + 1;
+    }
+    /* 선택한 종류가 전역 필터 변경으로 사라지면 조용히 All로 돌아간다 (0건 화면 방지) */
+    const activeType = typeCounts[attentionType] ? attentionType : null;
     const all = [
       {
         key: 'attention',
         label: 'Action required',
-        items: filtered.filter(i => i.alertFlags.length > 0).sort(byPriority),
+        items: activeType ? attentionAll.filter(i => attentionTypeOf(i) === activeType) : attentionAll,
+        headerCount: attentionAll.length,
+        types: ATTENTION_TYPES.filter(t => typeCounts[t.key]).map(t => ({ ...t, count: typeCounts[t.key] })),
+        activeType,
       },
       /* Upcoming은 "예정"이라는 뜻이어야 한다.
          예전에는 "경보 없음 + 미완료"였을 뿐이라 날짜 조건이 아예 없었고,
@@ -356,14 +403,14 @@ function SaasOperationsView({
       {
         key: 'upcoming',
         label: 'Upcoming',
-        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
           && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).sort(byPriority),
       },
       /* 방문일은 지났지만 아직 유예 기간이라 경보가 없는 건 */
       {
         key: 'inProgress',
         label: 'In progress',
-        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
           && i.scheduleGroup !== SCHEDULE_GROUPS.TODAY && i.scheduleGroup !== SCHEDULE_GROUPS.UPCOMING
           && !isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
@@ -372,18 +419,26 @@ function SaasOperationsView({
       {
         key: 'stale',
         label: 'Stale (90+ days)',
-        items: filtered.filter(i => i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
           && isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
       {
         key: 'completed',
         label: 'Completed',
-        items: filtered.filter(i => i.alertFlags.length === 0 && i.creditShared).sort(byPriority),
+        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && i.creditShared).sort(byPriority),
+      },
+      /* 성공 종결(Completed)과 실패 종결(Dropped)은 섞지 않는다 — 섞으면 Completed
+         카운트가 의미를 잃는다. 평소엔 볼 일이 없고 다음 캠페인 초대 명단을 짤 때
+         블랙리스트 참조로 펼쳐보는 구간이라 맨 아래 + 기본 접힘이다. */
+      {
+        key: 'dropped',
+        label: 'Dropped',
+        items: filtered.filter(isDropped).sort(byTime),
       },
     ];
     return all
       .filter(s => s.items.length > 0);
-  }, [filtered]);
+  }, [filtered, attentionType]);
 
   const scheduleSections = useMemo(() => buildScheduleSections(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
@@ -959,9 +1014,34 @@ function SaasOperationsView({
                       {section.label.toUpperCase()}
                     </Typography>
                     <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                      {section.items.length}
+                      {section.headerCount ?? section.items.length}
                     </Typography>
                   </Box>
+
+                  {/* 일 종류 칩 — Action required 전용. 종류가 하나뿐이면 칩이 정보가 아니라 소음이다.
+                      헤더(접기 버튼) 안에 넣지 않는다 — button 안의 button은 무효 HTML이고,
+                      접으면 칩도 함께 사라지는 게 맞다(접힌 섹션의 필터는 보이지 않는 상태다). */}
+                  {!isCollapsed && section.key === 'attention' && section.types?.length > 1 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Chip
+                        label={`All ${section.headerCount}`}
+                        size="small"
+                        onClick={() => setAttentionType(null)}
+                        variant={section.activeType === null ? 'filled' : 'outlined'}
+                        sx={{ ...chipSx(section.activeType === null), height: 24, fontSize: 11 }}
+                      />
+                      {section.types.map(t => (
+                        <Chip
+                          key={t.key}
+                          label={`${t.label} ${t.count}`}
+                          size="small"
+                          onClick={() => setAttentionType(section.activeType === t.key ? null : t.key)}
+                          variant={section.activeType === t.key ? 'filled' : 'outlined'}
+                          sx={{ ...chipSx(section.activeType === t.key), height: 24, fontSize: 11 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
 
                   {!isCollapsed && section.items.map(inf => (
                     <InfluencerListRow

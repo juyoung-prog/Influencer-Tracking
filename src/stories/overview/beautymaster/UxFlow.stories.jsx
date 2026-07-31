@@ -187,7 +187,7 @@ const MODEL_FIELDS = [
   ]},
   { group: '연락 상태 (노쇼 · 일정변경)', fields: [
     ['contactReason', "'no-show' | 'reschedule-request' | null", 'Contact Reason', '재연락 유발 사유'],
-    ['contactStatus', "'pending-reply' | 'replied' | 'no-response' | null", 'Contact Status', '재연락 응답 상태'],
+    ['contactStatus', "'pending-reply' | 'replied' | 'dropped' | null", 'Contact Status', '재연락 응답 상태 — dropped는 종결(모든 경보 해제)'],
     ['lastContactDate', 'Date | null', 'Last Contact Date', '최근 연락 시각, 무응답 경과일 계산 기준'],
     ['requestedDate', 'Date | null', 'Requested Date', '인플루언서가 제시한 희망일 — 확정 전 임시값, 확정 시 scheduledTime으로 승격'],
   ]},

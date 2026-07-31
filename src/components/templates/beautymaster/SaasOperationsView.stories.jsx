@@ -494,6 +494,98 @@ export const GraceWindowDecidesTheSection = {
 };
 
 /**
+ * Dropped는 자기 구간을 가진다.
+ *
+ * 종결이라 경보가 전부 꺼지는데, 그대로 두면 "경보 없음 + 미완료" 조건에 걸려
+ * In progress/Stale로 흘러든다 — 포기한 사람이 "진행 중"에 앉으면 섹션이라는 약속이
+ * 깨진다. 성공 종결(Completed)과도 섞지 않는다(카운트가 의미를 잃는다).
+ * 평소엔 볼 일이 없는 블랙리스트 참조 구간이라 맨 아래 + 기본 접힘이다.
+ */
+export const DroppedGetsItsOwnSection = {
+  args: {
+    influencers: [
+      gracePeriodRow('dr-active', 'Still Active', ALERT_GRACE_DAYS.UPLOAD + 5, { agreement: true, attend: true }),
+      gracePeriodRow('dr-dropped', 'Given Up', 20, {
+        agreement: true, attend: false,
+        contactReason: 'no-show', contactStatus: 'dropped',
+        lastContactDate: daysAgo(5),
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const dropped = canvasElement.querySelector('[data-section="dropped"]');
+    await expect(dropped).toBeTruthy();
+
+    // 기본 접힘 — 카운트만 보인다
+    const header = dropped.querySelector('button');
+    await expect(header.getAttribute('aria-expanded')).toBe('false');
+
+    // 맨 아래 구간이다
+    const keys = [...canvasElement.querySelectorAll('[data-section]')].map(e => e.getAttribute('data-section'));
+    await expect(keys[keys.length - 1]).toBe('dropped');
+
+    // 펼치면 드롭된 사람이 여기에만 있다 — In progress/Stale로 새지 않는다
+    await userEvent.click(header);
+    await waitFor(async () => {
+      const row = canvasElement.querySelector('[data-influencer-id="dr-dropped"]');
+      await expect(row).toBeTruthy();
+      await expect(row.closest('[data-section]').getAttribute('data-section')).toBe('dropped');
+    });
+    await expect(canvasElement.querySelector('[data-section="inProgress"] [data-influencer-id="dr-dropped"]')).toBeNull();
+  },
+};
+
+/**
+ * Action required의 일 종류 칩 — 배칭용.
+ *
+ * 실무 리듬은 "오늘은 업로드 리마인드만 다 돌리자"다. 칩 라벨은 행 상태 문구와
+ * 정확히 같은 어휘를 쓴다(같은 것이 두 이름으로 불리면 학습 부담).
+ * 헤더 카운트는 칩 필터와 무관하게 전체를 유지한다 — Needs attention 배너와
+ * 같은 수여야 하고, 칩은 "무엇을 보느냐"지 "일이 몇 개냐"가 아니다.
+ */
+export const AttentionTypeChipsBatchTheWork = {
+  args: {
+    influencers: [
+      gracePeriodRow('ty-upload', 'Upload Waiting', ALERT_GRACE_DAYS.UPLOAD + 5, { agreement: true, attend: true }),
+      gracePeriodRow('ty-visit', 'Visit Unknown', ALERT_GRACE_DAYS.VISIT + 5, { agreement: true, attend: false }),
+      gracePeriodRow('ty-noshow', 'No Show Person', 10, {
+        agreement: true, attend: false,
+        contactReason: 'no-show', contactStatus: 'pending-reply', lastContactDate: daysAgo(3),
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const attention = canvasElement.querySelector('[data-section="attention"]');
+    const chipLabels = () => [...attention.querySelectorAll('.MuiChip-label')].map(e => e.textContent);
+    const rowIds = () => [...attention.querySelectorAll('[data-influencer-id]')].map(r => r.getAttribute('data-influencer-id'));
+
+    // 칩 어휘·카운트 — 행 상태 문구와 같은 말, All은 전체
+    await expect(chipLabels()).toEqual(
+      expect.arrayContaining(['All 3', 'No-show 1', 'Awaiting Upload 1', 'Visit Unconfirmed 1']),
+    );
+
+    // 종류 하나를 고르면 그 일만 남는다
+    const uploadChip = [...attention.querySelectorAll('.MuiChip-root')]
+      .find(c => c.textContent === 'Awaiting Upload 1');
+    await userEvent.click(uploadChip);
+    await waitFor(async () => {
+      await expect(rowIds()).toEqual(['ty-upload']);
+    });
+
+    // 헤더 카운트는 여전히 전체 — 배너와 같은 수를 유지한다
+    const headerCount = attention.querySelector('button').innerText.match(/(\d+)\s*$/)?.[1];
+    await expect(headerCount).toBe('3');
+
+    // All로 돌아오면 전부 보인다
+    const allChip = [...attention.querySelectorAll('.MuiChip-root')].find(c => c.textContent === 'All 3');
+    await userEvent.click(allChip);
+    await waitFor(async () => {
+      await expect(rowIds().length).toBe(3);
+    });
+  },
+};
+
+/**
  * 활성·선택·포커스가 모두 한 파랑에서 나온다.
  *
  * 예전에는 자리마다 값이 달랐다 — 칩 테두리·내비 배경·메뉴 선택은 #0000FF,

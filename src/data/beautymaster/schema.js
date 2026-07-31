@@ -47,11 +47,18 @@ export const CONTACT_REASONS = Object.freeze({
   RESCHEDULE_REQUEST: 'reschedule-request',
 });
 
-/** 재연락 응답 상태 */
+/**
+ * 재연락 응답 상태 — 기다림 / 응답 / 포기, 세 값뿐이다.
+ * "무응답"은 상태가 아니라 pending-reply + 경과일(lastContactDate)로 파생된다 —
+ * 시스템이 계산할 수 있는 걸 사람에게 한 번 더 적게 하면 반드시 잊히고,
+ * 잊히면 시트가 거짓말을 한다. (구 no-response 값은 파서가 pending-reply로 흡수)
+ */
 export const CONTACT_STATUSES = Object.freeze({
   PENDING_REPLY: 'pending-reply',
   REPLIED: 'replied',
-  NO_RESPONSE: 'no-response',
+  /** 종결 — 재연락을 포기했다. 이 값이 되면 해당 인원의 경보는 전부 꺼진다.
+      드롭 여부 판단은 사람이 한다(노쇼 횟수 자동 추적은 시트 관리 부담으로 철회) */
+  DROPPED: 'dropped',
 });
 
 /** agreement 제출 후 방문 미완료 */
@@ -123,7 +130,7 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {number|null} reposts
  * @property {string} note
  * @property {'no-show'|'reschedule-request'|null} contactReason - Why the influencer was re-contacted about their visit date
- * @property {'pending-reply'|'replied'|'no-response'|null} contactStatus - Status of that re-contact
+ * @property {'pending-reply'|'replied'|'dropped'|null} contactStatus - Status of that re-contact. 'dropped' is terminal — outreach given up
  * @property {Date|null} lastContactDate - When the re-contact message was sent
  * @property {Date|null} requestedDate - New date the influencer proposed, pending confirmation into scheduledTime
  * @property {string[]} alertFlags - Derived from boolean status fields
@@ -284,6 +291,11 @@ export function deriveAlertFlags(influencer, today = new Date()) {
   } = influencer;
   const flags = [];
 
+  /* Dropped는 종결 상태다 — 재연락 경보만이 아니라 단계 지연 경보("No visit" 등)도
+     전부 끈다. 포기한 사람에게 "방문 N일 지연"을 계속 알리면 드롭 결정과 모순된다.
+     행 자체는 목록에 남아 다음 캠페인 때 이력으로 확인할 수 있다. */
+  if (contactStatus === CONTACT_STATUSES.DROPPED) return flags;
+
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const sinceVisit = daysSince(scheduledTime, todayStart);
   const isStale = isStaleVisit(scheduledTime, today);
@@ -309,8 +321,7 @@ export function deriveAlertFlags(influencer, today = new Date()) {
 
   // Resolved by reality once the influencer actually shows up, regardless of whether
   // Contact Status was manually updated to Replied in the sheet.
-  const contactUnresolved = !attend
-    && (contactStatus === CONTACT_STATUSES.PENDING_REPLY || contactStatus === CONTACT_STATUSES.NO_RESPONSE);
+  const contactUnresolved = !attend && contactStatus === CONTACT_STATUSES.PENDING_REPLY;
   if (contactReason === CONTACT_REASONS.NO_SHOW && contactUnresolved) flags.push(ALERT_FLAGS.NO_SHOW_UNRESOLVED);
   if (contactReason === CONTACT_REASONS.RESCHEDULE_REQUEST && contactUnresolved) flags.push(ALERT_FLAGS.RESCHEDULE_PENDING);
 

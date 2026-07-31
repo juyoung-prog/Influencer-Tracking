@@ -134,7 +134,7 @@ export const AlertNoShowFollowUp = {
       scheduledTime: D('2026-07-03T13:00:00'),
       attend: false,
       contactReason: 'no-show',
-      contactStatus: 'no-response',
+      contactStatus: 'pending-reply',
       lastContactDate: D('2026-07-05'),
     }),
     isSelected: false,
@@ -155,6 +155,39 @@ export const AlertReschedulePending = {
       requestedDate: D('2026-07-14'),
     }),
     isSelected: false,
+  },
+};
+
+/**
+ * 종결 — 시트 Contact Status에 Dropped를 적으면 모든 경보가 꺼지고
+ * "Dropped" 한 단어만 비활성 톤으로 남는다. 행은 목록에서 사라지지 않는다 —
+ * 다음 캠페인 때 "이 사람 노쇼로 드롭됐었네"를 확인하는 이력이 된다.
+ * 드롭 여부 판단은 사람이 한다(노쇼 횟수 자동 추적은 시트 관리 부담으로 철회).
+ */
+export const DroppedTerminal = {
+  name: 'Dropped',
+  args: {
+    influencer: make({
+      id: 'inf-a6',
+      fullName: 'Seo Hana',
+      scheduledTime: D('2026-07-20T13:00:00'),
+      attend: false,
+      contactReason: 'no-show',
+      contactStatus: 'dropped',
+      lastContactDate: D('2026-07-25'),
+    }),
+    isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector('[data-influencer-id]');
+    const status = row.children[3].textContent;
+    await expect(status).toBe('Dropped');
+    // 경보 문구가 함께 남지 않는다 — 종결인데 "overdue"가 있으면 모순
+    await expect(status).not.toMatch(/overdue|awaiting reply/);
+
+    const label = [...row.querySelectorAll('span,p')].find(e => e.textContent === 'Dropped');
+    // "처리 필요"가 아니라 "끝난 건" — 비활성 톤, 굵기 없음
+    await expect(getComputedStyle(label).fontWeight).toBe('400');
   },
 };
 
@@ -217,8 +250,9 @@ export const AllStates = {
       make({ id: '2', fullName: 'Shin Dahye', category: 'specific', scheduledTime: D('2026-07-02T13:00:00'), attend: true, collaboShared: false }),
       make({ id: '3', fullName: 'Park Soyeon', category: 'kbeauty', scheduledTime: D('2026-07-01T14:00:00'), attend: true, collaboShared: true, creditShared: false, uploadDate: D('2026-07-01') }),
       make({ id: '4', fullName: 'Oh Seulgi', category: 'general', scheduledTime: D('2026-06-28T10:00:00'), attend: true, collaboShared: true, creditShared: true }),
-      make({ id: '5', fullName: 'Han Yerin', category: 'kbeauty', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'no-response', lastContactDate: D('2026-07-05') }),
+      make({ id: '5', fullName: 'Han Yerin', category: 'kbeauty', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'pending-reply', lastContactDate: D('2026-07-05') }),
       make({ id: '6', fullName: 'Choi Yuna', category: 'general', scheduledTime: D('2026-07-10T15:00:00'), attend: false, contactReason: 'reschedule-request', contactStatus: 'pending-reply', lastContactDate: D('2026-07-07'), requestedDate: D('2026-07-14') }),
+      make({ id: '7', fullName: 'Seo Hana', category: 'kbeauty', scheduledTime: D('2026-07-20T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'dropped', lastContactDate: D('2026-07-25') }),
     ];
     return (
       <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
@@ -301,7 +335,7 @@ export const SeverityHierarchy = {
       make({ id: 'h0', fullName: 'Oh Seulgi', scheduledTime: D('2026-06-28T10:00:00'), attend: true, collaboShared: true, creditShared: true }),
       make({ id: 'h1', fullName: 'Shin Dahye', scheduledTime: D('2026-07-02T13:00:00'), attend: true, collaboShared: false }),
       make({ id: 'h2', fullName: 'Choi Yuna', scheduledTime: D('2026-07-10T15:00:00'), attend: false, contactReason: 'reschedule-request', contactStatus: 'pending-reply', lastContactDate: D('2026-07-07') }),
-      make({ id: 'h3', fullName: 'Han Yerin', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'no-response', lastContactDate: D('2026-07-05') }),
+      make({ id: 'h3', fullName: 'Han Yerin', scheduledTime: D('2026-07-03T13:00:00'), attend: false, contactReason: 'no-show', contactStatus: 'pending-reply', lastContactDate: D('2026-07-05') }),
     ];
     return (
       <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
@@ -342,9 +376,10 @@ export const SeverityHierarchy = {
       if (/No-show|Reschedule/.test(text)) await expect(text).not.toContain('Visit Unconfirmed');
     }
 
-    // 회신이 끊긴 건은 경과일을 숫자로 말한다
-    const noReply = rows.map(r => r.children[3].textContent).find(t => /no reply/.test(t));
-    await expect(noReply).toMatch(/\d+d no reply/);
+    /* "무응답"은 상태가 아니라 경과일로 말한다 — no-response 상태는 폐기됐고
+       (수동 전환은 잊힌다), 오래 기다린 건은 "awaiting reply · Nd"의 숫자가 가른다 */
+    const awaiting = rows.map(r => r.children[3].textContent).find(t => /awaiting reply/.test(t));
+    await expect(awaiting).toMatch(/awaiting reply · \d+d/);
   },
 };
 

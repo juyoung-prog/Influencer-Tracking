@@ -107,7 +107,7 @@ export const Doc = {
             <TableBody>
               {[
                 ['Contact Reason', 'No-show / Reschedule Request', '연락을 유발한 사유. 누가 먼저 문제를 제기했는지'],
-                ['Contact Status', 'Pending Reply / Replied / No Response', '그 연락에 대한 현재 협의 단계'],
+                ['Contact Status', 'Pending Reply / Replied / Dropped', '그 연락에 대한 현재 협의 단계. "무응답"은 상태가 아니라 Pending Reply + 경과일로 파생 (구 No Response 값은 파서가 Pending Reply로 흡수)'],
                 ['Last Contact Date', '날짜', '가장 최근 연락 보낸 시점. 무응답 경과일 계산 기준'],
                 ['Requested Date', '날짜 (nullable)', '인플루언서가 답장으로 제시한 새 희망일. 확정 전 임시값'],
               ].map(([header, values, role]) => (
@@ -144,9 +144,10 @@ export const Doc = {
             <TableBody>
               {[
                 ['1', 'no-show', 'replied', '없음 (scheduledTime 갱신 후 해제됨)'],
-                ['2', 'no-show', 'no-response / pending-reply', 'no-show-unresolved'],
-                ['3', 'reschedule-request', 'no-response / pending-reply', 'reschedule-pending'],
+                ['2', 'no-show', 'pending-reply', 'no-show-unresolved'],
+                ['3', 'reschedule-request', 'pending-reply', 'reschedule-pending'],
                 ['4', 'reschedule-request', 'replied', '없음 (scheduledTime 갱신 후 해제됨)'],
+                ['5', '무관', 'dropped', '없음 — 종결. 모든 경보(단계 지연 포함)가 꺼지고 목록 맨 아래 Dropped 구간에 남는다. 드롭 여부 판단은 사람이 한다'],
               ].map(([n, reason, status, flag]) => (
                 <TableRow key={n}>
                   <TableCell sx={{ ...mono, color: 'text.disabled' }}>{n}</TableCell>
@@ -172,7 +173,7 @@ export const Doc = {
             <TableBody>
               {[
                 ['CONTACT_REASONS', "{ NO_SHOW: 'no-show', RESCHEDULE_REQUEST: 'reschedule-request' }"],
-                ['CONTACT_STATUSES', "{ PENDING_REPLY: 'pending-reply', REPLIED: 'replied', NO_RESPONSE: 'no-response' }"],
+                ['CONTACT_STATUSES', "{ PENDING_REPLY: 'pending-reply', REPLIED: 'replied', DROPPED: 'dropped' } — NO_RESPONSE는 2026-07 폐기(경과일로 파생, 파서가 레거시 값을 pending-reply로 흡수)"],
                 ['ALERT_FLAGS (추가)', "NO_SHOW_UNRESOLVED: 'no-show-unresolved', RESCHEDULE_PENDING: 'reschedule-pending'"],
                 ['Influencer 필드 (추가)', 'contactReason, contactStatus, lastContactDate, requestedDate'],
                 ['deriveAlertFlags (수정)', 'contactReason이 있고 !attend && contactStatus가 replied가 아니면 해당 alertFlag push (attend 조건은 버그 수정으로 추가, 아래 ⑧ 참고)'],
@@ -227,7 +228,7 @@ export const Doc = {
             <TableBody>
               {[
                 ['InfluencerPanel.jsx', 'ALERT_FLAG_SEVERITY 맵에 두 플래그를 warning으로 추가 → ACTION REQUIRED 섹션 정렬에 반영'],
-                ['InfluencerListRow.jsx', 'getContactAlert() 헬퍼 추가. contactStatus가 no-response면 "Nd no reply"(굵게), pending-reply면 "awaiting reply"를 warning.main 색으로 표시. 라벨은 "No-show"/"Reschedule"로 축약 — 같은 컬럼의 다른 상태 라벨(Awaiting Upload 등)과 길이를 맞춰 줄바꿈 방지. requestedDate가 있으면 "→ Jul 14"로 끝에 덧붙임(⑧ 참고)'],
+                ['InfluencerListRow.jsx', 'getContactAlert() 헬퍼 추가. 연락 미해결이면 "awaiting reply · Nd"로 경과일을 병기 — 무응답은 별도 상태가 아니라 이 숫자가 말한다(구 no-response 분기는 폐기). 라벨은 "No-show"/"Reschedule"로 축약 — 같은 컬럼의 다른 상태 라벨(Awaiting Upload 등)과 길이를 맞춰 줄바꿈 방지. requestedDate가 있으면 "→ Jul 14"로 끝에 덧붙임(⑧ 참고). Dropped는 경보·단계 문구 없이 "Dropped" 한 단어(text.disabled)만 남는다'],
               ].map(([file, change]) => (
                 <TableRow key={file}>
                   <TableCell sx={{ ...mono, fontSize: 11 }}>{file}</TableCell>
@@ -285,7 +286,7 @@ export const Doc = {
             <TableBody>
               {[
                 ['Scheduled Time ↔ Requested Date 수동 동기화', 'Requested Date가 확정되면 Scheduled Time을 새 날짜로 덮어써야 한다는 규칙이 문서(②)에만 있고 코드가 강제하지 않음. 매니저가 Scheduled Time 갱신을 깜빡하면 Contact Status는 Replied인데 Visit Unconfirmed/overdue는 계속 남을 수 있음.'],
-                ['재노쇼 재발동 안 됨', '같은 인플루언서가 옮긴 날짜에도 또 안 오면, Contact Status가 이미 Replied로 남아있어 no-show-unresolved가 다시 안 뜸. 매니저가 Contact Status를 다시 No Response로 수동 리셋해야 함 — 이력이 아니라 현재 상태 1개만 저장하는 설계의 한계.'],
+                ['재노쇼 재발동 안 됨 (2026-07 부분 해소)', '같은 인플루언서가 옮긴 날짜에도 또 안 오면, Contact Status가 이미 Replied로 남아있어 no-show-unresolved가 다시 안 뜸. 매니저가 Contact Status를 Pending Reply로 수동 리셋 + Last Contact Date를 새 발송일로 갱신하는 운영으로 재발동한다. 포기 결정 시 Contact Status에 Dropped를 적으면 모든 경보가 꺼진 채 목록 맨 아래 Dropped 구간으로 종결된다. 노쇼 횟수 자동 추적(No-show Count 컬럼 + drop-candidate 경보)은 시트 관리 부담으로 도입 직후 철회 — 드롭 판단은 사람이 하고, 이력은 Note 칸에 남긴다. 연락 이력 자체를 쌓는 건 여전히 Contact Log 탭(백로그) 몫.'],
               ].map(([item, note]) => (
                 <TableRow key={item}>
                   <TableCell sx={{ fontWeight: 600, width: '26%', fontSize: 12 }}>{item}</TableCell>

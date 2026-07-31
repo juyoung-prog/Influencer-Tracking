@@ -277,7 +277,10 @@ function parseContactStatus(val) {
   const norm = val.trim().toLowerCase().replace(/\s+/g, '-');
   if (norm === 'pending-reply' || norm === 'pending') return CONTACT_STATUSES.PENDING_REPLY;
   if (norm === 'replied') return CONTACT_STATUSES.REPLIED;
-  if (norm === 'no-response') return CONTACT_STATUSES.NO_RESPONSE;
+  /* 구 No Response 값 — 상태로는 폐기됐지만(경과일로 파생) 시트에 남은 행이
+     있을 수 있다. null로 버리면 그 행의 경보가 꺼져버리므로 pending-reply로 흡수한다. */
+  if (norm === 'no-response') return CONTACT_STATUSES.PENDING_REPLY;
+  if (norm === 'dropped' || norm === 'drop') return CONTACT_STATUSES.DROPPED;
   return null;
 }
 

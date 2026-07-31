@@ -37,6 +37,15 @@ export const DEFAULT_MESSAGE_TEMPLATES = [
     body: "Hi! We noticed that you were scheduled to visit on {{scheduledTime}}, but it looks like you weren't able to make it. Would you like us to reschedule your visit? Let us know what date works best for you!",
   },
   {
+    /* 재노쇼에게 보내는 마지막 안내 — 마감을 명시해 답이 없으면 Dropped 처리할
+       근거를 만든다. 3차 추격은 하지 않는다. 드롭 판단은 사람이 하므로 수동 템플릿. */
+    id: 'final-notice',
+    label: 'Final notice (before drop)',
+    track: MESSAGE_TRACKS.MANUAL,
+    triggerFlag: null,
+    body: "Hi! We reached out earlier about rescheduling your visit, but we haven't been able to confirm a new date. We'd still love to host you! If we don't hear back from you by the end of this week, we'll go ahead and release your spot for this campaign. Thank you!",
+  },
+  {
     id: 'invite',
     label: 'Collaboration invite',
     track: MESSAGE_TRACKS.MANUAL,
