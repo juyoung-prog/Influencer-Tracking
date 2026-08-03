@@ -71,7 +71,16 @@ export default {
     open: { control: 'boolean', description: 'Whether the Drawer is open' },
     onClose: { action: 'drawer closed', description: 'Close handler' },
     templates: { control: 'object', description: 'Outreach message templates for MessageTemplateMenu' },
+    sheetUrl: { control: 'text', description: 'Google Sheet 원본 링크 — 성과 기록이 밀렸을 때 "Record in sheet" 링크로 노출' },
   },
+};
+
+/** 오늘 기준 n일 전 — 성과 D-day 상태는 시간 파생이라 고정 날짜로는 스토리가 썩는다 */
+const daysAgo = n => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(13, 0, 0, 0);
+  return d;
 };
 
 export const Default = {
@@ -100,6 +109,80 @@ export const Minimal = {
         <InfluencerDrawer influencer={minimalInfluencer} open={open} onClose={() => setOpen(false)} templates={DEFAULT_MESSAGE_TEMPLATES} />
       </Box>
     );
+  },
+};
+
+/**
+ * 성과 기록이 밀린 상태(D+14 경과, 지표 없음) — 패널이 다음 행동까지 안내한다.
+ *
+ * 목록 행의 "Record Performance"를 보고 열었을 때 패널이 같은 말을 해야 하고
+ * (판정은 둘 다 derivePerformanceStatus), "적으세요"로 끝나지 않고 시트로 가는
+ * 링크를 바로 준다 — 기록은 시트에만 한다(진실은 시트 하나).
+ */
+export const PerformanceCheckDue = {
+  render: () => (
+    <InfluencerDrawer
+      influencer={ {
+        ...fullInfluencer,
+        uploadDate: daysAgo(16),
+        recordDate: null,
+        views: null, likes: null, shares: null, saves: null, comments: null, reposts: null,
+      } }
+      open
+      onClose={ () => {} }
+      templates={ DEFAULT_MESSAGE_TEMPLATES }
+      sheetUrl="https://docs.google.com/spreadsheets/d/example/edit"
+    />
+  ),
+  play: async () => {
+    const paper = await waitFor(() => {
+      const el = document.querySelector('.MuiDrawer-paper');
+      if (!el) throw new Error('drawer not mounted');
+      return el;
+    });
+
+    // 미측정은 0%가 아니다 — ER은 비워 둔다
+    await expect(paper.textContent).toContain('Engagement rate');
+    await expect(paper.textContent).toContain('Performance check due · 2d past');
+
+    const link = [...paper.querySelectorAll('a')].find(a => a.textContent.includes('Record in sheet'));
+    await expect(link).toBeTruthy();
+    await expect(link.getAttribute('href')).toContain('docs.google.com');
+  },
+};
+
+/**
+ * 기록이 끝난 상태 — 숫자 6개의 해석(ER)과 기록 시점을 화면이 대신 말한다.
+ *
+ * 실제 기록일을 그대로 보여준다(D+16이면 D+16) — 늦은 기록도 받되,
+ * D+14 값이 아니라는 사실이 보여야 다른 사람과 비교할 때 걸러 읽을 수 있다.
+ */
+export const PerformanceRecordedShowsEngagement = {
+  render: () => (
+    <InfluencerDrawer
+      influencer={ {
+        ...fullInfluencer,
+        uploadDate: daysAgo(20),
+        recordDate: daysAgo(6),
+      } }
+      open
+      onClose={ () => {} }
+      templates={ DEFAULT_MESSAGE_TEMPLATES }
+    />
+  ),
+  play: async () => {
+    const paper = await waitFor(() => {
+      const el = document.querySelector('.MuiDrawer-paper');
+      if (!el) throw new Error('drawer not mounted');
+      return el;
+    });
+
+    // (3201+142+891+234+45) / 12450 = 36.2%
+    await expect(paper.textContent).toContain('36.2%');
+    await expect(paper.textContent).toContain('Recorded');
+    await expect(paper.textContent).toContain('D+14');
+    // 기록이 끝났으니 시트 재촉은 없다
+    await expect([...paper.querySelectorAll('a')].some(a => a.textContent.includes('Record in sheet'))).toBe(false);
   },
 };
 

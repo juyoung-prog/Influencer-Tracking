@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import { expect } from 'storybook/test';
 import { defaultTheme } from '../../styles/themes';
 import InfluencerListRow from './InfluencerListRow';
-import { deriveAlertFlags, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
+import { deriveAlertFlags, derivePerformanceStatus, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
 
 const D = iso => new Date(iso);
 
@@ -205,13 +205,73 @@ export const Completed = {
   },
 };
 
-export const WithNote = {
+/** 오늘 기준 n일 전 — 성과 D-day는 시간 파생이라 고정 날짜로는 스토리가 썩는다 */
+const daysAgo = n => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(13, 0, 0, 0);
+  return d;
+};
+
+/**
+ * D+14 성과 기록 문구 — 경보가 아니라 예정된 루틴 작업.
+ *
+ * due는 "Record Performance"(작업 큐 섹션과 같은 어휘) + 초과일을 본문 색 강조로,
+ * 임박(D-3 이내)은 D-day를 회색으로 보여준다. warning/error 색을 쓰지 않는 게 요점 —
+ * 색까지 주면 목록이 신호등이 되고 진짜 경보(Credit Not Sent)가 묻힌다.
+ */
+export const PerformanceRecordDue = {
+  name: 'Performance — Record Due',
   args: {
     influencer: make({
+      id: 'inf-perf-due',
+      fullName: 'Han Areum',
+      scheduledTime: daysAgo(18),
       attend: true,
-      note: 'Rescheduled from Jun 28. Content expected this week.',
+      collaboShared: true,
+      creditShared: true,
+      uploadDate: daysAgo(16),
     }),
     isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelector('[data-performance-line]');
+    await expect(line).toBeTruthy();
+    await expect(line.textContent).toBe('Record Performance · 2d');
+    // "Completed"는 사라진다 — 기록이 남았으면 완료가 아니다. 한 행이 두 말을 하면 안 된다.
+    await expect(canvasElement.textContent).not.toContain('Completed');
+    // 경보 색이 아니다 — 본문 색 + 굵기로만 선다
+    const err = defaultTheme.palette.error.main;
+    const warn = defaultTheme.palette.warning.main;
+    const toRgb = hex => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+    await expect(getComputedStyle(line).color).not.toBe(toRgb(err));
+    await expect(getComputedStyle(line).color).not.toBe(toRgb(warn));
+    await expect(getComputedStyle(line).fontWeight).toBe('600');
+  },
+};
+
+export const PerformanceCheckImminent = {
+  name: 'Performance — D-day Imminent',
+  args: {
+    influencer: make({
+      id: 'inf-perf-wait',
+      fullName: 'Choi Yuna',
+      scheduledTime: daysAgo(14),
+      attend: true,
+      collaboShared: true,
+      creditShared: true,
+      uploadDate: daysAgo(12),
+    }),
+    isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelector('[data-performance-line]');
+    await expect(line).toBeTruthy();
+    await expect(line.textContent).toBe('Perf check D-2');
+
+    // 임박 전(D-4 이상)은 침묵한다 — 상시 노출은 숫자 소음이다
+    const early = make({ collaboShared: true, creditShared: true, uploadDate: daysAgo(5) });
+    await expect(derivePerformanceStatus(early).dDay).toBe(9);
   },
 };
 
@@ -298,8 +358,9 @@ export const TimeNotSet = {
 export const OverdueEmphasis = {
   render: () => (
     <Box sx={{ maxWidth: 680, border: '1px solid', borderColor: 'divider' }}>
+      {/* 고정 날짜였을 때 STALE(90일)을 넘기는 순간 경보가 꺼져 스토리가 조용히 썩었다 */}
       <InfluencerListRow
-        influencer={make({ id: 'x', fullName: 'Shin Dahye', scheduledTime: D('2026-05-02T13:00:00'), attend: false })}
+        influencer={make({ id: 'x', fullName: 'Shin Dahye', scheduledTime: daysAgo(30), attend: false })}
         onClick={() => {}}
       />
     </Box>

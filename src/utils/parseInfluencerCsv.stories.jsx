@@ -13,15 +13,19 @@ import { SHEET_STATUS } from '../data/beautymaster/schema.js';
 const CSV = [
   'BeautyMaster Influencer Tracking,,,,,,,,,,,,,,,,,,,',
   ',,,,,,,,,,,,,,,,,,,',
-  'no.,store,month,barcode,platform,category,type,total cost,image,full name,social account,email,time,agreement,attend,collabo shared,collabo link,upload date,credit shared,credit used',
-  '1,G10,2026-07,G10INF2026,Instagram,General,$100 Credit,,,Kim Minjung,kimminjung,a@b.com,7/8/2026 2pm,TRUE,TRUE,TRUE,,7/9/2026,TRUE,',
+  // "upload  date"의 공백 2칸은 오타가 아니다 — 실제 G10 시트 헤더 셀에 줄바꿈이 있어
+  // CSV에서 이렇게 온다. 정규화가 빠지면 이 열이 통째로 null이 된다(성과 D+14 큐 전멸).
+  'no.,store,month,barcode,platform,category,type,total cost,image,full name,social account,email,time,agreement,attend,collabo shared,collabo link,upload  date,credit shared,credit used,views',
+  // views "8,794" — 시트가 천 단위 콤마째 내보낸다. parseInt가 콤마에서 멈추면 8이 된다.
+  '1,G10,2026-07,G10INF2026,Instagram,General,$100 Credit,,,Kim Minjung,kimminjung,a@b.com,7/8/2026 2pm,TRUE,TRUE,TRUE,,7/9/2026,TRUE,,"8,794"',
   // 진짜 빈 줄 — 걸러져야 한다
   ',,,,,,,,,,,,,,,,,,,',
   // 이름만 없는 실제 기록 — 소셜 계정으로 사람을 특정할 수 있으므로 들어와야 한다
   '2,BF4,2026-04,BF4INF2026,Instagram,General,$100 Credit,,,,_d1stylez_,,4/13/2026,FALSE,TRUE,TRUE,,,FALSE,',
   // 구간 표시 줄 — 걸러지되 이후 행의 상태를 바꾼다
   'Done,,,,,,,,,,,,,,,,,,,',
-  '3,G10,2026-06,G10INF2026,TikTok,K-Beauty,$100 Credit,,,Lee Jiyeon,leejiyeon,c@d.com,6/2/2026 11am,TRUE,TRUE,TRUE,,6/3/2026,TRUE,3/10/2026',
+  // views "3.4K" — 앱의 축약 표기가 시트에 그대로 옮겨 적힌다. 3으로 잘리면 ER이 폭발한다.
+  '3,G10,2026-06,G10INF2026,TikTok,K-Beauty,$100 Credit,,,Lee Jiyeon,leejiyeon,c@d.com,6/2/2026 11am,TRUE,TRUE,TRUE,,6/3/2026,TRUE,3/10/2026,3.4K',
 ].join('\n');
 
 const parsed = parseInfluencerCsv(CSV, SHEET_STATUS.PROCESSING, 'T_');
@@ -98,6 +102,16 @@ export const RowContract = {
     // "Done" 표시 줄 이후의 행은 Done으로 넘어간다
     await expect(byName['Lee Jiyeon'].sheetStatus).toBe(SHEET_STATUS.DONE);
     await expect(byName['Kim Minjung'].sheetStatus).toBe(SHEET_STATUS.PROCESSING);
+
+    // 헤더 셀 안 줄바꿈으로 공백이 2칸이 된 열("upload  date")도 정상 매칭돼야 한다.
+    // 이게 어긋나면 열이 조용히 사라진다 — G10에서 Upload Date 전체가 null이 됐었다.
+    await expect(byName['Kim Minjung'].uploadDate?.getMonth()).toBe(6);
+    await expect(byName['Kim Minjung'].uploadDate?.getDate()).toBe(9);
+
+    // 천 단위 콤마가 든 숫자 셀은 콤마를 벗기고 읽는다 — 8,794가 8이 되면 안 된다
+    await expect(byName['Kim Minjung'].views).toBe(8794);
+    // "3.4K" 축약 표기도 해석한다 — 3으로 잘리면 ER이 2866.7% 같은 값으로 폭발한다
+    await expect(byName['Lee Jiyeon'].views).toBe(3400);
 
     // credit used 열은 TRUE/FALSE가 아니라 날짜를 적는다 — 값이 있으면 사용한 것
     await expect(byName['Lee Jiyeon'].creditUsed).toBe(true);

@@ -2,7 +2,7 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { ALERT_FLAGS, CONTACT_STATUSES, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
+import { ALERT_FLAGS, CONTACT_STATUSES, PERFORMANCE_STATES, derivePerformanceStatus, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
 import { avatarInitials, avatarTint } from '../../utils/influencerAvatar.js';
 
 /* 속성 하위 컬럼 폭 — 각 값의 최장 문자열에서 도출(12px caption 기준).
@@ -47,6 +47,29 @@ const CONTACT_ALERT_LABEL = {
   [ALERT_FLAGS.RESCHEDULE_PENDING]: 'Reschedule',
 };
 
+/**
+ * D+14 성과 기록 상태를 행에 붙일 문구로 바꾼다. 표시할 게 없으면 null.
+ *
+ * - due     — "Record Performance"(작업 큐 섹션과 같은 어휘) + 초과일. 경보가 아니라
+ *             예정된 루틴 작업이므로 warning 색이 아니라 본문 색 강조만 쓴다.
+ * - waiting — 임박(D-3 이내)부터만 D-day를 보여준다. 전 행에 상시 노출하면 숫자 소음이 된다.
+ * - recorded/expired — 행에서는 침묵한다(상세는 Drawer가 말한다).
+ *
+ * @param {Influencer} influencer
+ * @returns {{text: string, isDue: boolean}|null}
+ */
+function getPerformanceLine(influencer) {
+  const perf = derivePerformanceStatus(influencer);
+  if (!perf) return null;
+  if (perf.state === PERFORMANCE_STATES.DUE) {
+    return { text: `Record Performance${perf.daysLate > 0 ? ` · ${perf.daysLate}d` : ''}`, isDue: true };
+  }
+  if (perf.state === PERFORMANCE_STATES.WAITING && perf.dDay <= 3) {
+    return { text: `Perf check D-${perf.dDay}`, isDue: false };
+  }
+  return null;
+}
+
 /** 연락 보낸 날로부터 오늘까지 경과일. 자정 기준, 음수는 0으로 */
 function daysSinceContact(lastContactDate) {
   const today = new Date();
@@ -77,7 +100,7 @@ function getContactAlert(alertFlags, lastContactDate, requestedDate) {
  * InfluencerListRow component
  *
  * Single row in the influencer list panel.
- * Shows avatar / name + time + note / platform·tier / stage label + overdue.
+ * Shows avatar / name + time + note / platform·tier / stage label + overdue + performance D-day.
  *
  * Props:
  * @param {Influencer} influencer - Influencer data object [Required]
@@ -149,6 +172,7 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
   const stage = getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup });
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);
   const contactAlert = getContactAlert(alertFlags, lastContactDate, requestedDate);
+  const performanceLine = getPerformanceLine(influencer);
   /* 종결 상태 — 경보도 단계 문구도 아닌 "Dropped" 한 단어만 조용히 남긴다.
      행은 목록에 남는다: 다음 캠페인 때 노쇼 이력을 확인하는 근거가 된다. */
   const isDropped = contactStatus === CONTACT_STATUSES.DROPPED;
@@ -292,7 +316,11 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
                 {contactAlert.text}
               </Typography>
             ) : (
-              stage.show && (
+              /* 성과 기록이 밀린 건 "Completed"를 지운다 — 크레딧까지 끝났어도 기록이
+                 남았으면 완료가 아니다. 같은 행이 "Completed"와 "Record Performance"를
+                 동시에 말하면 둘 중 하나는 거짓이 된다. 크레딧 미발송(Credit Not Sent)
+                 등 다른 단계 라벨은 그대로 둔다 — 그건 기록과 별개의 할 일이다. */
+              stage.show && !(performanceLine?.isDue && creditShared) && (
                 <Typography
                   variant="caption"
                   sx={{
@@ -306,6 +334,21 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
                   {stage.label}
                 </Typography>
               )
+            )}
+            {performanceLine && (
+              <Typography
+                variant="caption"
+                data-performance-line
+                sx={{
+                  display: 'block',
+                  color: performanceLine.isDue ? 'text.primary' : 'text.secondary',
+                  fontWeight: performanceLine.isDue ? 600 : 400,
+                  fontSize: '0.6875rem',
+                  lineHeight: 1.3,
+                }}
+              >
+                {performanceLine.text}
+              </Typography>
             )}
           </>
         )}

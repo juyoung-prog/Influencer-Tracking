@@ -7,6 +7,7 @@ import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashbo
 import {
   ALERT_GRACE_DAYS,
   ALL_STORES,
+  PERFORMANCE_CHECK_DAYS,
   deriveAlertFlags,
   deriveScheduleGroup,
   deriveStores,
@@ -28,6 +29,7 @@ export default {
     filters: { control: 'object', description: '{ platform, tier, category }. 주면 controlled, 안 주면 내부 상태' },
     stores: { control: 'object', description: '스토어 선택 옵션. 없으면 influencers에서 파생' },
     selectedStore: { control: 'select', options: [ALL_STORES, ...STORES], description: '선택된 스토어 — 세 뷰가 공유' },
+    sheetUrl: { control: 'text', description: 'Google Sheet 원본 링크 — Record performance 큐의 "Open sheet" 안내에 쓰인다' },
     onSelect: { action: 'selected', description: '행 클릭 핸들러 (influencer) => void' },
     onRetry: { action: 'retried', description: '에러 배너 Retry 핸들러' },
     onFiltersChange: { action: 'filtersChanged', description: '필터 변경 핸들러' },
@@ -943,6 +945,98 @@ export const RailNamesUseTheSameCapitalization = {
     await expect(rail.getAttribute('title')).toBe('Aurora Garcia');
     // 성은 이니셜로 줄지만 대문자다 — 소문자 "g."가 남으면 정규화가 축약 뒤에 온 것이다
     await expect(rail.textContent).toBe('Aurora G.');
+  },
+};
+
+/**
+ * D+14 성과 기록은 Action required의 일 종류다 — 알람 대신 할 일함이 "2주 됐어요"를 말한다.
+ *
+ * 처음에는 자기 섹션(Record performance)이었는데, 사용자 멘탈 모델은 "내 행동이
+ * 필요한 건 전부 Action required"였다(2026-08-03 결정). 편입하되 경보 채널 희석은
+ * 막는다: alertFlags는 건드리지 않고(레일 점·경보 카운트에 안 샌다), 칩 순서는
+ * 긴급도 끝(돈 → 연락 → 단계 → 루틴), 행 문구는 warning/error 색을 쓰지 않는다.
+ *
+ * - 기한 전(D-day) 건은 Completed에 남고, 임박하면 행에 D-day가 붙는다
+ * - 이미 지표가 적힌 건은 오지 않는다 — recordDate가 없어도 지표가 있으면 기록으로 본다
+ * - perf 칩을 고르면 시트 안내 줄 + Open sheet 링크가 나온다(실행의 간극 제거)
+ */
+const perfRow = (id, name, uploadDaysAgo, overrides) => gracePeriodRow(id, name, uploadDaysAgo + 2, {
+  agreement: true, attend: true, collaboShared: true, creditShared: true, creditUsed: true,
+  uploadDate: daysAgo(uploadDaysAgo),
+  collaboLink: 'https://example.com/post',
+  ...overrides,
+});
+
+export const PerformanceDueJoinsActionRequired = {
+  args: {
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/example/edit',
+    influencers: [
+      // D+16 — 기한 초과, Action required에 perf 종류로 들어온다
+      perfRow('pf-due', 'Due Now', PERFORMANCE_CHECK_DAYS + 2),
+      // D-2 — 아직 기한 전, Completed에 남는다 (행에 D-day)
+      perfRow('pf-wait', 'Still Waiting', PERFORMANCE_CHECK_DAYS - 2),
+      // 기한은 지났지만 이미 기록됨 — 오지 않는다
+      perfRow('pf-done', 'Already Recorded', PERFORMANCE_CHECK_DAYS + 6, {
+        recordDate: daysAgo(2), views: 12000, likes: 800, shares: 40, saves: 220, comments: 65, reposts: 8,
+      }),
+      // 진짜 경보 건 — perf와 같은 서랍에 있되 칩으로 갈라진다
+      gracePeriodRow('pf-alert', 'Needs Upload', ALERT_GRACE_DAYS.UPLOAD + 5, { agreement: true, attend: true }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const attention = canvasElement.querySelector('[data-section="attention"]');
+    await expect(attention).toBeTruthy();
+    await expect(attention.querySelector('button').getAttribute('aria-expanded')).toBe('true');
+
+    // perf 건과 경보 건이 같은 서랍에 있고, 헤더 카운트는 둘을 합친 수다
+    const rowIds = () => [...attention.querySelectorAll('[data-influencer-id]')].map(r => r.getAttribute('data-influencer-id'));
+    await expect(rowIds().sort()).toEqual(['pf-alert', 'pf-due']);
+    await expect(attention.querySelector('button').innerText.match(/(\d+)\s*$/)?.[1]).toBe('2');
+
+    // 칩 어휘는 행 문구와 같고, 루틴(perf)은 긴급한 일들 뒤에 온다
+    const chipLabels = () => [...attention.querySelectorAll('.MuiChip-label')].map(e => e.textContent);
+    await expect(chipLabels()).toEqual(['All 2', 'Awaiting Upload 1', 'Record Performance 1']);
+
+    // perf 칩을 고르면 그 일만 남고, 시트 안내 줄 + Open sheet 링크가 나온다
+    const perfChip = [...attention.querySelectorAll('.MuiChip-root')].find(c => c.textContent === 'Record Performance 1');
+    await userEvent.click(perfChip);
+    await waitFor(async () => {
+      await expect(rowIds()).toEqual(['pf-due']);
+    });
+    const link = attention.querySelector('a[href]');
+    await expect(link).toBeTruthy();
+    await expect(link.getAttribute('href')).toContain('docs.google.com');
+
+    // 칩을 풀면 안내 줄도 사라진다 — perf 맥락에서만 나오는 도움말이다
+    const allChip = [...attention.querySelectorAll('.MuiChip-root')].find(c => c.textContent === 'All 2');
+    await userEvent.click(allChip);
+    await waitFor(async () => {
+      await expect(attention.querySelector('a[href]')).toBeNull();
+    });
+
+    // 행 문구는 칩과 같은 어휘 + 초과일, 경보 색이 아니다.
+    // "Completed"는 안 뜬다 — 기록이 남았으면 완료가 아니다(한 행이 두 말을 하면 안 된다).
+    const dueRow = attention.querySelector('[data-influencer-id="pf-due"]');
+    await expect(dueRow.textContent).toContain('Record Performance · 2d');
+    await expect(dueRow.textContent).not.toContain('Completed');
+
+    // 기한 전·기록 완료 건은 Completed에 남는다
+    const completed = canvasElement.querySelector('[data-section="completed"]');
+    await expect(completed).toBeTruthy();
+    const header = completed.querySelector('button');
+    if (header.getAttribute('aria-expanded') !== 'true') await userEvent.click(header);
+    await waitFor(async () => {
+      const ids = [...completed.querySelectorAll('[data-influencer-id]')]
+        .map(r => r.getAttribute('data-influencer-id'));
+      await expect(ids.sort()).toEqual(['pf-done', 'pf-wait']);
+    });
+
+    // 임박 건에는 D-day가 붙는다 — 상시 노출이 아니라 D-3 이내부터
+    const waitRow = completed.querySelector('[data-influencer-id="pf-wait"]');
+    await expect(waitRow.textContent).toContain('Perf check D-2');
+    // 기록이 끝난 건은 침묵한다
+    const doneRow = completed.querySelector('[data-influencer-id="pf-done"]');
+    await expect(doneRow.querySelector('[data-performance-line]')).toBeNull();
   },
 };
 

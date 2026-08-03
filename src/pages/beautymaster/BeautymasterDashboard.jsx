@@ -32,7 +32,7 @@ export const MOCK_INFLUENCERS = [
     scheduleGroup: 'today', alertFlags: [],
     agreement: true, attend: true, collaboShared: true, creditShared: true, creditUsed: true,
     collaboLink: 'https://tiktok.com/@example/video/1', uploadDate: D('2026-07-05'),
-    serialNumber: 'G10CRED000101', opinion: 'USE',
+    serialNumber: 'G10CRED000101', opinion: 'USE', recordDate: D('2026-07-19'),
     views: 24300, likes: 5820, shares: 312, saves: 1430, comments: 567, reposts: 89,
     note: '',
   },
@@ -100,7 +100,7 @@ export const MOCK_INFLUENCERS = [
     scheduleGroup: 'past', alertFlags: [],
     agreement: true, attend: true, collaboShared: true, creditShared: true, creditUsed: true,
     collaboLink: 'https://instagram.com/p/example2', uploadDate: D('2026-06-29'),
-    serialNumber: 'G10CRED000055', opinion: 'MAYBE',
+    serialNumber: 'G10CRED000055', opinion: 'MAYBE', recordDate: D('2026-07-13'),
     views: 8900, likes: 1230, shares: 76, saves: 340, comments: 89, reposts: 12,
     note: 'To be reviewed next month.',
   },
@@ -112,7 +112,7 @@ export const MOCK_INFLUENCERS = [
     scheduleGroup: 'past', alertFlags: [],
     agreement: true, attend: true, collaboShared: true, creditShared: true, creditUsed: true,
     collaboLink: 'https://tiktok.com/@example2/video/1', uploadDate: D('2026-06-22'),
-    serialNumber: 'G10CRED000042', opinion: 'USE',
+    serialNumber: 'G10CRED000042', opinion: 'USE', recordDate: D('2026-07-06'),
     views: 31200, likes: 7400, shares: 520, saves: 2100, comments: 830, reposts: 140,
     note: '',
   },
@@ -203,6 +203,7 @@ function BeautymasterDashboard() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         templates={messageTemplates}
+        sheetUrl={sheetUrl}
       />
       {settingsModal}
     </Box>

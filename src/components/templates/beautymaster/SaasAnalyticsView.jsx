@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import { alpha } from '@mui/material/styles';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -12,10 +15,19 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import SaasKpiItem from './SaasKpiItem';
 import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
-import { ALL_STORES, deriveAnalyticsSummary, deriveStores } from '../../../data/beautymaster/schema.js';
+import {
+  ALL_STORES,
+  deriveAnalyticsSummary,
+  derivePerformanceReport,
+  deriveStores,
+  normalizePlatform,
+  toDisplayName,
+} from '../../../data/beautymaster/schema.js';
 import { formatCompact } from '../../../data/beautymaster/mentions.js';
 
 const pct = rate => `${Math.round((rate || 0) * 100)}%`;
+/** ER은 한 자리 소수까지 — Drawer의 Engagement rate와 같은 표기 */
+const erPct = er => `${(er * 100).toFixed(1)}%`;
 
 /**
  * SectionTitle — flat-SaaS 섹션 헤더
@@ -374,11 +386,139 @@ function BreakdownTable({ groupHeader, rows }) {
   );
 }
 
+const OPINION_COLOR = { 'USE': 'success.main', 'MAYBE': 'warning.main', "DON'T": 'error.main' };
+
+const REVIEW_TITLE = {
+  'high-eng-dont': "Engagements in the top quarter but marked DON'T — worth a second look",
+  'low-eng-use': 'Engagements in the bottom quarter but marked USE — worth a second look',
+};
+
+/** 추천 근거 — 배지에 title로 붙어 블랙박스가 되지 않게 한다 */
+const SUGGEST_TITLE = {
+  top: 'Suggested — total engagements in the top quarter of this cohort. The sheet Opinion column stays the source of truth.',
+  middle: 'Suggested — mid-range engagements in this cohort. The sheet Opinion column stays the source of truth.',
+  bottom: 'Suggested — total engagements in the bottom quarter of this cohort. The sheet Opinion column stays the source of truth.',
+};
+
+/**
+ * PerformanceRankTable — 총 반응 수(Engagements) 순 재섭외 명단.
+ *
+ * 정렬 기준은 ER이 아니라 engagements(반응 절대량 = 질 × 도달)다 — ER 정렬은
+ * 872뷰 소형 계정을 1위에 앉히고 17.5K뷰 최대 도달자를 꼴찌권으로 밀었다.
+ * 지표 6종(views~reposts)을 전부 컬럼으로 보여준다(시트에 적은 그대로 — 2026-08-03 지시).
+ * Recorded 컬럼은 실제 기록 시점(D+n)을 그대로 보여준다 — D+14 창에서 벗어난 값
+ * (D+17 이상)은 굵게 세워서 비교할 때 걸러 읽게 한다. Opinion 컬럼: 값이 있으면 그대로
+ * (+사분위와 강하게 어긋나면 review 배지), 비어 있으면 "→ USE" 추천을 회색 제안 톤으로 —
+ * 공식은 항상 시트의 Opinion이고 대시보드는 쓰지 않는다.
+ *
+ * Props:
+ * @param {Array} rows - 표시 행 목록. 각 행은 ranked 필드 + rank(코호트 내 순위) [Required]
+ * @param {function} onRowClick - 행 클릭 핸들러 (influencerId) => void. 상세는 Drawer가
+ *   맡는다 — 기록 시점(D+n) 같은 부가 정보도 거기서 본다 [Optional]
+ */
+function PerformanceRankTable({ rows, onRowClick }) {
+  return (
+    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75, whiteSpace: 'nowrap' } }}>
+            <TableCell align="right">#</TableCell>
+            <TableCell>Influencer</TableCell>
+            <TableCell>Tier</TableCell>
+            <TableCell>Platform</TableCell>
+            <TableCell align="right">Views</TableCell>
+            <TableCell align="right">Likes</TableCell>
+            <TableCell align="right">Shares</TableCell>
+            <TableCell align="right">Saves</TableCell>
+            <TableCell align="right">Comments</TableCell>
+            <TableCell align="right">Reposts</TableCell>
+            <TableCell align="right">Engagements</TableCell>
+            <TableCell align="right">ER</TableCell>
+            <TableCell>Opinion</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(row => (
+              <Fragment key={row.id}>
+                <TableRow
+                  data-perf-rank-row={row.id}
+                  onClick={onRowClick ? () => onRowClick(row.id) : undefined}
+                  sx={{
+                    '& td': { fontSize: 13, py: 0.875 },
+                    '&:hover': { backgroundColor: 'action.hover' },
+                    cursor: onRowClick ? 'pointer' : 'default',
+                  }}
+                >
+                <TableCell align="right" data-perf-rank sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums', width: 34 }}>
+                  {row.rank}
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{toDisplayName(row.fullName)}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{row.tier === 'tier2' ? 'T2' : 'T1'}</TableCell>
+                {/* 시트 원본은 "Tiktok"처럼 제각각 — 그룹 표·필터 칩과 같은 공식 표기로 */}
+                <TableCell sx={{ color: 'text.secondary' }}>{normalizePlatform(row.platform)}</TableCell>
+                {/* 지표 6종 전부 — 시트에 적은 그대로 보인다. 빈 지표(예: 틱톡 Reposts)는
+                    0이 아니라 "—"다. Engagements(정렬 기준)만 굵고 나머지는 회색. */}
+                {['views', 'likes', 'shares', 'saves', 'comments', 'reposts'].map(key => (
+                  <TableCell key={key} align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                    {row[key] != null ? formatCompact(row[key]) : '—'}
+                  </TableCell>
+                ))}
+                <TableCell align="right" data-perf-engagements sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCompact(row.engagements)}
+                </TableCell>
+                <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                  {row.er != null ? erPct(row.er) : '—'}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {row.opinion ? (
+                    <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: OPINION_COLOR[row.opinion] || 'text.secondary' }}>
+                      {row.opinion}
+                    </Box>
+                  ) : row.suggestedOpinion ? (
+                    /* 추천은 제안 톤(회색 + 화살표) — 사장님의 확정 값(색·굵게)과 한눈에
+                       구분돼야 한다. 근거는 title로: 설명 없는 추천은 블랙박스가 된다. */
+                    <Box
+                      component="span"
+                      data-perf-suggested={row.suggestedOpinion}
+                      title={SUGGEST_TITLE[row.quartile]}
+                      sx={{ fontSize: 12, color: 'text.secondary' }}
+                    >
+                      → {row.suggestedOpinion}
+                    </Box>
+                  ) : (
+                    <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>
+                  )}
+                  {row.needsReview && (
+                    <Typography
+                      component="span"
+                      data-perf-review={row.needsReview}
+                      title={REVIEW_TITLE[row.needsReview]}
+                      sx={{
+                        ml: 0.75, px: 0.625, py: 0.125,
+                        fontSize: 10, fontWeight: 500, lineHeight: 1.6,
+                        color: 'text.secondary', backgroundColor: 'surface.muted',
+                        borderRadius: '6px', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      review
+                    </Typography>
+                  )}
+                </TableCell>
+                </TableRow>
+              </Fragment>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+
 /**
  * SaasAnalyticsView component
  *
- * flat-SaaS 시안 Analytics 뷰 — 기존 AnalyticsDashboard의 4섹션 구조(Summary/Funnel/Breakdown/Tier&Store)를
+ * flat-SaaS 시안 Analytics 뷰 — Summary/Funnel/Performance/Breakdown/Tier&Store 구조를
  * flat-SaaS 표면 문법으로 구성. border + spacing으로만 섹션 구분, accent는 primary 1색.
+ * Performance는 D+14 기록(derivePerformanceReport) 기반 — ER 순 재섭외 명단 + 크레딧 배분 근거.
  *
  * Props:
  * @param {Influencer[]} influencers - 전체 인플루언서 목록 [Required]
@@ -386,6 +526,10 @@ function BreakdownTable({ groupHeader, rows }) {
  * @param {string[]} stores - 스토어 선택 옵션 목록. 없으면 influencers에서 파생 [Optional]
  * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
  * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
+ * @param {string} sheetUrl - Google Sheet 원본 링크. Opinion이 아직 하나도 없을 때
+ *   Performance 안내 줄에서 시트로 바로 안내한다(기록은 시트에만) [Optional, 기본값: '']
+ * @param {function} onSelect - Performance 순위 행 클릭 핸들러 (influencer) => void.
+ *   페이지가 InfluencerDrawer를 연다 — Operations 목록과 같은 상세 경로 [Optional]
  *
  * Example usage:
  * <SaasAnalyticsView influencers={influencers} inviteCounts={inviteCounts} />
@@ -396,6 +540,8 @@ function SaasAnalyticsView({
   stores = null,
   selectedStore = ALL_STORES,
   onStoreChange,
+  sheetUrl = '',
+  onSelect,
 }) {
   const [funnelView, setFunnelView] = useState('bar');
 
@@ -416,6 +562,29 @@ function SaasAnalyticsView({
   }, [inviteCounts, selectedStore]);
 
   const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
+
+  /* 성과 리포트는 두 벌이다 — 전체(제목 커버리지·그룹 비교표)와 티어 코호트(순위표).
+     그룹 표는 T1 vs T2 비교가 존재 이유라 티어 필터를 따라가면 비교 대상이 사라진다.
+     순위·추천·review 배지는 코호트 안에서 다시 계산된다 — T2만 보는데 전체 기준
+     배지가 붙어 있으면 화면이 거짓말을 한다. */
+  const [perfTier, setPerfTier] = useState('all');
+  const [showAllPerf, setShowAllPerf] = useState(false);
+  const perfReport = useMemo(() => derivePerformanceReport(filtered), [filtered]);
+  const perfCohort = useMemo(
+    () => (perfTier === 'all' ? null : derivePerformanceReport(filtered.filter(i => i.tier === perfTier))),
+    [filtered, perfTier],
+  );
+  const cohortRanked = (perfCohort ?? perfReport).ranked;
+  const cohortUnranked = (perfCohort ?? perfReport).unrankedRecordedCount;
+
+  /* 기본은 상위 10명 + View more — 중간에 "⋯ N more" 행을 끼우는 방식은 표가
+     끊겨 보여서 폐기했다(2026-08-03 사장님 판단: "10명만 보여주고 밑에 view more"). */
+  const PERF_COLLAPSE_OVER = 10;
+  const isPerfCollapsible = cohortRanked.length > PERF_COLLAPSE_OVER;
+  const perfRows = useMemo(() => {
+    const visible = isPerfCollapsible && !showAllPerf ? cohortRanked.slice(0, PERF_COLLAPSE_OVER) : cohortRanked;
+    return visible.map((r, i) => ({ ...r, rank: i + 1 }));
+  }, [cohortRanked, isPerfCollapsible, showAllPerf]);
 
   const storeRows = useMemo(
     () => Object.entries(summary.byStore || {}).map(([store, stats]) => ({ label: store, ...stats })),
@@ -550,6 +719,111 @@ function SaasAnalyticsView({
           <BreakdownTable groupHeader="Category" rows={Object.entries(summary.byCategory || {}).map(([c, st]) => ({ label: c, ...st }))} />
           <BreakdownTable groupHeader="Tier" rows={tierRows} />
         </Box>
+      </Box>
+
+      {/* Performance — D+14 기록 기반 성과 리포트. 분모(uploads)를 제목에 박는다:
+          3건 기록해 놓고 "T2가 이겼다"로 읽는 사고를 제목이 먼저 막는다.
+          별도 KPI 타일은 없다 — "이 숫자로 뭘 결정하나"에 답 못 하는 총합(총 조회수 등)은
+          소음이고, 기준선으로 쓰는 median ER만 제목 줄에 남긴다(2026-08-03 결정). */}
+      <Box sx={{ mb: 4 }} data-perf-section>
+        <SectionTitle
+          title={`Performance — recorded ${perfReport.recordedCount} of ${perfReport.uploadedCount} uploads${perfReport.medianER != null ? ` · median ER ${erPct(perfReport.medianER)}` : ''}`}
+          action={perfReport.recordedCount > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.75 }}>
+              {[['all', 'All'], ['tier1', 'Tier 1'], ['tier2', 'Tier 2']].map(([value, label]) => {
+                const isActive = perfTier === value;
+                return (
+                  <Chip
+                    key={value}
+                    label={label}
+                    size="small"
+                    data-perf-tier={value}
+                    onClick={() => { setPerfTier(value); setShowAllPerf(false); }}
+                    variant={isActive ? 'filled' : 'outlined'}
+                    sx={{
+                      height: 24, fontSize: 11, fontWeight: 500, borderRadius: '6px',
+                      ...(isActive
+                        ? {
+                          color: 'accent.main',
+                          border: '1px solid',
+                          borderColor: 'accent.main',
+                          backgroundColor: theme => alpha(theme.palette.accent.main, 0.08),
+                          '&:hover': { backgroundColor: theme => alpha(theme.palette.accent.main, 0.12) },
+                        }
+                        : { color: 'text.secondary' }),
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          )}
+        />
+        {perfReport.recordedCount === 0 ? (
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            No performance records yet — this report fills in as D+14 checks are recorded in the sheet.
+          </Typography>
+        ) : (
+          <Box>
+              {cohortRanked.length === 0 ? (
+                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                  No recorded entries in this tier yet.
+                </Typography>
+              ) : (
+                <PerformanceRankTable
+                  rows={perfRows}
+                  onRowClick={onSelect ? id => {
+                    const inf = filtered.find(i => i.id === id);
+                    if (inf) onSelect(inf);
+                  } : undefined}
+                />
+              )}
+              {isPerfCollapsible && (
+                <Button
+                  size="small"
+                  data-perf-viewmore
+                  onClick={() => setShowAllPerf(v => !v)}
+                  sx={{ mt: 1, fontSize: 11, textTransform: 'none', color: 'text.secondary', fontWeight: 400 }}
+                >
+                  {showAllPerf ? 'View less' : `View more (${cohortRanked.length - PERF_COLLAPSE_OVER})`}
+                </Button>
+              )}
+              {/* 추천은 표시 전용임을 표 밖에서 한 번 더 — 시트가 진실이다.
+                  Opinion이 아직 하나도 없으면(첫 사용 상태) 회색 제안이 판정처럼 읽히므로,
+                  "시트에 적으면 확정값이 된다"를 실행 경로(Open sheet)와 함께 말한다. */}
+              {perfRows.some(r => r.suggestedOpinion) && (
+                cohortRanked.every(r => !r.opinion) ? (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography sx={{ fontSize: 11, color: 'text.secondary', minWidth: 0 }}>
+                      No opinions recorded yet — every → value is a suggestion from engagement quartiles.
+                      Write USE / MAYBE / DON&apos;T in the sheet&apos;s Opinion column to make it official.
+                    </Typography>
+                    {sheetUrl && (
+                      <Link
+                        href={sheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 11, fontWeight: 500, color: 'accent.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                      >
+                        Open sheet <OpenInNewIcon sx={{ fontSize: 12 }} />
+                      </Link>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography sx={{ mt: 1, fontSize: 11, color: 'text.secondary' }}>
+                    → marks a suggested opinion from engagement quartiles in this cohort — the sheet&apos;s Opinion column stays the source of truth.
+                  </Typography>
+                )
+              )}
+              {/* 상호작용 값이 하나도 없는 기록 — 0으로 섞지 않고 빠졌다고 밝힌다.
+                  (조회수만 없는 행은 이제 순위에 든다 — 정렬 기준이 반응 절대량이라서.
+                  그 행은 ER만 "—"로 남는다.) */}
+              {cohortUnranked > 0 && (
+                <Typography sx={{ mt: 1, fontSize: 11, color: 'text.secondary' }}>
+                  {cohortUnranked} recorded {cohortUnranked === 1 ? 'entry has' : 'entries have'} no interaction values — excluded from ranking, not counted as 0.
+                </Typography>
+              )}
+            </Box>
+        )}
       </Box>
 
       {/* Store — 단일 스토어를 고른 상태에서는 행이 하나뿐이라 비교할 게 없다 */}

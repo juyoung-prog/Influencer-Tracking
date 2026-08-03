@@ -122,6 +122,8 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  *   비어 있으면 creditUsed=false가 되는데 그건 "미사용"이 아니라 "미측정"이다.
  * @property {string} serialNumber
  * @property {'USE'|'MAYBE'|"DON'T"|null} opinion
+ * @property {Date|null} recordDate - 시트 Record Date 열. 성과 지표를 실제로 적은 날 —
+ *   늦게 적어도 그대로 받는다. 실제 기록일이 남아야 "D+14 값이 아님"을 데이터가 말한다
  * @property {number|null} views
  * @property {number|null} likes
  * @property {number|null} shares
@@ -209,6 +211,203 @@ export const ALERT_GRACE_DAYS = Object.freeze({
 function daysSince(date, todayStart) {
   if (!date) return null;
   return Math.floor((todayStart - new Date(date.getFullYear(), date.getMonth(), date.getDate())) / 86400000);
+}
+
+/**
+ * 업로드 후 성과(조회수·좋아요 등)를 시트에 기록하는 시점 (일 단위).
+ *
+ * 측정 시점을 고정해야 인플루언서 간 성과 비교가 공정해진다 — "생각날 때" 적으면
+ * A는 D+5 값, B는 D+40 값이라 서로 비교할 수 없다. 피드/릴스 인게이지먼트 대부분이
+ * 첫 1~2주에 쌓이므로 2주 스냅샷이면 생애 성과의 근사치로 충분하다.
+ * (2026-08-03 확정 — 기록은 시트에만 하고, 대시보드는 D-day 안내·표시·시트 안내만 한다)
+ */
+export const PERFORMANCE_CHECK_DAYS = 14;
+
+export const PERFORMANCE_STATES = Object.freeze({
+  /** 측정일 전 — D-day 카운트다운 중 */
+  WAITING: 'waiting',
+  /** 측정일 도달·경과, 아직 기록 없음 — 작업 큐에 올라간다 */
+  DUE: 'due',
+  /** 지표가 적혔다 */
+  RECORDED: 'recorded',
+  /** 기록 없이 STALE(90일)을 넘긴 건 — 사실상 종료라 더 이상 재촉하지 않는다 */
+  EXPIRED: 'expired',
+});
+
+/**
+ * 업로드 기준 D+PERFORMANCE_CHECK_DAYS 성과 기록 상태.
+ *
+ * "기록됨" 판정은 recordDate만 보지 않는다 — Record Date 열이 생기기 전에 지표만
+ * 적어둔 행이 있고, 그 행에 "기록하라"고 계속 재촉하면 큐를 불신하게 된다.
+ * 늦은 기록도 그대로 받는다(오류 허용) — recordedAfterDays가 D+14 값이 아님을 말해 준다.
+ *
+ * @param {Influencer} influencer
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {{state: 'waiting', dDay: number}
+ *   | {state: 'due', daysLate: number}
+ *   | {state: 'recorded', recordedAfterDays: number|null}
+ *   | {state: 'expired', daysLate: number}
+ *   | null} 업로드 전(잴 것이 없음)이면 null
+ */
+export function derivePerformanceStatus(influencer, today = new Date()) {
+  const { collaboShared, uploadDate, recordDate, views, likes, shares, saves, comments, reposts } = influencer;
+  if (!collaboShared || !uploadDate) return null;
+
+  const hasMetrics = [views, likes, shares, saves, comments, reposts].some(v => v != null);
+  if (recordDate || hasMetrics) {
+    const recordedAfterDays = recordDate
+      ? Math.floor((new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate())
+        - new Date(uploadDate.getFullYear(), uploadDate.getMonth(), uploadDate.getDate())) / 86400000)
+      : null;
+    return { state: PERFORMANCE_STATES.RECORDED, recordedAfterDays };
+  }
+
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const sinceUpload = daysSince(uploadDate, todayStart);
+  const dDay = PERFORMANCE_CHECK_DAYS - sinceUpload;
+  if (dDay > 0) return { state: PERFORMANCE_STATES.WAITING, dDay };
+  if (sinceUpload > ALERT_GRACE_DAYS.STALE) return { state: PERFORMANCE_STATES.EXPIRED, daysLate: -dDay };
+  return { state: PERFORMANCE_STATES.DUE, daysLate: -dDay };
+}
+
+/**
+ * 조회수 기반 인게이지먼트 레이트 — (좋아요+공유+저장+댓글+리포스트) / 조회수.
+ *
+ * 원시 숫자 6개를 매번 사람이 해석하게 하지 않고 비율 하나로 요약한다.
+ * 조회수가 없거나 0이면, 상호작용 값이 하나도 없으면 null — 미측정은 0%가 아니다.
+ *
+ * @param {Influencer} influencer
+ * @returns {number|null} 0~1 비율
+ */
+export function deriveEngagementRate(influencer) {
+  const { views, likes, shares, saves, comments, reposts } = influencer;
+  if (views == null || views <= 0) return null;
+  const interactions = [likes, shares, saves, comments, reposts].filter(v => v != null);
+  if (interactions.length === 0) return null;
+  return interactions.reduce((sum, v) => sum + v, 0) / views;
+}
+
+/** 중앙값 — 평균은 대박 1건이 전체를 끌어올려 "잘 되고 있다"는 착시를 만든다 */
+function median(nums) {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** 표본이 이보다 작으면 순위 기반 판정(추천·평가↔숫자 어긋남)을 하지 않는다 */
+const REVIEW_MIN_SAMPLE = 4;
+
+/**
+ * Analytics 성과 리포트 집계 — "이 데이터로 내리는 결정"에 맞춘 산출물만 담는다:
+ * ① 재섭외(ranked) ② 캠페인 요약(totals·medianER).
+ * (그룹 비교표(byGroup — Median ER·Views per $1)는 2026-08-03 사장님 판단으로 제거 —
+ * 티어 비교는 칩 코호트 전환으로 충분하다고 봄. 필요해지면 git 이력에서 복원.)
+ *
+ * 정직성 원칙:
+ * - 분모는 항상 명시한다(recordedCount of uploadedCount) — 3건 기록으로 결론 내리지 않게
+ * - 미측정은 0으로 섞지 않는다 — ER을 못 낸 기록(조회수 누락)은 순위에서 빼고 수만 센다
+ * - 늦은 기록은 recordedAfterDays를 그대로 싣는다 — D+14 값이 아님을 화면이 밝힌다
+ *
+ * 순위는 **총 반응 수(engagements = 좋아요+댓글+공유+저장+리포스트 절대량)** 내림차순이다.
+ * 처음엔 ER 정렬이었는데 실데이터에서 양쪽으로 왜곡됐다: 872뷰 소형 계정(총 반응 76)이
+ * 1위에 앉고, 17.5K뷰 최대 도달자(반응 385)가 꼴찌권으로 밀렸다. 조회수 기반 ER은
+ * 소형 계정을 부풀리고 대형 계정을 깎는다 — engagements는 질(ER) × 도달(views)의 곱이라
+ * 양쪽 왜곡이 자동으로 사라지고, 도달 가드 같은 예외 규칙도 필요 없어졌다
+ * (2026-08-03 사장님 A안 채택). ER은 "질" 참고 지표로 남는다.
+ *
+ * 순위 기반 판정은 engagements 사분위 하나에서 나온다 (표본 4건 미만이면 전부 생략):
+ * - suggestedOpinion — Opinion이 **빈** 행에만. 상위 1/4 → USE, 하위 1/4 → DON'T,
+ *   중간 → MAYBE. **표시 전용이다** — 공식은 항상 시트의 Opinion이고 대시보드는 시트에
+ *   쓰지 않는다. dropped(섭외 포기)는 반응이 좋아도 추천하지 않는다.
+ * - needsReview — Opinion이 **있는** 행이 사분위와 강하게 어긋날 때(상위 1/4인데 DON'T /
+ *   하위 1/4인데 USE). 어느 쪽이 틀렸다는 뜻이 아니라 재검토 후보다.
+ *
+ * 티어 코호트: 호출자가 티어로 거른 목록을 넘기면 순위·추천·배지가 그 코호트
+ * 기준으로 계산된다 — T1($100 대형)과 T2($20 소형)는 다른 게임이라 섞으면 오염된다.
+ * 절대량 정렬이 대형에 유리한 문제도 티어 칩이 해소한다.
+ *
+ * @param {Influencer[]} influencers
+ * @returns {{
+ *   uploadedCount: number,
+ *   recordedCount: number,
+ *   unrankedRecordedCount: number,
+ *   totals: {views: number|null, saves: number|null, shares: number|null},
+ *   medianER: number|null,
+ *   ranked: Array<{id: string, fullName: string, tier: string, platform: string,
+ *     views: number|null, likes: number|null, shares: number|null, saves: number|null,
+ *     comments: number|null, reposts: number|null,
+ *     engagements: number, er: number|null,
+ *     recordedAfterDays: number|null, opinion: string|null,
+ *     quartile: 'top'|'middle'|'bottom'|null,
+ *     suggestedOpinion: string|null,
+ *     needsReview: 'high-eng-dont'|'low-eng-use'|null}>,
+ * }}
+ */
+export function derivePerformanceReport(influencers) {
+  const uploaded = (influencers || []).filter(i => i.collaboShared);
+  const recorded = uploaded.filter(i => derivePerformanceStatus(i)?.state === PERFORMANCE_STATES.RECORDED);
+
+  const sumOf = field => {
+    const vals = recorded.map(i => i[field]).filter(v => v != null);
+    return vals.length === 0 ? null : vals.reduce((s, v) => s + v, 0);
+  };
+  const totals = { views: sumOf('views'), saves: sumOf('saves'), shares: sumOf('shares') };
+
+  /** ER 분자와 같은 합 — 값이 있는 지표만. 전부 빈 행은 null(순위 제외, 0 아님) */
+  const sumEngagements = i => {
+    const vals = [i.likes, i.shares, i.saves, i.comments, i.reposts].filter(v => v != null);
+    return vals.length === 0 ? null : vals.reduce((s, v) => s + v, 0);
+  };
+
+  const ranked = recorded
+    .map(i => ({ influencer: i, engagements: sumEngagements(i) }))
+    .filter(r => r.engagements != null)
+    .sort((a, b) => b.engagements - a.engagements)
+    .map(({ influencer: i, engagements }) => ({
+      id: i.id,
+      fullName: i.fullName,
+      tier: i.tier,
+      platform: i.platform,
+      views: i.views,
+      likes: i.likes,
+      shares: i.shares,
+      saves: i.saves,
+      comments: i.comments,
+      reposts: i.reposts,
+      engagements,
+      er: deriveEngagementRate(i),
+      recordedAfterDays: derivePerformanceStatus(i).recordedAfterDays,
+      opinion: i.opinion,
+      isDropped: i.contactStatus === CONTACT_STATUSES.DROPPED,
+      quartile: null,
+      suggestedOpinion: null,
+      needsReview: null,
+    }));
+
+  if (ranked.length >= REVIEW_MIN_SAMPLE) {
+    const quartileSize = Math.max(1, Math.floor(ranked.length / 4));
+    ranked.forEach((r, idx) => {
+      r.quartile = idx < quartileSize ? 'top' : idx >= ranked.length - quartileSize ? 'bottom' : 'middle';
+      if (r.opinion) {
+        if (r.quartile === 'top' && r.opinion === OPINIONS.DONT) r.needsReview = 'high-eng-dont';
+        else if (r.quartile === 'bottom' && r.opinion === OPINIONS.USE) r.needsReview = 'low-eng-use';
+      } else if (!r.isDropped) {
+        r.suggestedOpinion = r.quartile === 'top' ? OPINIONS.USE
+          : r.quartile === 'bottom' ? OPINIONS.DONT
+            : OPINIONS.MAYBE;
+      }
+    });
+  }
+
+  return {
+    uploadedCount: uploaded.length,
+    recordedCount: recorded.length,
+    unrankedRecordedCount: recorded.length - ranked.length,
+    totals,
+    medianER: median(ranked.map(r => r.er).filter(v => v != null)),
+    ranked,
+  };
 }
 
 /**
@@ -647,6 +846,7 @@ export function createInfluencer(overrides = {}) {
     hasCreditUsedValue: false,
     serialNumber: '',
     opinion: null,
+    recordDate: null,
     views: null,
     likes: null,
     shares: null,

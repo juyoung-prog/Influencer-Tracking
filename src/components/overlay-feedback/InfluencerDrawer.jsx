@@ -12,7 +12,14 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import StatusIconRow from '../data-display/StatusIconRow';
-import { normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
+import {
+  PERFORMANCE_CHECK_DAYS,
+  PERFORMANCE_STATES,
+  deriveEngagementRate,
+  derivePerformanceStatus,
+  normalizePlatform,
+  toDisplayName,
+} from '../../data/beautymaster/schema.js';
 import { avatarInitials, avatarTint } from '../../utils/influencerAvatar.js';
 import MessageTemplateMenu from './MessageTemplateMenu';
 
@@ -36,6 +43,13 @@ function formatNum(val) {
   return val.toLocaleString('en-US');
 }
 
+/** @param {Date} date @param {number} days */
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 /**
  * InfluencerDrawer component
  *
@@ -48,15 +62,21 @@ function formatNum(val) {
  * @param {boolean} open - Whether the Drawer is open [Required]
  * @param {function} onClose - Drawer close handler [Required]
  * @param {MessageTemplate[]} templates - Outreach message templates for MessageTemplateMenu [Optional, default: []]
+ * @param {string} sheetUrl - Google Sheet 원본 링크. 성과 기록이 밀린 상태(due)일 때
+ *   "Record in sheet" 링크로 노출 — 기록은 시트에만 한다 [Optional, default: '']
  *
  * Example usage:
  * <InfluencerDrawer influencer={selected} open={drawerOpen} onClose={handleClose} templates={messageTemplates} />
  */
-function InfluencerDrawer({ influencer = null, open = false, onClose, templates = [] }) {
+function InfluencerDrawer({ influencer = null, open = false, onClose, templates = [], sheetUrl = '' }) {
   /* 표기는 목록과 같은 규칙을 쓴다 — 시트에 성이 소문자인 행이 있어 패널만
      "Aurora garcia"로 나왔다. 원본 fullName은 그대로 두고 표시만 바꾼다. */
   const displayName = toDisplayName(influencer?.fullName || '');
   const tint = avatarTint(displayName);
+  /* D+14 기록 상태와 ER — 판정·계산은 목록·큐와 같은 derive 함수를 쓴다.
+     행에서 "Record Performance"를 보고 열었는데 패널이 다른 말을 하면 안 된다. */
+  const perf = influencer ? derivePerformanceStatus(influencer) : null;
+  const engagementRate = influencer ? deriveEngagementRate(influencer) : null;
 
   return (
     <Drawer
@@ -156,6 +176,54 @@ function InfluencerDrawer({ influencer = null, open = false, onClose, templates 
                   </Typography>
                 </Box>
               ))}
+            </Box>
+
+            {/* ER 요약 + 기록 상태 — 원시 숫자 6개의 해석을 화면이 대신한다.
+                뷰티에서 구매 의도에 가까운 saves/shares까지 합친 조회수 기반 비율.
+                기록 시점은 실제 Record Date를 그대로 보여준다 — D+14가 아니면
+                그 사실이 보여야 다른 사람과 비교할 때 걸러 읽을 수 있다. */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Engagement rate
+              </Typography>
+              <Typography variant="h5" sx={{ lineHeight: 1.2 }}>
+                {engagementRate != null ? `${(engagementRate * 100).toFixed(1)}%` : '—'}
+              </Typography>
+              {perf?.state === PERFORMANCE_STATES.RECORDED && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {influencer.recordDate
+                    ? `Recorded ${formatDate(influencer.recordDate)}${perf.recordedAfterDays != null ? ` · D+${perf.recordedAfterDays}` : ''}`
+                    : 'Recorded · date not in sheet'}
+                </Typography>
+              )}
+              {perf?.state === PERFORMANCE_STATES.WAITING && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {`Check due ${formatDate(addDays(influencer.uploadDate, PERFORMANCE_CHECK_DAYS))} · D-${perf.dDay}`}
+                </Typography>
+              )}
+              {perf?.state === PERFORMANCE_STATES.DUE && (
+                <>
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontWeight: 600, color: 'text.primary' }}>
+                    {`Performance check due${perf.daysLate > 0 ? ` · ${perf.daysLate}d past` : ''}`}
+                  </Typography>
+                  {sheetUrl && (
+                    <Link
+                      href={sheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}
+                      variant="body2"
+                    >
+                      Record in sheet <OpenInNewIcon sx={{ fontSize: 14 }} />
+                    </Link>
+                  )}
+                </>
+              )}
+              {perf?.state === PERFORMANCE_STATES.EXPIRED && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Not recorded — check window passed
+                </Typography>
+              )}
             </Box>
 
             <Divider sx={{ mb: 2 }} />

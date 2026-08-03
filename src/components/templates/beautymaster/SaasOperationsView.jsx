@@ -5,10 +5,12 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import InputAdornment from '@mui/material/InputAdornment';
+import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import InfluencerListRow from '../../data-display/InfluencerListRow';
 import SaasKpiItem from './SaasKpiItem';
@@ -18,9 +20,11 @@ import {
   ALL_STORES,
   CONTACT_STATUSES,
   DEFAULT_INFLUENCER_FILTERS,
+  PERFORMANCE_STATES,
   SCHEDULE_GROUPS,
   SHEET_STATUS,
   deriveKpiSummary,
+  derivePerformanceStatus,
   deriveStores,
   isStaleVisit,
   toDisplayName,
@@ -143,7 +147,11 @@ function railAlertLabel(inf) {
  * 다 돌리자"를 지원하려면 같은 종류의 일을 골라 볼 수 있어야 한다.
  * 라벨은 행 상태 문구와 **정확히 같은 어휘**를 쓴다(행 라벨은 InfluencerListRow가 소유) —
  * 같은 것이 화면에서 두 이름으로 불리면 그때부터 학습 부담이 생긴다.
- * 순서는 긴급도: 돈(Credit) → 연락 대기 → 단계 지연.
+ * 순서는 긴급도: 돈(Credit) → 연락 대기 → 단계 지연 → 예정 루틴(성과 기록).
+ *
+ * 'perf'만 alertFlag가 아니라 D+14 파생 상태다. 처음에는 자기 섹션(Record performance)
+ * 이었는데, 사용자 멘탈 모델은 "내 행동이 필요한 건 전부 Action required"였다
+ * (2026-08-03 결정). 경보 채널 희석은 칩 순서와 중립 라벨 색으로 막는다.
  */
 const ATTENTION_TYPES = [
   { key: 'credit', label: 'Credit Not Sent', flag: ALERT_FLAGS.COLLABO_NO_CREDIT },
@@ -151,17 +159,21 @@ const ATTENTION_TYPES = [
   { key: 'reschedule', label: 'Reschedule', flag: ALERT_FLAGS.RESCHEDULE_PENDING },
   { key: 'upload', label: 'Awaiting Upload', flag: ALERT_FLAGS.ATTEND_NO_COLLABO },
   { key: 'visit', label: 'Visit Unconfirmed', flag: ALERT_FLAGS.AGREEMENT_NO_ATTEND },
+  { key: 'perf', label: 'Record Performance' },
 ];
 
 /**
  * 이 인플루언서의 일 종류 키. 판정 우선순위는 행 표시와 같다 —
- * 연락 경보(노쇼 > 일정변경)가 단계 라벨보다 먼저다.
+ * 연락 경보(노쇼 > 일정변경)가 단계 라벨보다 먼저고, 경보가 하나라도 있으면
+ * 성과 기록(perf)은 뒤로 밀린다(문제 해결이 루틴보다 먼저다).
  * 칩으로 골랐을 때 행에 다른 라벨이 보이면 필터를 불신하게 된다.
  */
 const TYPE_PRECEDENCE = ['noshow', 'reschedule', 'credit', 'upload', 'visit'];
-const TYPE_FLAG_BY_KEY = Object.fromEntries(ATTENTION_TYPES.map(t => [t.key, t.flag]));
+const TYPE_FLAG_BY_KEY = Object.fromEntries(ATTENTION_TYPES.filter(t => t.flag).map(t => [t.key, t.flag]));
 function attentionTypeOf(inf) {
-  return TYPE_PRECEDENCE.find(k => inf.alertFlags.includes(TYPE_FLAG_BY_KEY[k])) ?? null;
+  const flagged = TYPE_PRECEDENCE.find(k => inf.alertFlags.includes(TYPE_FLAG_BY_KEY[k]));
+  if (flagged) return flagged;
+  return derivePerformanceStatus(inf)?.state === PERFORMANCE_STATES.DUE ? 'perf' : null;
 }
 
 /**
@@ -278,6 +290,8 @@ function byScheduledTime(a, b) {
  * @param {string} selectedStore - 선택된 스토어 ('all'이면 전체). 세 뷰가 공유 [Optional, 기본값: 'all']
  * @param {function} onStoreChange - 스토어 변경 핸들러 (store) => void [Optional]
  *   주지 않으면(좁은 화면) 그 자리는 그냥 여백으로 남는다 [Optional, 기본값: null]
+ * @param {string} sheetUrl - Google Sheet 원본 링크. Action required의 Record Performance
+ *   칩이 활성일 때 시트로 바로 안내한다(기록은 시트에만 — 진실은 시트 하나) [Optional, 기본값: '']
  *
  * Example usage:
  * <SaasOperationsView influencers={influencers} onSelect={handleSelect} />
@@ -295,6 +309,7 @@ function SaasOperationsView({
   stores = null,
   selectedStore = ALL_STORES,
   onStoreChange,
+  sheetUrl = '',
 }) {
   /** 검색어는 뷰 안에서만 쓰는 일시 상태라 승격하지 않는다 */
   /** 시트 상태 탭 — 기존 InfluencerPanel의 tab 상태를 그대로 복원한 것 */
@@ -376,10 +391,18 @@ function SaasOperationsView({
        걸려 In progress/Stale로 흘러든다. 포기한 사람이 "진행 중"에 앉으면 섹션이라는
        약속이 깨지므로, 다른 모든 구간에서 명시적으로 빼고 맨 아래 자기 구간에 모은다. */
     const isDropped = inf => inf.contactStatus === CONTACT_STATUSES.DROPPED;
+    /* D+14 성과 기록이 밀린 건 — Action required에 'Record Performance' 일 종류로 들어간다.
+       판정은 행 표시(InfluencerListRow)와 같은 derivePerformanceStatus를 쓴다 —
+       섹션에 있는데 행에 문구가 없으면 안 된다. 경보가 아니므로 alertFlags는 건드리지
+       않는다(경보 카운트·레일 점·유예 로직에 새지 않게). */
+    const isPerfDue = inf => derivePerformanceStatus(inf)?.state === PERFORMANCE_STATES.DUE;
     /* 일 종류 칩 — 카운트는 종류 필터 **이전**의 전체에서 센다(칩이 자기 분모를 지우면 안 된다).
        헤더 카운트도 전체를 유지한다 — Needs attention 배너와 같은 수여야 하고,
        칩은 "지금 무엇을 보느냐"지 "일이 몇 개냐"를 바꾸는 게 아니다. */
-    const attentionAll = filtered.filter(i => i.alertFlags.length > 0).sort(byPriority);
+    /* 성과 기록(D+14 경과)도 여기 들어간다 — "내 행동이 필요한 건 전부 이 서랍"이
+       사용자 멘탈 모델이다. dropped는 명시적으로 뺀다: 경보는 dropped에서 저절로
+       꺼지지만 perf 판정은 contactStatus를 모른다. */
+    const attentionAll = filtered.filter(i => !isDropped(i) && (i.alertFlags.length > 0 || isPerfDue(i))).sort(byPriority);
     const typeCounts = {};
     for (const inf of attentionAll) {
       const k = attentionTypeOf(inf);
@@ -395,6 +418,9 @@ function SaasOperationsView({
         headerCount: attentionAll.length,
         types: ATTENTION_TYPES.filter(t => typeCounts[t.key]).map(t => ({ ...t, count: typeCounts[t.key] })),
         activeType,
+        /* 시트 안내 줄은 성과 기록 맥락에서만 — perf 칩을 골랐거나, 섹션에 perf 일만 있을 때 */
+        showPerfGuide: activeType === 'perf'
+          || (activeType === null && typeCounts.perf > 0 && Object.keys(typeCounts).length === 1),
       },
       /* Upcoming은 "예정"이라는 뜻이어야 한다.
          예전에는 "경보 없음 + 미완료"였을 뿐이라 날짜 조건이 아예 없었고,
@@ -403,14 +429,14 @@ function SaasOperationsView({
       {
         key: 'upcoming',
         label: 'Upcoming',
-        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
           && (i.scheduleGroup === SCHEDULE_GROUPS.TODAY || i.scheduleGroup === SCHEDULE_GROUPS.UPCOMING)).sort(byPriority),
       },
       /* 방문일은 지났지만 아직 유예 기간이라 경보가 없는 건 */
       {
         key: 'inProgress',
         label: 'In progress',
-        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
           && i.scheduleGroup !== SCHEDULE_GROUPS.TODAY && i.scheduleGroup !== SCHEDULE_GROUPS.UPCOMING
           && !isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
@@ -419,13 +445,15 @@ function SaasOperationsView({
       {
         key: 'stale',
         label: 'Stale (90+ days)',
-        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && !i.creditShared
+        items: filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
           && isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
+      /* Completed는 성과 기록까지 끝난(또는 아직 때가 안 된) 건만 — 기록이 밀린 건은
+         위 Record performance 큐가 데려간다. 여기 두면 "완료"인데 할 일이 남은 셈이다. */
       {
         key: 'completed',
         label: 'Completed',
-        items: filtered.filter(i => !isDropped(i) && i.alertFlags.length === 0 && i.creditShared).sort(byPriority),
+        items: filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && i.creditShared).sort(byPriority),
       },
       /* 성공 종결(Completed)과 실패 종결(Dropped)은 섞지 않는다 — 섞으면 Completed
          카운트가 의미를 잃는다. 평소엔 볼 일이 없고 다음 캠페인 초대 명단을 짤 때
@@ -1040,6 +1068,28 @@ function SaasOperationsView({
                           sx={{ ...chipSx(section.activeType === t.key), height: 24, fontSize: 11 }}
                         />
                       ))}
+                    </Box>
+                  )}
+
+                  {/* 성과 기록 안내 줄 — perf 칩이 활성일 때만(또는 perf 일만 있을 때).
+                      기록은 시트에만 한다(진실은 시트 하나, 대시보드는 폴링으로 따라온다).
+                      "시트에 적으세요"로 끝나면 실행의 간극이 남으므로 링크를 바로 옆에 둔다.
+                      헤더(접기 버튼) 안에 넣지 않는다 — button 안의 a는 무효 HTML이다. */}
+                  {!isCollapsed && section.showPerfGuide && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary', minWidth: 0 }}>
+                        2 weeks since upload — record results in the sheet; the dashboard picks them up automatically.
+                      </Typography>
+                      {sheetUrl && (
+                        <Link
+                          href={sheetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{ ml: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 11, fontWeight: 500, color: 'accent.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                        >
+                          Open sheet <OpenInNewIcon sx={{ fontSize: 12 }} />
+                        </Link>
+                      )}
                     </Box>
                   )}
 

@@ -24,7 +24,7 @@ import { ALL_STORES, deriveStores } from '../../../data/beautymaster/schema.js';
  * @param {function} onSelect - 인플루언서 행 클릭 핸들러 (influencer) => void [Optional]
  * @param {function} onRefresh - 헤더 새로고침 핸들러 [Optional]
  * @param {function} onOpenSettings - 헤더 설정 아이콘 클릭 핸들러 [Optional]
- * @param {string} sheetUrl - Google Sheet 원본 링크 (헤더 아이콘) [Optional, 기본값: '']
+ * @param {string} sheetUrl - Google Sheet 원본 링크 (헤더 아이콘 + Operations의 Record performance 큐 안내) [Optional, 기본값: '']
  * @param {string|null} selectedId - 현재 선택된 인플루언서 ID [Optional, 기본값: null]
  * @param {boolean} isLoading - 최초 로딩 여부 [Optional, 기본값: false]
  * @param {boolean} isSyncing - 시트 조회 진행 중 여부 (헤더 Refresh 표시) [Optional, 기본값: false]
@@ -97,6 +97,7 @@ function SaasDashboard({
           stores={stores}
           selectedStore={activeStore}
           onStoreChange={handleStoreChange}
+          sheetUrl={sheetUrl}
         />
       )}
       {activeView === 'analytics' && (
@@ -106,6 +107,8 @@ function SaasDashboard({
           stores={stores}
           selectedStore={activeStore}
           onStoreChange={handleStoreChange}
+          sheetUrl={sheetUrl}
+          onSelect={onSelect}
         />
       )}
       {activeView === 'workflow' && (

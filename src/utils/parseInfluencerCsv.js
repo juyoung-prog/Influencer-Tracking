@@ -83,6 +83,18 @@ export function parseCsvRow(line) {
  * Skips leading title/blank rows by searching for the header row
  * (the first row that contains any known column name).
  */
+/**
+ * 헤더 이름 정규화 — 소문자 + 연속 공백을 한 칸으로.
+ *
+ * 헤더 셀 안에 줄바꿈이 있으면("Upload␣⏎Date") collapseMultilineFields가 공백으로
+ * 바꾸면서 "upload  date"(공백 2칸)가 된다. 조회 키는 전부 한 칸("upload date")이라
+ * 이름이 어긋나 그 열이 통째로 버려진다 — 실제로 G10 시트의 Upload Date 열 전체가
+ * 조용히 null이 됐다(D+14 성과 큐가 그 날짜에 걸려 있어 기능이 통째로 죽었다).
+ */
+function normalizeHeader(h) {
+  return h.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function csvTextToObjects(csvText) {
   const lines = collapseMultilineFields(csvText).trim().split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return [];
@@ -90,7 +102,7 @@ function csvTextToObjects(csvText) {
   // Primary: find any row with 'full name' (unambiguous influencer header marker)
   let headerIdx = -1;
   for (let i = 0; i < lines.length; i++) {
-    const cells = parseCsvRow(lines[i]).map(c => c.trim().toLowerCase());
+    const cells = parseCsvRow(lines[i]).map(normalizeHeader);
     if (cells.includes('full name')) {
       headerIdx = i;
       break;
@@ -101,7 +113,7 @@ function csvTextToObjects(csvText) {
   if (headerIdx === -1) {
     const FALLBACK_MARKERS = ['barcode', 'store', 'platform', 'agreement', 'attend'];
     for (let i = 0; i < lines.length; i++) {
-      const cells = parseCsvRow(lines[i]).map(c => c.trim().toLowerCase());
+      const cells = parseCsvRow(lines[i]).map(normalizeHeader);
       if (FALLBACK_MARKERS.filter(m => cells.includes(m)).length >= 3) {
         headerIdx = i;
         break;
@@ -111,8 +123,7 @@ function csvTextToObjects(csvText) {
 
   if (headerIdx === -1) return [];
 
-  // Normalize all header names to lowercase for case-insensitive matching
-  const headers = parseCsvRow(lines[headerIdx]).map(h => h.trim().toLowerCase());
+  const headers = parseCsvRow(lines[headerIdx]).map(normalizeHeader);
 
   // eslint-disable-next-line no-console
   console.log('[BeautyMaster CSV] header row index:', headerIdx, '| headers:', headers);
@@ -184,9 +195,23 @@ function hasTimeOfDay(val) {
   return /\d\s*(am|pm)\b/i.test(val) || /\d{1,2}:\d{2}/.test(val);
 }
 
+/**
+ * 숫자 셀 해석 — 천 단위 콤마·공백을 벗기고, K/M 접미사를 해석한다.
+ *
+ * 두 번 데였다: "8,794"는 parseInt가 콤마에서 멈춰 8이 됐고(ER 7350%),
+ * "3.4K"는 소수점에서 멈춰 3이 됐다(ER 2866.7%). 앱이 숫자를 "3.4K"로 보여주니
+ * 시트에 그대로 옮겨 적히는 건 막을 수 없다 — 파서가 흡수한다.
+ *
+ * 패턴에 안 맞는 값은 앞자리만 잘라 읽지 않고 null(미측정)로 둔다 —
+ * 틀린 숫자는 빈 칸보다 나쁘다(불가능한 ER로 순위 1등에 올라간다).
+ */
 function parseNum(val) {
-  const n = parseInt(val, 10);
-  return isNaN(n) ? null : n;
+  const raw = (val || '').replace(/[,\s]/g, '');
+  if (!raw) return null;
+  const m = raw.match(/^(\d+(?:\.\d+)?)([kKmM])?$/);
+  if (!m) return null;
+  const multiplier = !m[2] ? 1 : m[2].toLowerCase() === 'k' ? 1000 : 1000000;
+  return Math.round(parseFloat(m[1]) * multiplier);
 }
 
 function parseMonth(val) {
@@ -372,6 +397,8 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       hasCreditUsedValue: Boolean((row['credit used'] || '').trim()),
       serialNumber: row['serial #'] || row['serial#'] || '',
       opinion: parseOpinion(row['opinion']),
+      // 성과 지표를 적은 날 — D+14 큐 판정(derivePerformanceStatus)이 이 값으로 "기록됨"을 안다
+      recordDate: parseDate(row['record date']),
       views: parseNum(row['views']),
       likes: parseNum(row['likes']),
       shares: parseNum(row['shares']),
