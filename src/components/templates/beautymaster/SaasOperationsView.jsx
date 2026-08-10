@@ -986,11 +986,10 @@ function SaasOperationsView({
                     borderColor: 'divider',
                     borderRadius: '6px',
                     mt: 2,
-                    // 행이 자기 폭에 맞춰 접히도록 컨테이너 기준점을 준다.
-                    // 창 크기가 아니라 이 컬럼의 폭이 행이 쓸 수 있는 실제 폭이다.
-                    containerType: 'inline-size',
-                    // 마지막 행의 하단 divider는 컨테이너 보더와 겹치므로 지운다
-                    '& > [data-influencer-id]:last-of-type': { borderBottom: 'none' },
+                    // containerType은 여기(섹션)가 아니라 아래 행 래퍼에 건다.
+                    // container-type의 containment 안에 sticky 헤더가 같이 들어가면
+                    // Safari가 헤더의 z-index를 무시하고 행을 위에 그려서,
+                    // 스크롤 중 헤더를 누르면 뒤에 가려진 행이 클릭됐다(issue7·8).
                   }}
                 >
                   {/* 섹션 헤더 — 스크롤해도 어느 구간인지 남도록 sticky. 컨테이너 안쪽이라 radius를 맞춘다 */}
@@ -1017,7 +1016,10 @@ function SaasOperationsView({
                       font: 'inherit',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      '&:hover': { backgroundColor: 'action.hover' },
+                      /* hover 색은 불투명해야 한다 — action.hover(4% 검정)는 반투명이라
+                         스크롤로 헤더 뒤에 행이 깔린 상태에서 마우스를 올리면
+                         행이 헤더를 뚫고 비쳐 보였다(issue8). */
+                      '&:hover': { backgroundColor: 'grey.100' },
                     }}
                   >
                     <ChevronRightIcon
@@ -1093,14 +1095,27 @@ function SaasOperationsView({
                     </Box>
                   )}
 
-                  {!isCollapsed && section.items.map(inf => (
-                    <InfluencerListRow
-                      key={inf.id}
-                      influencer={inf}
-                      onClick={() => onSelect?.(inf)}
-                      isSelected={selectedId === inf.id}
-                    />
-                  ))}
+                  {!isCollapsed && (
+                    <Box
+                      sx={{
+                        // 행이 자기 폭에 맞춰 접히도록 컨테이너 기준점을 준다.
+                        // 창 크기가 아니라 이 컬럼의 폭이 행이 쓸 수 있는 실제 폭이다.
+                        // 섹션 박스에 걸지 않는 이유는 헤더 주석 참조(sticky와 충돌).
+                        containerType: 'inline-size',
+                        // 마지막 행의 하단 divider는 컨테이너 보더와 겹치므로 지운다
+                        '& > [data-influencer-id]:last-of-type': { borderBottom: 'none' },
+                      }}
+                    >
+                      {section.items.map(inf => (
+                        <InfluencerListRow
+                          key={inf.id}
+                          influencer={inf}
+                          onClick={() => onSelect?.(inf)}
+                          isSelected={selectedId === inf.id}
+                        />
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               );
             })}
