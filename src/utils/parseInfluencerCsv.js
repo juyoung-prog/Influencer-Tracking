@@ -223,11 +223,19 @@ function parseMonth(val) {
   return isNaN(n) ? 0 : n;
 }
 
+/* Instagram·TikTok 핸들 문법 — 영숫자·밑줄·점만, 30자 이내.
+   URL을 만드는 쪽과 URL에서 핸들을 되짚는 쪽이 같은 기준을 써야
+   "링크는 있는데 핸들은 없는" 어긋남이 생기지 않는다. */
+const HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+
 function normalizeSocialUrl(raw, platform) {
   if (!raw) return '';
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
   const username = raw.replace(/^@/, '').trim();
-  if (!username) return '';
+  /* 핸들 문법에 맞지 않는 셀은 링크를 만들지 않는다. 이 칸에는 자기소개가
+     들어오는 행이 있어서("Karol en Atlanta 🇺🇸🇭🇳"), 검증 없이 URL 틀에
+     끼우면 상세 패널 링크가 없는 주소로 간다. 깨진 링크보다 링크 없음이 낫다. */
+  if (!HANDLE_PATTERN.test(username)) return '';
   const p = platform.toLowerCase();
   if (p.includes('tiktok')) return `https://www.tiktok.com/@${username}`;
   return `https://www.instagram.com/${username}`;
@@ -248,6 +256,15 @@ const SOCIAL_URL_OVERRIDES = {
   'breana waynick': 'https://www.tiktok.com/@knotslater',
   'chondra styles': 'https://www.tiktok.com/@chonieb_',
   'zadie franklin': 'https://www.tiktok.com/@wellness.traveler?lang=en',
+  'shamiyah harris': 'https://www.tiktok.com/@millionswithmiyah',
+  'jadeen verme': 'https://www.tiktok.com/@jadeenvermee',
+  'yuleidys': 'https://www.instagram.com/yuleidyspalacio',
+  'rosalia serrano': 'https://www.instagram.com/rosaliaserranodina',
+  'jaziah reid': 'https://www.tiktok.com/@jaziahvictor',
+  /* 시트 platform은 TikTok이지만 본인 확인이 된 건 Instagram 쪽이라
+     (bio "Hondureña 🇭🇳 in 📍ATL" = 셀의 "Karol en Atlanta 🇺🇸🇭🇳")
+     확실한 링크를 쓴다. TikTok 후보(@karollmedinag)는 동일인 확인 불가. */
+  'karol medina': 'https://www.instagram.com/karolmedinag',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
@@ -273,11 +290,11 @@ function handleFromUrl(url) {
   const path = url.split('?')[0].split('#')[0].replace(/\/+$/, '');
   const last = path.split('/').pop() || '';
   const handle = last.replace(/^@/, '').trim();
-  /* 핸들 문법에 맞는 값만 통과시킨다. normalizeSocialUrl은 셀 내용을 검증하지 않고
-     URL 틀에 끼워 넣기만 하므로, 자기소개가 적힌 칸은 그대로 URL에 실려 온다
-     (오버라이드가 없는 행에서 "@Rosalia | UGC content creator"가 핸들로 나왔다).
-     Instagram·TikTok 핸들은 영숫자·밑줄·점만 쓰고 30자를 넘지 않는다. */
-  return /^[A-Za-z0-9._]{1,30}$/.test(handle) ? handle : '';
+  /* normalizeSocialUrl이 만든 URL은 이미 검증됐지만, 셀에 URL을 통째로 붙여 넣은
+     행과 오버라이드는 그대로 통과해 오므로 여기서도 핸들 문법을 확인한다
+     (경로 끝이 핸들이 아닐 수 있다 — "?lang=en"은 위에서 벗겼어도 경로 자체가
+     프로필이 아닌 URL일 수 있다). */
+  return HANDLE_PATTERN.test(handle) ? handle : '';
 }
 
 function parseOpinion(val) {

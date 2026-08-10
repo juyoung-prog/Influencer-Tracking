@@ -44,8 +44,11 @@ const HANDLE_CSV = [
   '2,G10,2026-07,G10INF2026,Instagram,General,,,,Silvia Cusati,@silviacusati,,7/8/2026 2pm,TRUE,TRUE,,,,,',
   // 3) 칸에 URL을 통째로 붙여 넣은 행
   '3,G10,2026-07,G10INF2026,TikTok,General,,,,Cherii Dluxx,https://www.tiktok.com/@cheriidluxx/,,7/8/2026 2pm,TRUE,TRUE,,,,,',
-  // 4) 핸들이 아니라 자기소개가 적힌 행 — 화면에 "@Rosalia | UGC content creator"로 나갔었다
-  '4,G10,2026-07,G10INF2026,Instagram,General,,,,Rosalia Serrano,Rosalia | UGC content creator,,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 4) 핸들이 아니라 자기소개가 적힌 행(오버라이드 없음) — 실제로 이런 셀이
+  //    "@Rosalia | UGC content creator"로 화면에 나갔었다. 픽스처 이름은
+  //    SOCIAL_URL_OVERRIDES에 절대 없을 가상 인물이어야 한다(실명을 쓰면
+  //    나중에 그 사람이 오버라이드에 등록되는 순간 이 케이스가 무너진다).
+  '4,G10,2026-07,G10INF2026,Instagram,General,,,,Mari Vega,Mari | UGC content creator,,7/8/2026 2pm,TRUE,TRUE,,,,,',
   // 5) 4번과 같은 쓰레기 칸이지만 이름이 오버라이드 목록에 있는 행 — 링크가 살아나므로 핸들도 살아난다
   '5,G10,2026-07,G10INF2026,TikTok,General,,,,Jakkah kebbay,\u{1F36D}Jakkah\u{1F380},,7/8/2026 2pm,TRUE,TRUE,,,,,',
 ].join('\n');
@@ -129,10 +132,11 @@ export const RowContract = {
  *
  * 목록 행이 이름 아래에 "@핸들"을 그대로 찍기 때문에, 이 칸의 지저분한 값이
  * 그대로 화면에 나간다. 실제로 그랬다 — "@Rosalia | UGC content creator".
- * URL에서 되짚기만 하면 걸러진다고 봤던 게 틀렸다: 링크를 만드는 쪽은 셀 내용을
- * 검증하지 않고 URL 틀에 끼워 넣기만 해서, 쓰레기가 URL을 타고 그대로 따라온다.
+ * 상세 패널 링크도 같은 칸에서 나오므로, 검증 없이 URL 틀에 끼우면
+ * "https://www.tiktok.com/@Karol en Atlanta 🇺🇸🇭🇳" 같은 없는 주소로 링크됐다.
  *
- * 그래서 핸들 문법으로 한 번 더 거른다. 없는 값은 만들지 않는다 — 핸들이 없으면
+ * 그래서 핸들 문법 검증을 URL을 만드는 시점에 건다. 핸들이 아닌 셀은 링크도
+ * 핸들도 만들지 않는다 — 깨진 링크보다 링크 없음이 낫고, 핸들이 없으면
  * 행은 날짜·시각만 보여준다(InfluencerListRow.NoHandleKeepsDateOnly).
  */
 export const HandleContract = {
@@ -160,8 +164,10 @@ export const HandleContract = {
     await expect(by['Silvia Cusati'].socialHandle).toBe('silviacusati');
     await expect(by['Cherii Dluxx'].socialHandle).toBe('cheriidluxx');
 
-    // 자기소개가 적힌 칸은 핸들이 아니다 — 빈 값이어야 화면이 날짜만 보여준다
-    await expect(by['Rosalia Serrano'].socialHandle).toBe('');
+    // 자기소개가 적힌 칸은 핸들이 아니다 — 빈 값이어야 화면이 날짜만 보여준다.
+    // 링크도 같이 비어야 한다 — 상세 패널이 없는 주소로 링크되던 버그의 회귀 방지
+    await expect(by['Mari Vega'].socialHandle).toBe('');
+    await expect(by['Mari Vega'].socialAccountUrl).toBe('');
 
     // 같은 쓰레기 칸이라도 오버라이드로 링크가 살아난 행은 핸들도 살아난다.
     // 목록 핸들과 상세 패널 링크가 같은 출처를 쓴다는 뜻이다.
