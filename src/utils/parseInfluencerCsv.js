@@ -242,10 +242,16 @@ function normalizeSocialUrl(raw, platform) {
 }
 
 /**
- * Manual overrides keyed by lowercased "Full Name", for rows where the sheet's
- * "Social Account" cell holds a bio-style display name (e.g. "Toni | Lifestyle
- * + UGC Creator", "🍭Eden Era🎀") instead of a clean handle, so normalizeSocialUrl
- * can't derive a working link from it. Verified against each creator's real profile.
+ * Manual overrides keyed by lowercased "Full Name", for rows whose "Social Account"
+ * cell can't produce the creator's real profile link:
+ *
+ * 1. 셀이 핸들이 아니라 자기소개인 행 — "Toni | Lifestyle + UGC Creator", "🍭Eden Era🎀".
+ *    normalizeSocialUrl이 링크를 못 만든다(핸들 문법 불통과).
+ * 2. 셀이 **핸들처럼 생겼지만 실제 계정이 아닌** 행 — "Wannie_N" 같은 약칭. 문법은
+ *    통과하니 링크는 만들어지는데, 그 주소에 그 사람이 없다. 이쪽이 더 위험하다:
+ *    깨진 링크는 눈에 띄지만 남의 계정으로 가는 링크는 조용히 틀린다.
+ *
+ * Verified against each creator's real profile.
  */
 const SOCIAL_URL_OVERRIDES = {
   'jakkah kebbay': 'https://www.tiktok.com/@oyastormm',
@@ -265,6 +271,9 @@ const SOCIAL_URL_OVERRIDES = {
      (bio "Hondureña 🇭🇳 in 📍ATL" = 셀의 "Karol en Atlanta 🇺🇸🇭🇳")
      확실한 링크를 쓴다. TikTok 후보(@karollmedinag)는 동일인 확인 불가. */
   'karol medina': 'https://www.instagram.com/karolmedinag',
+  /* 셀은 "Wannie_N"(약칭)이라 tiktok.com/@Wannie_N 로 가버렸다 — 본인 계정이 아니다.
+     이름·이메일(teamwannie01@gmail.com)로 확인된 실제 TikTok은 @wannienshobole. */
+  'wannie nshobole': 'https://www.tiktok.com/@wannienshobole',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
