@@ -317,6 +317,80 @@ export const TodayEmptyStateSpeaks = {
   },
 };
 
+const tomorrowAt = hour => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+};
+
+/**
+ * "언제"를 사람이 계산하지 않는다.
+ *
+ * TODAY 구간은 오늘 날짜를 병기한다 — 아래 그룹은 전부 "AUG 8" 같은 날짜인데
+ * 이 구간만 이름이라, 오늘이 며칠인지가 화면 어디에도 없었다.
+ * Upcoming의 내일 그룹은 날짜 **옆에** TOMORROW를 붙인다(레일은 날짜 인덱스라
+ * 날짜를 대체하지 않는다). Upcoming은 내일과 3주 뒤를 한 구간에 담으므로
+ * 날짜만 보면 코앞인지 알려고 달력을 세야 했다.
+ *
+ * 목록 행은 반대로 날짜를 대체한다 — 오늘 건이 이미 시각만 남기는 것과 같은 규칙이고,
+ * 그 줄은 "준비할 시간이 남았나"를 보려고 읽는 줄이다.
+ */
+export const TodayCarriesItsDateAndTomorrowIsNamed = {
+  args: {
+    influencers: [
+      ...MOCK_INFLUENCERS,
+      {
+        ...MOCK_INFLUENCERS[0],
+        id: 'tmr-1',
+        fullName: 'Mina Park',
+        socialHandle: '',
+        scheduledTime: tomorrowAt(14),
+        hasScheduledTimeOfDay: true,
+        scheduleGroup: deriveScheduleGroup(tomorrowAt(14)),
+        agreement: true,
+        attend: false,
+        collaboShared: false,
+        creditShared: false,
+        uploadDate: null,
+        contactReason: null,
+        contactStatus: null,
+        alertFlags: [],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const rail = canvasElement.querySelector('[data-rail]');
+
+    // TODAY 구간은 이름 옆에 오늘 날짜를 단다 — 구간 이름 자체는 그대로다
+    const today = rail.querySelector('[data-rail-section="today"]');
+    await expect(today.children[0].textContent.trim()).toBe('TODAY');
+    const todayDate = today.querySelector('[data-rail-section-date]');
+    await expect(todayDate.textContent.trim()).toMatch(/^[A-Z]{3} \d{1,2}$/);
+
+    // 내일 그룹만 TOMORROW를 단다. 날짜는 그대로 남는다
+    const tomorrowDate = tomorrowAt(14).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const days = [...rail.querySelectorAll('[data-rail-day]')];
+    for (const day of days) {
+      const isTomorrowGroup = day.children[0].textContent.trim() === tomorrowDate.toUpperCase();
+      await expect(!!day.querySelector('[data-rail-day-relative]')).toBe(isTomorrowGroup);
+    }
+    const marked = rail.querySelectorAll('[data-rail-day-relative]');
+    await expect(marked.length).toBe(1);
+    await expect(marked[0].textContent.trim()).toBe('TOMORROW');
+
+    // 목록 행은 날짜 자리를 "Tomorrow"가 가져간다 (Upcoming은 기본 접힘이라 먼저 편다)
+    const upcoming = canvasElement.querySelector('[data-section="upcoming"]');
+    await userEvent.click(upcoming.querySelector('button'));
+    await waitFor(async () => {
+      await expect(upcoming.querySelector('[data-influencer-id="tmr-1"]')).toBeTruthy();
+    });
+    const row = upcoming.querySelector('[data-influencer-id="tmr-1"]');
+    await expect(row.textContent).toContain('Tomorrow · ');
+    await expect(row.textContent).not.toContain(tomorrowDate);
+  },
+};
+
 /**
  * 스크롤해도 지금 보는 행이 언제인지 알 수 있어야 한다.
  *
@@ -492,6 +566,55 @@ export const GraceWindowDecidesTheSection = {
     // STALE의 판정은 목록과 경보 로직이 같은 함수를 쓴다
     await expect(isStaleVisit(daysAgo(ALERT_GRACE_DAYS.STALE + 30))).toBe(true);
     await expect(isStaleVisit(daysAgo(ALERT_GRACE_DAYS.UPLOAD - 1))).toBe(false);
+  },
+};
+
+/**
+ * Stale 안의 손실 건은 접힌 채로도 세어진다.
+ *
+ * 이 구간은 성격이 전혀 다른 둘을 함께 담는다 — 오지 않은 사람(손실 없음)과
+ * 왔는데 콘텐츠가 없는 사람(지출이 회수되지 않음). 게다가 기본 접힘이라,
+ * 펼치지 않으면 돈이 나간 건이 몇 건인지 알 방법이 없었다. 90일이 지나면 경보도
+ * 꺼지므로 배너·KPI에도 안 잡힌다 — 손실이 조용히 사라지는 구멍이 여기였다.
+ *
+ * 경보를 되살리는 대신 헤더에 수만 붙인다: 울릴 것과 셀 것은 다르다.
+ * 형식은 Action required 칩과 같은 "라벨 수", 어휘는 행 문구와 같은 "No upload".
+ */
+export const StaleHeaderCountsTheLoss = {
+  args: {
+    influencers: [
+      // 왔는데 콘텐츠가 없다 — 돈이 나간 손실
+      gracePeriodRow('st-noupload', 'Came Left Nothing', ALERT_GRACE_DAYS.STALE + 30, { agreement: true, attend: true }),
+      gracePeriodRow('st-noupload2', 'Also Nothing', ALERT_GRACE_DAYS.STALE + 60, { agreement: true, attend: true }),
+      // 오지도 않았다 — 슬롯만 비었다. 같은 구간이지만 손실 성격이 다르다
+      gracePeriodRow('st-noshow', 'Never Came', ALERT_GRACE_DAYS.STALE + 40, { agreement: true, attend: false }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const stale = canvasElement.querySelector('[data-section="stale"]');
+    await expect(stale).toBeTruthy();
+
+    // 접힌 상태에서 이미 보여야 한다 — 펼쳐야 보이면 구멍이 그대로다
+    const header = stale.querySelector('button');
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+    const note = stale.querySelector('[data-section-note]');
+    await expect(note).toBeTruthy();
+    // 셋 중 방문한 둘만 센다 — 오지 않은 사람은 이 수에 들어가지 않는다
+    await expect(note.textContent.trim()).toBe('No upload 2');
+
+    // 경보는 여전히 꺼져 있다 — 수를 세는 것과 다시 울리는 것은 다르다
+    await userEvent.click(header);
+    await waitFor(async () => {
+      await expect(stale.querySelector('[data-influencer-id="st-noupload"]')).toBeTruthy();
+    });
+    const attention = canvasElement.querySelector('[data-section="attention"]');
+    await expect(attention).toBeFalsy();
+
+    // 행도 같은 어휘로 말한다 — 헤더의 수와 행의 문구가 어긋나면 안 된다
+    const marked = [...stale.querySelectorAll('[data-influencer-id]')]
+      .filter(r => r.querySelector('[data-stale-no-upload]'))
+      .map(r => r.getAttribute('data-influencer-id'));
+    await expect(marked.sort()).toEqual(['st-noupload', 'st-noupload2']);
   },
 };
 

@@ -381,6 +381,89 @@ export const PerformanceEmptyStateSpeaks = {
   },
 };
 
+/** 방문했는데 콘텐츠가 없는 건을 만든다 — 유예(7일)를 넘긴 미이행 */
+const unfulfilledInf = (id, name, tier, daysAgoVisited, overrides) => ({
+  ...MOCK_INFLUENCERS[0],
+  id,
+  fullName: name,
+  tier,
+  scheduledTime: daysAgo(daysAgoVisited),
+  hasScheduledTimeOfDay: true,
+  agreement: true, attend: true,
+  collaboShared: false, creditShared: false, creditUsed: false,
+  uploadDate: null, recordDate: null,
+  contactReason: null, contactStatus: null,
+  alertFlags: [],
+  ...overrides,
+});
+
+/**
+ * 미이행 손실 — 퍼널의 attended→uploaded 낙차를 금액으로 옮긴 블록.
+ *
+ * 여기까지 오기 전에는 리포트에 upload rate(비율)뿐이었다. 비율은 "85%면 잘 되고
+ * 있네"로 읽히고 금액은 "이거 회수해야겠네"로 읽힌다 — 같은 사실인데 뒤엣것만
+ * 행동으로 이어진다. 게다가 90일이 지나면 경보가 꺼져서 Operations 화면만으로는
+ * 이 손실의 총량을 알 방법이 아예 없었다(세는 일은 리포트가 맡는다).
+ *
+ * dropped도 센다 — 포기했다는 건 회수를 단념했다는 뜻이지 지출이 없던 일이 됐다는
+ * 뜻이 아니다. 대신 Status 컬럼이 아직 손댈 수 있는 건과 접은 건을 가른다.
+ */
+export const UnfulfilledCountsTheLoss = {
+  args: {
+    onSelect: fn(),
+    influencers: [
+      unfulfilledInf('uf-t1', 'Nora Bell', 'tier1', 20),
+      // 90일 초과 — 경보가 꺼진 건. 이게 여기 안 잡히면 구멍이 그대로다
+      unfulfilledInf('uf-t1-stale', 'Gone Quiet', 'tier1', 200),
+      // 포기한 건도 지출은 이미 나갔다
+      unfulfilledInf('uf-t2-dropped', 'Iris Kang', 'tier2', 60, {
+        contactReason: 'no-show', contactStatus: 'dropped', lastContactDate: daysAgo(30),
+      }),
+      // 유예 안 — 아직 미이행이 아니다. 이게 섞이면 금액이 부풀려진다
+      unfulfilledInf('uf-grace', 'Too Soon', 'tier1', 2),
+      // 업로드까지 끝난 건 — 손실이 아니다
+      perfInf('uf-done', 'All Good', { views: 1000, likes: 50 }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const section = canvasElement.querySelector('[data-unfulfilled-section]');
+    await expect(section).toBeTruthy();
+
+    // T1 2건 × $100 + T2 1건 × $20 = $220. 유예 안·업로드 완료는 빠진다
+    await expect(section.textContent).toContain('Unfulfilled visits — 3 · $220 unrecovered');
+    await expect(section.textContent).toContain('Tier 1 2 × $100 = $200');
+    await expect(section.textContent).toContain('Tier 2 1 × $20 = $20');
+
+    const ids = [...section.querySelectorAll('[data-unfulfilled-row]')]
+      .map(r => r.getAttribute('data-unfulfilled-row'));
+    await expect(ids).toEqual(['uf-t1', 'uf-t1-stale', 'uf-t2-dropped']);   // 금액 큰 순, 같으면 최근 순
+
+    // 아직 손댈 수 있는 건과 접은 건을 가른다 — 명단이 행동으로 이어지려면 필요하다
+    const statusOf = id => section.querySelector(`[data-unfulfilled-row="${id}"] td:last-child`).textContent.trim();
+    await expect(statusOf('uf-t1')).toBe('Follow-up open');
+    await expect(statusOf('uf-t1-stale')).toBe('Alert stopped (90+ days)');
+    await expect(statusOf('uf-t2-dropped')).toBe('Dropped');
+  },
+};
+
+/**
+ * 손실이 0이면 섹션을 숨기지 않고 그렇다고 말한다.
+ *
+ * 없는 섹션은 "집계는 하고 있나?"를 남긴다. 손실 0은 이 리포트에서 가장 좋은 소식이라
+ * 적을 값어치가 있다.
+ */
+export const UnfulfilledZeroStateSpeaks = {
+  args: {
+    influencers: [perfInf('uf-ok', 'All Good', { views: 1000, likes: 50 })],
+  },
+  play: async ({ canvasElement }) => {
+    const section = canvasElement.querySelector('[data-unfulfilled-section]');
+    await expect(section.textContent).toContain('Unfulfilled visits — none');
+    await expect(section.textContent).toContain('Every visit produced content');
+    await expect(section.querySelector('[data-unfulfilled-row]')).toBeNull();
+  },
+};
+
 export const SingleStoreHidesStoreTable = {
   args: { selectedStore: STORES[0] },
   play: async ({ canvasElement }) => {

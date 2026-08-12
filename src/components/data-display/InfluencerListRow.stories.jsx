@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import { expect } from 'storybook/test';
 import { defaultTheme } from '../../styles/themes';
 import InfluencerListRow from './InfluencerListRow';
-import { deriveAlertFlags, derivePerformanceStatus, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
+import { ALERT_GRACE_DAYS, deriveAlertFlags, derivePerformanceStatus, deriveScheduleGroup } from '../../data/beautymaster/schema.js';
 
 const D = iso => new Date(iso);
 
@@ -272,6 +272,49 @@ export const PerformanceCheckImminent = {
     // 임박 전(D-4 이상)은 침묵한다 — 상시 노출은 숫자 소음이다
     const early = make({ collaboShared: true, creditShared: true, uploadDate: daysAgo(5) });
     await expect(derivePerformanceStatus(early).dDay).toBe(9);
+  },
+};
+
+/**
+ * 90일이 지난 미이행 — "기다리는 중"이 아니라 "안 올라왔다".
+ *
+ * 방문일이 STALE(90일)을 넘기면 경보가 꺼진다 — 사실상 종료된 건을 계속 울릴 이유가
+ * 없다는 판단은 그대로 둔다. 문제는 라벨이었다: 경보만 꺼지고 "Awaiting Upload"는
+ * 남아서, 200일 지난 건이 곧 올라올 것처럼 읽혔다. 이 프로젝트에서 유일하게
+ * **돈이 이미 나간** 손실인데도 화면에서 조용히 사라진 셈이다.
+ *
+ * 경보는 끈 채로 문구만 사실로 바꾼다 — "No upload · 200d". 경과일이 손실의 크기다.
+ * 경보가 아니므로 warning/error 색은 쓰지 않고 굵기로만 올린다(성과 기록 문구와 같은 규칙).
+ */
+export const StaleNoUpload = {
+  name: 'Stale — No Upload',
+  args: {
+    influencer: make({
+      id: 'inf-stale',
+      fullName: 'Yoon Chaewon',
+      scheduledTime: daysAgo(ALERT_GRACE_DAYS.STALE + 30),
+      attend: true,
+      collaboShared: false,
+    }),
+    isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector('[data-influencer-id]');
+    const line = row.querySelector('[data-stale-no-upload]');
+    await expect(line).toBeTruthy();
+
+    // 기다림이 아니라 사실 — 경과일이 손실의 크기를 말한다
+    const status = row.children[3].textContent;
+    await expect(status).toBe(`No upload · ${ALERT_GRACE_DAYS.STALE + 30}d`);
+    await expect(status).not.toContain('Awaiting Upload');
+
+    // 경보를 되살리지는 않는다 — 색은 본문 색, 무게로만 선다
+    const err = defaultTheme.palette.error.main;
+    const warn = defaultTheme.palette.warning.main;
+    const toRgb = hex => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+    await expect(getComputedStyle(line).color).not.toBe(toRgb(err));
+    await expect(getComputedStyle(line).color).not.toBe(toRgb(warn));
+    await expect(getComputedStyle(line).fontWeight).toBe('600');
   },
 };
 
@@ -616,6 +659,32 @@ export const NoHandleKeepsDateOnly = {
     const line = canvasElement.querySelectorAll('.MuiTypography-caption')[0];
     await expect(line.textContent).toBe('Jul 5 · 11:00 AM');
     await expect(line.textContent).not.toContain('@');
+  },
+};
+
+/**
+ * 내일 방문은 날짜 대신 "Tomorrow".
+ *
+ * 오늘 건이 이미 날짜를 지우고 시각만 남기는 것과 같은 규칙이다. 이 줄은
+ * "준비할 시간이 남았나"를 보려고 읽는 줄인데, "Aug 13"이 코앞인지 알려면
+ * 사람이 오늘 날짜를 알고 빼야 했다. 시각은 그대로 남는다 — 몇 시인지는 지워지면 안 된다.
+ */
+export const TomorrowReplacesTheDate = {
+  args: {
+    influencer: make({
+      fullName: 'Mina Park',
+      socialHandle: '',
+      scheduledTime: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        d.setHours(11, 0, 0, 0);
+        return d;
+      })(),
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelectorAll('.MuiTypography-caption')[0];
+    await expect(line.textContent).toBe('Tomorrow · 11:00 AM');
   },
 };
 

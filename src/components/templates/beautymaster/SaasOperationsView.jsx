@@ -27,6 +27,8 @@ import {
   derivePerformanceStatus,
   deriveStores,
   isStaleVisit,
+  isTomorrow,
+  isUnfulfilled,
   toDisplayName,
 } from '../../../data/beautymaster/schema.js';
 
@@ -213,7 +215,7 @@ const FOCUS_RING_PX = 4;
  * 한 번만 말하고, 그 아래에서 날짜가 반복 없이 묶인다.
  *
  * @param {Influencer[]} influencers
- * @returns {Array<{key,label,count,isToday,dates}>} dates는 [{key,label,items}]
+ * @returns {Array<{key,label,count,isToday,dateLabel,dates}>} dates는 [{key,label,isTomorrow,items}]
  */
 function buildScheduleSections(influencers) {
   const todayItems = [];
@@ -245,11 +247,15 @@ function buildScheduleSections(influencers) {
 
   const toDates = obj => Object.values(obj)
     .sort((a, b) => a.sortDate - b.sortDate)
-    .map(d => ({ ...d, items: d.items.slice().sort(byScheduledTime) }));
+    .map(d => ({ ...d, isTomorrow: isTomorrow(d.sortDate), items: d.items.slice().sort(byScheduledTime) }));
 
+  const now = new Date();
   const sections = [
-    // Today는 0건이어도 남긴다 — 빈 자리가 아니라 "오늘 없음"을 말해주기 위함
+    /* Today는 0건이어도 남긴다 — 빈 자리가 아니라 "오늘 없음"을 말해주기 위함.
+       날짜를 병기한다: 아래 날짜 그룹은 전부 "AUG 8"인데 이 구간만 "TODAY"라
+       오늘이 며칠인지가 화면 어디에도 없었고, 지난 날과의 거리를 셀 기준이 없었다. */
     { key: 'today', label: 'Today', isToday: true, count: todayItems.length,
+      dateLabel: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       dates: [{ key: 'today-items', label: null, items: todayItems.slice().sort(byScheduledTime) }] },
     { key: 'upcoming', label: 'Upcoming', isToday: false, dates: toDates(upcoming) },
     { key: 'past', label: 'Past', isToday: false, dates: toDates(past) },
@@ -428,6 +434,8 @@ function SaasOperationsView({
     }
     /* 선택한 종류가 전역 필터 변경으로 사라지면 조용히 All로 돌아간다 (0건 화면 방지) */
     const activeType = typeCounts[attentionType] ? attentionType : null;
+    const staleItems = filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
+      && isStaleVisit(i.scheduledTime)).sort(byPriority);
     const all = [
       {
         key: 'attention',
@@ -459,12 +467,18 @@ function SaasOperationsView({
           && !isStaleVisit(i.scheduledTime)).sort(byPriority),
       },
       /* 90일이 넘어 경보가 억제된 건 — 지금까지 어느 구간에도 안 보였다.
-         닫힌 것도 진행 중인 것도 아니므로 이름을 그대로 붙여 드러낸다. */
+         닫힌 것도 진행 중인 것도 아니므로 이름을 그대로 붙여 드러낸다.
+
+         이 구간은 성격이 다른 둘을 함께 담는다: 오지 않은 사람(손실 없음)과
+         왔는데 콘텐츠가 없는 사람(지출이 회수되지 않음). 뒤엣것만 헤더에서 따로 센다 —
+         구간이 기본 접힘이라, 펼치지 않으면 돈이 나간 건이 몇 건인지 알 수 없었다. */
       {
         key: 'stale',
         label: 'Stale (90+ days)',
-        items: filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
-          && isStaleVisit(i.scheduledTime)).sort(byPriority),
+        items: staleItems,
+        /* 화살표로 감싼다 — filter는 두 번째 인자로 index를 넘기는데
+           isUnfulfilled의 두 번째 인자는 today다(그대로 넘기면 숫자가 날짜 자리에 앉는다) */
+        unfulfilledCount: staleItems.filter(i => isUnfulfilled(i)).length,
       },
       /* Completed는 성과 기록까지 끝난(또는 아직 때가 안 된) 건만 — 기록이 밀린 건은
          위 Record performance 큐가 데려간다. 여기 두면 "완료"인데 할 일이 남은 셈이다. */
@@ -662,6 +676,18 @@ function SaasOperationsView({
                     >
                       {sec.label.toUpperCase()}
                     </Typography>
+                    {/* 날짜는 별도 span이다 — 라벨 칸에 이어 붙이면 "TODAY · AUG 12"가 되어
+                        섹션 이름 자체가 날짜를 포함한 문자열이 된다(구분자 규약도 깨진다).
+                        방향(TODAY)이 주인공, 날짜는 보조라 색·굵기로 한 단 내린다. */}
+                    {sec.dateLabel && (
+                      <Typography
+                        component="span"
+                        data-rail-section-date
+                        sx={{ ml: 0.75, fontSize: 11, fontWeight: 400, color: 'text.secondary' }}
+                      >
+                        {sec.dateLabel.toUpperCase()}
+                      </Typography>
+                    )}
                     <Typography
                       component="span"
                       data-rail-count
@@ -713,6 +739,18 @@ function SaasOperationsView({
                           <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {day.label.toUpperCase()}
                           </Box>
+                          {/* 내일은 날짜 옆에서 한 번 말한다 — Upcoming은 내일과 3주 뒤를
+                              같은 구간에 담아서, 날짜만 보면 코앞인지 사람이 달력을 세야 했다.
+                              날짜를 대체하지 않고 덧붙인다(레일은 날짜 인덱스다). */}
+                          {day.isTomorrow && (
+                            <Box
+                              component="span"
+                              data-rail-day-relative
+                              sx={{ ml: 0.75, fontWeight: 400, color: 'accent.main' }}
+                            >
+                              TOMORROW
+                            </Box>
+                          )}
                           <Box
                             component="span"
                             data-rail-count
@@ -1065,6 +1103,18 @@ function SaasOperationsView({
                     <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                       {section.headerCount ?? section.items.length}
                     </Typography>
+                    {/* 구간 안의 손실 건수 — 접힌 채로도 보여야 한다(그래서 헤더에 있다).
+                        칩과 같은 "라벨 수" 형식이고 어휘도 행 문구와 같다.
+                        경보가 아니므로 warning 색을 쓰지 않고 굵기로만 올린다. */}
+                    {section.unfulfilledCount > 0 && (
+                      <Typography
+                        component="span"
+                        data-section-note
+                        sx={{ ml: 'auto', fontSize: 11, fontWeight: 600, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        No upload {section.unfulfilledCount}
+                      </Typography>
+                    )}
                   </Box>
 
                   {/* 일 종류 칩 — Action required 전용. 종류가 하나뿐이면 칩이 정보가 아니라 소음이다.

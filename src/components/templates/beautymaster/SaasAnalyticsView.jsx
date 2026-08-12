@@ -17,9 +17,12 @@ import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALL_STORES,
+  TIER_CREDIT_VALUE_USD,
+  TIERS,
   deriveAnalyticsSummary,
   derivePerformanceReport,
   deriveStores,
+  deriveUnfulfilledReport,
   normalizePlatform,
   toDisplayName,
 } from '../../../data/beautymaster/schema.js';
@@ -386,6 +389,70 @@ function BreakdownTable({ groupHeader, rows }) {
   );
 }
 
+const usd = n => `$${n.toLocaleString('en-US')}`;
+
+const TIER_LABEL = { [TIERS.TIER1]: 'Tier 1', [TIERS.TIER2]: 'Tier 2' };
+
+/**
+ * UnfulfilledTable — 방문시켰는데 콘텐츠를 못 받은 사람 명단
+ *
+ * 금액은 합계가 주인공이고 행별 값은 그 근거라 회색으로 둔다.
+ * 마지막 컬럼은 상태 — 아직 손댈 수 있는 건과 이미 접은 건을 가른다.
+ *
+ * Props:
+ * @param {Array} rows - deriveUnfulfilledReport().items [Required]
+ * @param {function} onRowClick - 행 클릭 시 (id) => void. 없으면 행이 눌리지 않는다 [Optional]
+ *
+ * Example usage:
+ * <UnfulfilledTable rows={unfulfilled.items} onRowClick={handleRowClick} />
+ */
+function UnfulfilledTable({ rows, onRowClick }) {
+  return (
+    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75 } }}>
+            <TableCell>Influencer</TableCell>
+            <TableCell>Tier</TableCell>
+            <TableCell align="right">Visited</TableCell>
+            <TableCell align="right">Credit</TableCell>
+            <TableCell>Status</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(row => (
+            <TableRow
+              key={row.id}
+              data-unfulfilled-row={row.id}
+              onClick={onRowClick ? () => onRowClick(row.id) : undefined}
+              sx={{
+                '& td': { fontSize: 13, py: 0.875 },
+                cursor: onRowClick ? 'pointer' : 'default',
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              <TableCell sx={{ fontWeight: 500 }}>{toDisplayName(row.fullName)}</TableCell>
+              <TableCell sx={{ color: 'text.secondary' }}>{TIER_LABEL[row.tier] ?? row.tier}</TableCell>
+              {/* 경과일이 회수 가망을 말한다 — 날짜만으로는 매번 오늘과 빼야 한다 */}
+              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                {row.daysSinceVisit != null ? `${row.daysSinceVisit}d ago` : 'Date TBD'}
+              </TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                {usd(row.valueUsd)}
+              </TableCell>
+              {/* 아직 손댈 수 있는 건과 이미 접은 건을 가른다 — 명단이 행동으로 이어지려면
+                  "누구에게 독촉이 남았나"가 한 눈에 보여야 한다 */}
+              <TableCell sx={{ color: 'text.secondary', fontSize: 11 }}>
+                {row.isDropped ? 'Dropped' : row.isStale ? 'Alert stopped (90+ days)' : 'Follow-up open'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+
 const OPINION_COLOR = { 'USE': 'success.main', 'MAYBE': 'warning.main', "DON'T": 'error.main' };
 
 const REVIEW_TITLE = {
@@ -563,6 +630,10 @@ function SaasAnalyticsView({
 
   const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
 
+  /* 미이행 손실 — 퍼널의 attended→uploaded 낙차를 금액으로 옮긴 것이다.
+     비율은 "85%면 잘 되고 있네"로 읽히고 금액은 "이거 회수해야겠네"로 읽힌다. */
+  const unfulfilled = useMemo(() => deriveUnfulfilledReport(filtered), [filtered]);
+
   /* 성과 리포트는 두 벌이다 — 전체(제목 커버리지·그룹 비교표)와 티어 코호트(순위표).
      그룹 표는 T1 vs T2 비교가 존재 이유라 티어 필터를 따라가면 비교 대상이 사라진다.
      순위·추천·review 배지는 코호트 안에서 다시 계산된다 — T2만 보는데 전체 기준
@@ -703,6 +774,50 @@ function SaasAnalyticsView({
           <Typography sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
             No invite data for this store — the funnel starts from tracked sheet rows, not people invited.
           </Typography>
+        )}
+      </Box>
+
+      {/* Unfulfilled — 퍼널의 attended→uploaded 낙차를 금액으로 옮긴 블록.
+          퍼널 바로 뒤에 두는 이유가 이것이다: 낙차를 보여준 다음 그게 얼마인지 말한다.
+          경보는 90일이 지나면 꺼지므로 Operations 화면만으로는 이 손실의 총량을
+          알 수 없다 — 세는 일은 리포트가 맡는다(울릴 것과 셀 것은 다르다). */}
+      <Box sx={{ mb: 4 }} data-unfulfilled-section>
+        <SectionTitle
+          title={unfulfilled.count === 0
+            ? 'Unfulfilled visits — none'
+            : `Unfulfilled visits — ${unfulfilled.count} · ${usd(unfulfilled.lostValueUsd)} unrecovered`}
+        />
+        {unfulfilled.count === 0 ? (
+          /* 0건은 숨기지 않고 말한다 — 섹션이 없으면 "집계는 하고 있나"가 남는다.
+             손실이 없다는 건 리포트에서 가장 좋은 소식이라 적을 값어치가 있다. */
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            Every visit produced content in this view.
+          </Typography>
+        ) : (
+          <Box>
+            {/* 티어 분해 — 같은 7건이라도 T1 7건과 T2 7건은 손실이 5배 다르다.
+                합계는 이미 제목에 있으므로 여기서는 그 합계가 어떻게 나왔는지만 말한다
+                (KPI 타일로 올리면 제목의 합계를 한 번 더 반복하게 된다). */}
+            <Typography sx={{ mb: 1.5, fontSize: 13, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+              {[TIERS.TIER1, TIERS.TIER2]
+                .filter(tier => unfulfilled.byTier[tier]?.count)
+                .map(tier => `${TIER_LABEL[tier]} ${unfulfilled.byTier[tier].count} × ${usd(TIER_CREDIT_VALUE_USD[tier])} = ${usd(unfulfilled.byTier[tier].valueUsd)}`)
+                .join('  ·  ')}
+            </Typography>
+            <UnfulfilledTable
+              rows={unfulfilled.items}
+              onRowClick={onSelect ? id => {
+                const inf = filtered.find(i => i.id === id);
+                if (inf) onSelect(inf);
+              } : undefined}
+            />
+            {/* 단가는 시트에 없는 값이라 화면이 출처를 밝힌다 — 어디서 온 숫자인지
+                모르면 보고받는 쪽이 검증할 수 없다. */}
+            <Typography sx={{ mt: 1, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
+              Credit values are a fixed rate, not read from the sheet.
+              Dropped rows stay counted — giving up on the follow-up did not undo the spend.
+            </Typography>
+          </Box>
         )}
       </Box>
 

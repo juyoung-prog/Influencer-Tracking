@@ -2,7 +2,7 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { ALERT_FLAGS, CONTACT_STATUSES, PERFORMANCE_STATES, derivePerformanceStatus, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
+import { ALERT_FLAGS, CONTACT_STATUSES, PERFORMANCE_STATES, derivePerformanceStatus, isStaleVisit, isTomorrow, isUnfulfilled, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
 import { avatarInitials, avatarTint } from '../../utils/influencerAvatar.js';
 
 /* 속성 하위 컬럼 폭 — 각 값의 최장 문자열에서 도출(12px caption 기준).
@@ -70,12 +70,12 @@ function getPerformanceLine(influencer) {
   return null;
 }
 
-/** 연락 보낸 날로부터 오늘까지 경과일. 자정 기준, 음수는 0으로 */
-function daysSinceContact(lastContactDate) {
+/** 그 날로부터 오늘까지 경과일. 자정 기준, 음수는 0으로 */
+function daysSinceDay(date) {
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const sent = new Date(lastContactDate.getFullYear(), lastContactDate.getMonth(), lastContactDate.getDate());
-  const days = Math.floor((todayStart - sent) / 86400000);
+  const then = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const days = Math.floor((todayStart - then) / 86400000);
   return days > 0 ? days : 0;
 }
 
@@ -91,7 +91,7 @@ function getContactAlert(alertFlags, lastContactDate, requestedDate) {
   /* "무응답"은 별도 상태가 아니다(구 no-response는 폐기) — "awaiting reply"에
      경과일을 병기하면 어제 보낸 건과 3주 전 보낸 건이 저절로 갈린다.
      오래 기다린 건을 상태 전환 없이 숫자가 말해 준다. */
-  const waited = lastContactDate ? daysSinceContact(lastContactDate) : null;
+  const waited = lastContactDate ? daysSinceDay(lastContactDate) : null;
   const waitedSuffix = waited != null ? ` · ${waited}d` : '';
   return { text: `${label} · awaiting reply${waitedSuffix}${requestedSuffix}` };
 }
@@ -163,11 +163,14 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
   const clockLabel = scheduledTime && hasScheduledTimeOfDay
     ? scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     : null;
+  /* 오늘은 이미 날짜를 지우고 시각만 남긴다 — 같은 이유로 내일도 날짜 대신 "Tomorrow"를
+     쓴다. "Aug 13"이 코앞인지 알려면 사람이 오늘 날짜를 알고 빼야 하는데, 이 줄은
+     준비할 시간이 남았는지 판단하려고 보는 줄이다. */
   const timeLabel = !scheduledTime
     ? 'Date TBD'
     : scheduleGroup === 'today'
       ? (clockLabel ?? 'Time TBD')
-      : `${dateLabel} · ${clockLabel ?? 'time TBD'}`;
+      : `${isTomorrow(scheduledTime) ? 'Tomorrow' : dateLabel} · ${clockLabel ?? 'time TBD'}`;
 
   const stage = getCurrentStage({ attend, collaboShared, creditShared, scheduleGroup });
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);
@@ -176,6 +179,12 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
   /* 종결 상태 — 경보도 단계 문구도 아닌 "Dropped" 한 단어만 조용히 남긴다.
      행은 목록에 남는다: 다음 캠페인 때 노쇼 이력을 확인하는 근거가 된다. */
   const isDropped = contactStatus === CONTACT_STATUSES.DROPPED;
+  /* 90일이 지나 경보가 꺼진 미이행 건. 경보를 되살리지는 않지만 문구는 바꿔야 한다 —
+     "Awaiting Upload"는 아직 기다리는 중이라는 뜻이라, 200일 지난 건에 붙으면
+     화면이 거짓말을 한다. 사실("No upload")로 바꾸고 경과일을 붙여 크기를 밝힌다.
+     크레딧까지 나간 행은 제외한다 — 뒤 단계가 끝났으면 앞 단계를 말하지 않는다. */
+  const isStaleNoUpload = !isDropped && !creditShared
+    && isUnfulfilled(influencer) && isStaleVisit(scheduledTime);
 
   return (
     <ButtonBase
@@ -294,6 +303,16 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
             sx={{ display: 'block', color: 'text.disabled', fontSize: '0.6875rem', lineHeight: 1.3 }}
           >
             Dropped
+          </Typography>
+        ) : isStaleNoUpload ? (
+          /* 경보가 아니라 확정된 사실이라 warning/error 색을 쓰지 않는다(성과 기록 문구와
+             같은 규칙). 대신 굵기로만 올린다 — 이 구간에서 유일하게 돈이 나간 건이다. */
+          <Typography
+            variant="caption"
+            data-stale-no-upload
+            sx={{ display: 'block', color: 'text.primary', fontWeight: 600, fontSize: '0.6875rem', lineHeight: 1.3 }}
+          >
+            No upload · {daysSinceDay(scheduledTime)}d
           </Typography>
         ) : (
           <>

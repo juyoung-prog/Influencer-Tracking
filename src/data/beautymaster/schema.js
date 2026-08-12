@@ -190,6 +190,28 @@ export function deriveScheduleGroup(scheduledTime) {
 }
 
 /**
+ * 방문일이 내일인지.
+ *
+ * scheduleGroup은 upcoming 하나로 내일과 3주 뒤를 같이 담는다 — 화면에 "AUG 13"만
+ * 뜨면 그게 코앞인지 사람이 달력을 세어 오늘과 비교해야 한다. 준비할 시간이 없는
+ * 건은 오늘 다음으로 급한 건이므로 날짜 옆에서 그걸 한 번 말해 준다.
+ *
+ * 날짜 세 칸을 직접 비교한다 — 밀리초 차이를 86400000으로 나누면 서머타임이 있는
+ * 지역에서 하루가 23·25시간이 되어 판정이 어긋난다.
+ *
+ * @param {Date|null} date
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {boolean}
+ */
+export function isTomorrow(date, today = new Date()) {
+  if (!date) return false;
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  return date.getFullYear() === tomorrow.getFullYear()
+    && date.getMonth() === tomorrow.getMonth()
+    && date.getDate() === tomorrow.getDate();
+}
+
+/**
  * 경보 유예·만료 기준 (일 단위).
  *
  * 유예 없이 판정하면 "어제 방문했는데 오늘 업로드가 없다"까지 경보가 되어
@@ -211,6 +233,74 @@ export const ALERT_GRACE_DAYS = Object.freeze({
 function daysSince(date, todayStart) {
   if (!date) return null;
   return Math.floor((todayStart - new Date(date.getFullYear(), date.getMonth(), date.getDate())) / 86400000);
+}
+
+/**
+ * 티어별 방문 1회의 크레딧 가치 (USD) — 미이행 손실을 금액으로 환산하는 기준.
+ *
+ * 시트에 단가 열이 없어 상수로 둔다 (2026-08-12 사장님 확정: T1 $100 / T2 $20).
+ * 건수만으로는 "7건"이 큰지 작은지 판단할 근거가 없다 — T1 7건과 T2 7건은
+ * 손실이 5배 차이인데 같은 숫자로 보인다. 단가가 바뀌면 여기 한 곳만 고친다.
+ */
+export const TIER_CREDIT_VALUE_USD = Object.freeze({
+  [TIERS.TIER1]: 100,
+  [TIERS.TIER2]: 20,
+});
+
+/**
+ * 미이행 손실 리포트 — 방문시켰는데 콘텐츠를 못 받은 건의 수와 금액.
+ *
+ * 캠페인 리포트에 이 블록이 없으면 남는 건 upload rate(비율)뿐인데, 비율은
+ * "85%면 잘 되고 있네"로 읽히고 금액은 "이거 회수해야겠네"로 읽힌다. 같은 사실인데
+ * 뒤엣것만 행동으로 이어진다.
+ *
+ * dropped(섭외 포기)도 **뺀 게 아니라 넣는다** — 포기했다는 건 회수를 단념했다는
+ * 뜻이지 손실이 없었다는 뜻이 아니다. 다만 아직 손댈 수 있는 건과 구분되도록 표시한다.
+ *
+ * 정렬은 금액 내림차순, 같으면 최근 순이다. 손실 보고서의 기본 순서이면서,
+ * 같은 금액이면 아직 독촉이 먹힐 만한 건이 위로 온다.
+ *
+ * @param {Influencer[]} influencers
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {{
+ *   count: number,
+ *   lostValueUsd: number,
+ *   byTier: Object<string, {count: number, valueUsd: number}>,
+ *   items: Array<{id: string, fullName: string, tier: string, platform: string,
+ *     scheduledTime: Date|null, daysSinceVisit: number|null, valueUsd: number,
+ *     isDropped: boolean, isStale: boolean}>,
+ * }}
+ */
+export function deriveUnfulfilledReport(influencers, today = new Date()) {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const items = (influencers || [])
+    .filter(inf => isUnfulfilled(inf, today))
+    .map(inf => ({
+      id: inf.id,
+      fullName: inf.fullName,
+      tier: inf.tier,
+      platform: inf.platform,
+      scheduledTime: inf.scheduledTime,
+      daysSinceVisit: daysSince(inf.scheduledTime, todayStart),
+      valueUsd: TIER_CREDIT_VALUE_USD[inf.tier] ?? 0,
+      isDropped: inf.contactStatus === CONTACT_STATUSES.DROPPED,
+      isStale: isStaleVisit(inf.scheduledTime, today),
+    }))
+    .sort((a, b) => b.valueUsd - a.valueUsd || (a.daysSinceVisit ?? Infinity) - (b.daysSinceVisit ?? Infinity));
+
+  const byTier = {};
+  for (const item of items) {
+    if (!byTier[item.tier]) byTier[item.tier] = { count: 0, valueUsd: 0 };
+    byTier[item.tier].count += 1;
+    byTier[item.tier].valueUsd += item.valueUsd;
+  }
+
+  return {
+    count: items.length,
+    lostValueUsd: items.reduce((sum, i) => sum + i.valueUsd, 0),
+    byTier,
+    items,
+  };
 }
 
 /**
@@ -428,6 +518,35 @@ export function isStaleVisit(scheduledTime, today = new Date()) {
 }
 
 /**
+ * 미이행 — 방문은 했는데 콘텐츠가 올라오지 않았고, 업로드 유예도 지난 건.
+ *
+ * 이 프로젝트에서 유일하게 **돈이 이미 나간** 손실이다(방문 = 시술·제품 제공 완료).
+ * 노쇼는 슬롯을 비운 것뿐이지만 미이행은 지출이 회수되지 않은 것이라,
+ * 다음 캠페인 초대 판단에서 같은 무게로 다루면 안 된다.
+ *
+ * **경보와 일부러 다르다.** ATTEND_NO_COLLABO는 여기에 `!creditShared && !isStale`을
+ * 더한 것이라, 방문일이 90일을 넘으면 꺼진다 — 계속 울릴 이유가 없다는 판단은 맞지만,
+ * 그 결과 손실이 확정된 건이 Stale 구간으로 조용히 흘러가 어디에도 세어지지 않았다.
+ * 그래서 "울릴 것"과 "셀 것"을 나눈다: 이 판정은 경과일과 무관하게 사실만 본다.
+ *
+ * `creditShared`는 보지 않는다 — 크레딧까지 나갔는데 콘텐츠가 없으면 손실이 더 큰 것이지
+ * 미이행이 아닌 게 아니다. 다만 단계 표시는 "뒤 단계가 완료됐으면 앞 단계를 말하지
+ * 않는다"는 규칙을 따라야 하므로, 화면 라벨을 거는 쪽에서 그 조건을 얹는다.
+ *
+ * @param {Influencer} influencer
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {boolean}
+ */
+export function isUnfulfilled(influencer, today = new Date()) {
+  const { attend, collaboShared, scheduledTime } = influencer;
+  if (!attend || collaboShared) return false;
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const sinceVisit = daysSince(scheduledTime, todayStart);
+  // 날짜가 없으면 유예를 잴 수 없다 — 경보와 같은 규약으로 "지난 것"으로 본다
+  return sinceVisit === null || sinceVisit > ALERT_GRACE_DAYS.UPLOAD;
+}
+
+/**
  * 시트의 플랫폼 표기를 공식 표기로 맞춘다.
  *
  * 시트에는 "Tiktok" 처럼 제각각 적혀 있는데 필터 칩은 PLATFORMS 상수("TikTok")를 쓴다.
@@ -507,9 +626,8 @@ export function deriveAlertFlags(influencer, today = new Date()) {
         flags.push(ALERT_FLAGS.COLLABO_NO_CREDIT);
       }
     } else if (attend) {
-      if (sinceVisit === null || sinceVisit > ALERT_GRACE_DAYS.UPLOAD) {
-        flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
-      }
+      // 유예 판정은 isUnfulfilled 한 곳에만 둔다 — 두 벌로 두면 한쪽만 고쳐져 갈라진다
+      if (isUnfulfilled(influencer, today)) flags.push(ALERT_FLAGS.ATTEND_NO_COLLABO);
     } else if (agreement) {
       // 날짜가 없으면 "일정 미정" — 지연은 아니지만 잡아야 할 일이라 경보로 남긴다
       if (sinceVisit === null || sinceVisit > ALERT_GRACE_DAYS.VISIT) {
