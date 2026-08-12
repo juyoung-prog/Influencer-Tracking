@@ -436,6 +436,7 @@ function SaasOperationsView({
     const activeType = typeCounts[attentionType] ? attentionType : null;
     const staleItems = filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
       && isStaleVisit(i.scheduledTime)).sort(byPriority);
+    const droppedItems = filtered.filter(isDropped).sort(byTime);
     const all = [
       {
         key: 'attention',
@@ -493,7 +494,11 @@ function SaasOperationsView({
       {
         key: 'dropped',
         label: 'Dropped',
-        items: filtered.filter(isDropped).sort(byTime),
+        items: droppedItems,
+        /* Stale과 같은 이유로 헤더에서 센다 — 이 구간이 블랙리스트인데, 안 온 사람과
+           왔는데 콘텐츠를 안 준 사람이 섞여 있고 둘은 손실 성격이 다르다.
+           기본 접힘이라 펼치지 않으면 그 비율을 알 수 없었다. */
+        unfulfilledCount: droppedItems.filter(i => isUnfulfilled(i)).length,
       },
     ];
     return all

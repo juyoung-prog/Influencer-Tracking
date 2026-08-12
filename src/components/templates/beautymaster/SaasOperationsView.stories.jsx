@@ -661,6 +661,58 @@ export const DroppedGetsItsOwnSection = {
 };
 
 /**
+ * Dropped 안에서도 노쇼와 미이행을 가른다.
+ *
+ * 이 구간은 다음 캠페인 초대 명단을 짤 때 펼치는 블랙리스트다. 그런데 "Dropped"만
+ * 적혀 있으면 안 온 사람과 왔는데 콘텐츠를 안 준 사람이 같아 보인다 — 앞은 슬롯이
+ * 빈 것이고 뒤는 지출이 회수되지 않은 것이라, 같은 무게로 읽히면 안 된다.
+ *
+ * 시트에 열을 더하지 않는다 — attend/collabo shared에서 파생된다. 사람이 한 번 더
+ * 적게 하면 잊히고, 잊히면 시트가 거짓말을 한다. 판정은 리포트와 같은 isUnfulfilled라
+ * 목록 배지와 손실 집계가 갈라지지 않는다.
+ */
+export const DroppedSeparatesNoShowFromNoUpload = {
+  args: {
+    influencers: [
+      // 오지 않아서 접었다 — 슬롯만 비었다
+      gracePeriodRow('dr-noshow', 'Never Came', 40, {
+        agreement: true, attend: false,
+        contactReason: 'no-show', contactStatus: 'dropped', lastContactDate: daysAgo(20),
+      }),
+      // 왔는데 콘텐츠가 없어서 접었다 — 돈이 이미 나갔다
+      gracePeriodRow('dr-noupload', 'Took And Left', 45, {
+        agreement: true, attend: true,
+        contactStatus: 'dropped', lastContactDate: daysAgo(15),
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const dropped = canvasElement.querySelector('[data-section="dropped"]');
+
+    // 접힌 채로도 몇 명이 손실인지 보인다 — 펼쳐야 알면 블랙리스트로 못 쓴다
+    const header = dropped.querySelector('button');
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+    await expect(dropped.querySelector('[data-section-note]').textContent.trim()).toBe('No upload 1');
+
+    await userEvent.click(header);
+    await waitFor(async () => {
+      await expect(dropped.querySelector('[data-influencer-id="dr-noshow"]')).toBeTruthy();
+    });
+
+    const lineOf = id => dropped
+      .querySelector(`[data-influencer-id="${id}"] [data-dropped-line]`).textContent.trim();
+    await expect(lineOf('dr-noshow')).toBe('Dropped · No-show');
+    await expect(lineOf('dr-noupload')).toBe('Dropped · No upload');
+
+    // 구분은 단어가 진다 — 둘의 톤이 같아야 목록이 신호등이 되지 않는다
+    const colorOf = id => getComputedStyle(
+      dropped.querySelector(`[data-influencer-id="${id}"] [data-dropped-line]`),
+    ).color;
+    await expect(colorOf('dr-noshow')).toBe(colorOf('dr-noupload'));
+  },
+};
+
+/**
  * Action required의 일 종류 칩 — 배칭용.
  *
  * 실무 리듬은 "오늘은 업로드 리마인드만 다 돌리자"다. 칩 라벨은 행 상태 문구와

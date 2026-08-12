@@ -176,9 +176,21 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
   const daysOverdue = getDaysOverdue(alertFlags, scheduledTime, uploadDate);
   const contactAlert = getContactAlert(alertFlags, lastContactDate, requestedDate);
   const performanceLine = getPerformanceLine(influencer);
-  /* 종결 상태 — 경보도 단계 문구도 아닌 "Dropped" 한 단어만 조용히 남긴다.
-     행은 목록에 남는다: 다음 캠페인 때 노쇼 이력을 확인하는 근거가 된다. */
+  /* 종결 상태 — 경보도 단계 문구도 없이 조용히 남는다.
+     행은 목록에 남는다: 다음 캠페인 때 이력을 확인하는 근거가 된다. */
   const isDropped = contactStatus === CONTACT_STATUSES.DROPPED;
+  /* 왜 접었는지를 한 단어로 병기한다. "Dropped"만으로는 안 온 사람과 왔는데 콘텐츠를
+     안 준 사람이 같아 보이는데, 이 둘은 손실 성격이 다르다 — 앞은 슬롯이 빈 것이고
+     뒤는 지출이 회수되지 않은 것이다. 다음 캠페인 초대 명단을 짤 때 같은 무게로
+     읽히면 안 된다.
+
+     사람이 시트에 한 번 더 적게 하지 않는다 — attend/collabo shared에서 파생된다
+     (적게 하면 잊히고, 잊히면 시트가 거짓말을 한다). 판정은 리포트와 같은
+     isUnfulfilled를 쓴다 — 목록 배지와 손실 집계가 갈라지면 안 된다. */
+  const droppedReason = !isDropped ? null
+    : isUnfulfilled(influencer) ? 'No upload'
+      : !attend ? 'No-show'
+        : null;
   /* 90일이 지나 경보가 꺼진 미이행 건. 경보를 되살리지는 않지만 문구는 바꿔야 한다 —
      "Awaiting Upload"는 아직 기다리는 중이라는 뜻이라, 200일 지난 건에 붙으면
      화면이 거짓말을 한다. 사실("No upload")로 바꾸고 경과일을 붙여 크기를 밝힌다.
@@ -298,11 +310,14 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
             (예전에는 반대였다: "Visit Unconfirmed"가 앰버, 경과일이 회색)
             예외는 "Credit Not Sent" 하나다 — 돈이 실제로 안 나간 건이라 회색에 섞이면 안 된다. */}
         {isDropped ? (
+          /* 이유를 붙여도 톤은 그대로 — 끝난 건이다. 손실의 무게는 리포트가 진다.
+             여기서 색을 올리면 목록이 신호등이 되고, 정작 손댈 수 있는 건이 묻힌다. */
           <Typography
             variant="caption"
+            data-dropped-line
             sx={{ display: 'block', color: 'text.disabled', fontSize: '0.6875rem', lineHeight: 1.3 }}
           >
-            Dropped
+            {droppedReason ? `Dropped · ${droppedReason}` : 'Dropped'}
           </Typography>
         ) : isStaleNoUpload ? (
           /* 경보가 아니라 확정된 사실이라 warning/error 색을 쓰지 않는다(성과 기록 문구와

@@ -6,6 +6,14 @@ import { ALERT_GRACE_DAYS, deriveAlertFlags, derivePerformanceStatus, deriveSche
 
 const D = iso => new Date(iso);
 
+/** 오늘 기준 n일 전 — 경과일·D-day는 시간 파생이라 고정 날짜로는 스토리가 썩는다 */
+const daysAgo = n => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(13, 0, 0, 0);
+  return d;
+};
+
 function make(overrides = {}) {
   const base = {
     id: 'inf-0',
@@ -160,12 +168,16 @@ export const AlertReschedulePending = {
 
 /**
  * 종결 — 시트 Contact Status에 Dropped를 적으면 모든 경보가 꺼지고
- * "Dropped" 한 단어만 비활성 톤으로 남는다. 행은 목록에서 사라지지 않는다 —
- * 다음 캠페인 때 "이 사람 노쇼로 드롭됐었네"를 확인하는 이력이 된다.
+ * 비활성 톤 한 줄만 남는다. 행은 목록에서 사라지지 않는다 —
+ * 다음 캠페인 때 "이 사람 왜 드롭됐었지"를 확인하는 이력이 된다.
  * 드롭 여부 판단은 사람이 한다(노쇼 횟수 자동 추적은 시트 관리 부담으로 철회).
+ *
+ * 왜 접었는지를 한 단어로 병기한다 — "Dropped"만으로는 안 온 사람과 왔는데
+ * 콘텐츠를 안 준 사람이 같아 보이는데, 앞은 슬롯이 빈 것이고 뒤는 지출이 회수되지
+ * 않은 것이다. 시트에 열을 더하지 않고 attend/collabo shared에서 파생한다.
  */
 export const DroppedTerminal = {
-  name: 'Dropped',
+  name: 'Dropped — No-show',
   args: {
     influencer: make({
       id: 'inf-a6',
@@ -181,13 +193,47 @@ export const DroppedTerminal = {
   play: async ({ canvasElement }) => {
     const row = canvasElement.querySelector('[data-influencer-id]');
     const status = row.children[3].textContent;
-    await expect(status).toBe('Dropped');
+    await expect(status).toBe('Dropped · No-show');
     // 경보 문구가 함께 남지 않는다 — 종결인데 "overdue"가 있으면 모순
     await expect(status).not.toMatch(/overdue|awaiting reply/);
 
-    const label = [...row.querySelectorAll('span,p')].find(e => e.textContent === 'Dropped');
     // "처리 필요"가 아니라 "끝난 건" — 비활성 톤, 굵기 없음
+    const label = row.querySelector('[data-dropped-line]');
     await expect(getComputedStyle(label).fontWeight).toBe('400');
+  },
+};
+
+/**
+ * 같은 Dropped라도 방문한 뒤 접은 건은 성격이 다르다 — 돈이 이미 나갔다.
+ *
+ * 이 구분이 없으면 다음 캠페인 초대 명단을 짤 때 "안 온 사람"과 "받아 놓고 안 준 사람"이
+ * 같은 무게로 읽힌다. 톤은 올리지 않는다 — 끝난 건이고, 손실의 무게는 리포트가 진다.
+ * 목록까지 색을 주면 신호등이 되어 정작 손댈 수 있는 건이 묻힌다.
+ */
+export const DroppedNoUpload = {
+  name: 'Dropped — No Upload',
+  args: {
+    influencer: make({
+      id: 'inf-a7',
+      fullName: 'Im Yerin',
+      scheduledTime: daysAgo(45),
+      attend: true,
+      collaboShared: false,
+      contactStatus: 'dropped',
+      lastContactDate: daysAgo(20),
+    }),
+    isSelected: false,
+  },
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector('[data-influencer-id]');
+    await expect(row.children[3].textContent).toBe('Dropped · No upload');
+
+    // 톤은 No-show와 같다 — 구분은 색이 아니라 단어가 진다
+    const label = row.querySelector('[data-dropped-line]');
+    await expect(getComputedStyle(label).fontWeight).toBe('400');
+    const err = defaultTheme.palette.error.main;
+    const toRgb = hex => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+    await expect(getComputedStyle(label).color).not.toBe(toRgb(err));
   },
 };
 
@@ -203,14 +249,6 @@ export const Completed = {
     }),
     isSelected: false,
   },
-};
-
-/** 오늘 기준 n일 전 — 성과 D-day는 시간 파생이라 고정 날짜로는 스토리가 썩는다 */
-const daysAgo = n => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  d.setHours(13, 0, 0, 0);
-  return d;
 };
 
 /**
