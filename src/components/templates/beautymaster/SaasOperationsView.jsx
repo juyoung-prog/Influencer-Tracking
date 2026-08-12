@@ -533,9 +533,10 @@ function SaasOperationsView({
         headerCount: droppedItems.length,
         types: DROPPED_TYPES.filter(t => droppedCounts[t.key]).map(t => ({ ...t, count: droppedCounts[t.key] })),
         activeType: droppedActive,
-        /* 접혀 있을 때를 위한 수 — 칩은 펼쳐야 보이는데, 이 구간은 기본 접힘이라
-           펼치지 않으면 돈이 나간 건이 몇 건인지 알 수 없다(Stale과 같은 이유). */
-        unfulfilledCount: droppedCounts[DROP_REASONS.NO_UPLOAD] ?? 0,
+        /* 헤더에 손실 건수를 병기하지 않는다. 헤더가 전폭이라 우측 끝에 붙은 수가
+           라벨에서 화면 폭만큼 떨어져 혼자 떠 보였다(issue10). 이 구간은 펼치면
+           사유 칩이 같은 수를 라벨 바로 옆에서 말하고, 총량은 Analytics 리포트가
+           맡는다 — 접힌 헤더까지 손실을 외칠 필요는 없었다. */
       },
     ];
     return all

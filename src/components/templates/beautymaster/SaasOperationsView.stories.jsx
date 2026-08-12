@@ -689,10 +689,12 @@ export const DroppedSeparatesNoShowFromNoUpload = {
   play: async ({ canvasElement }) => {
     const dropped = canvasElement.querySelector('[data-section="dropped"]');
 
-    // 접힌 채로도 몇 명이 손실인지 보인다 — 펼쳐야 알면 블랙리스트로 못 쓴다
+    /* 접힌 헤더는 "몇 명을 접었나"만 말한다 — 손실 건수를 우측 끝에 병기했더니
+       전폭 헤더에서 라벨과 화면 폭만큼 벌어져 혼자 떠 보였다(issue10).
+       사유는 펼쳤을 때 칩이, 총량은 Analytics 리포트가 맡는다. */
     const header = dropped.querySelector('button');
     await expect(header).toHaveAttribute('aria-expanded', 'false');
-    await expect(dropped.querySelector('[data-section-note]').textContent.trim()).toBe('No upload 1');
+    await expect(dropped.querySelector('[data-section-note]')).toBeNull();
 
     await userEvent.click(header);
     await waitFor(async () => {
@@ -723,8 +725,9 @@ export const DroppedSeparatesNoShowFromNoUpload = {
  * 헤더 카운트는 칩 필터 이전의 전체를 유지한다. 칩은 "지금 무엇을 보느냐"지
  * "몇 명을 접었나"를 바꾸는 게 아니다.
  *
- * 접힘/펼침이 서로를 대신한다 — 접혀 있으면 헤더의 "No upload N"이, 펼치면 칩이 말한다.
- * 둘 다 띄우면 같은 수가 위아래로 겹친다.
+ * 사유별 수는 칩에만 있다. 접힌 헤더 우측 끝에도 병기해 봤는데, 헤더가 전폭이라
+ * 라벨에서 화면 폭만큼 떨어져 혼자 떠 보였다(issue10) — 접힌 구간까지 손실을 외칠
+ * 필요는 없었다. 총량은 Analytics의 Unfulfilled 리포트가 맡는다.
  */
 export const DroppedChipsFilterByReason = {
   args: {
@@ -744,16 +747,14 @@ export const DroppedChipsFilterByReason = {
     const dropped = canvasElement.querySelector('[data-section="dropped"]');
     const header = dropped.querySelector('button');
 
-    // 접힘 — 칩은 없고 헤더의 수가 말한다
+    // 접힘 — 칩도 없고, 헤더 우측에 떠 있던 수도 없다
     await expect(dropped.querySelector('[data-section-chips]')).toBeNull();
-    await expect(dropped.querySelector('[data-section-note]').textContent.trim()).toBe('No upload 1');
+    await expect(dropped.querySelector('[data-section-note]')).toBeNull();
 
     await userEvent.click(header);
     await waitFor(async () => {
       await expect(dropped.querySelector('[data-section-chips]')).toBeTruthy();
     });
-    // 펼침 — 칩이 그 자리를 대신하므로 헤더의 수는 비운다(같은 수가 겹치면 안 된다)
-    await expect(dropped.querySelector('[data-section-note]')).toBeNull();
 
     const idsOf = () => [...dropped.querySelectorAll('[data-influencer-id]')]
       .map(r => r.getAttribute('data-influencer-id'));
