@@ -713,8 +713,8 @@ function SaasAnalyticsView({
         borderColor: 'divider',
       }}
     >
-      {/* 같은 수를 Campaign Summary의 Tracked 카드가 이미 말한다 —
-          한 화면에 같은 숫자를 두 번 두지 않는다. */}
+      {/* 추적 수를 여기 두지 않는다 — Campaign Summary의 Agreement 카드가 "of N"으로,
+          퍼널 제목이 "of N tracked"로 이미 말한다. 한 화면에 같은 숫자를 세 번 둘 이유가 없다. */}
       <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
     </Box>
   );
@@ -757,8 +757,13 @@ function SaasAnalyticsView({
         <SectionTitle title="Campaign Summary" />
         {/* Operations와 같은 KPI 스트립 — 카드가 아니라 배경 위에 직접 놓고
             좌측 divider로만 셀을 나눈다. 같은 지표를 화면마다 다르게 그리지 않는다. */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', rowGap: 2 }}>
-          <SaasKpiItem label="Tracked" value={filtered.length} isFirst />
+        <Box data-summary-kpis sx={{ display: 'flex', flexWrap: 'wrap', rowGap: 2 }}>
+          {/* 옆의 두 비율이 "of agreement"에서 출발하는데, 정작 그 분모가 화면에
+              없었다("Tracked"는 어느 비율의 밑도 아닌 수였다). 모수를 앞에 세워
+              Agreement N of 전체 → 방문율 → 업로드율이 한 줄로 이어지게 한다.
+              표기는 Operations의 KPI 스트립과 같다 — 같은 지표를 화면마다 다르게
+              그리지 않는다. 전체 추적 수는 아래 퍼널 제목이 계속 말한다. */}
+          <SaasKpiItem label="Agreement" value={f.agreement} total={filtered.length} isFirst />
           <SaasKpiItem label="Visit rate (of agreement)" value={pct(visitRate)} />
           <SaasKpiItem label="Upload rate (of visited)" value={pct(uploadRate)} />
         </Box>

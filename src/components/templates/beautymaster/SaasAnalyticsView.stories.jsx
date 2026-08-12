@@ -509,6 +509,44 @@ export const UnfulfilledZeroStateSpeaks = {
   },
 };
 
+/**
+ * Campaign Summary는 모수에서 출발한다.
+ *
+ * 예전 첫 타일은 "Tracked"였는데, 그 수는 옆의 어느 비율의 밑도 아니었다 —
+ * 두 비율이 "of agreement"에서 출발하는데 정작 그 분모가 화면에 없었다.
+ * Agreement를 앞에 세우면 세 타일이 한 줄로 이어진다: 동의 N of 전체 →
+ * 그중 방문 몇 % → 그중 업로드 몇 %. 표기는 Operations의 KPI 스트립과 같다.
+ */
+export const SummaryStartsFromAgreement = {
+  args: {
+    influencers: [
+      unfulfilledInf('sm-1', 'Came No Content', 'tier1', 30),
+      unfulfilledInf('sm-2', 'Also Came', 'tier1', 40),
+      // 동의는 했지만 아직 방문 전 — 모수에는 들어가고 방문 수에는 안 들어간다
+      unfulfilledInf('sm-3', 'Not Yet', 'tier2', 1, { attend: false }),
+      // 동의 자체가 없다 — 모수 밖이지만 전체(of N)에는 들어간다
+      unfulfilledInf('sm-4', 'No Agreement', 'tier2', 10, { agreement: false, attend: false }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const kpis = canvasElement.querySelector('[data-summary-kpis]');
+    await expect(kpis).toBeTruthy();
+
+    // 4명 추적 중 3명이 동의 → 모수는 3, 전체는 "of 4"로 남는다
+    const text = kpis.textContent;
+    await expect(text).toContain('Agreement');
+    await expect(text).toContain('3');
+    await expect(text).toContain('of 4');
+    /* "Tracked"는 이 줄에서 사라진다 — 어느 비율의 밑도 아닌 수였다.
+       (퍼널 첫 단계는 초대 데이터가 없을 때 여전히 Tracked라, 단언을 이 줄로 좁힌다) */
+    await expect(text).not.toContain('Tracked');
+
+    // 방문율의 분모가 앞 타일에 선 값과 같다 — 동의 3명 중 2명 방문 = 67%
+    await expect(text).toContain('Visit rate (of agreement)');
+    await expect(text).toContain('67%');
+  },
+};
+
 export const SingleStoreHidesStoreTable = {
   args: { selectedStore: STORES[0] },
   play: async ({ canvasElement }) => {
