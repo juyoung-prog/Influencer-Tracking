@@ -2,7 +2,7 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { ALERT_FLAGS, CONTACT_STATUSES, PERFORMANCE_STATES, derivePerformanceStatus, isStaleVisit, isTomorrow, isUnfulfilled, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
+import { ALERT_FLAGS, CONTACT_STATUSES, DROP_REASON_LABEL, PERFORMANCE_STATES, deriveDropReason, derivePerformanceStatus, isStaleVisit, isTomorrow, isUnfulfilled, normalizePlatform, toDisplayName } from '../../data/beautymaster/schema.js';
 import { avatarInitials, avatarTint } from '../../utils/influencerAvatar.js';
 
 /* 속성 하위 컬럼 폭 — 각 값의 최장 문자열에서 도출(12px caption 기준).
@@ -185,12 +185,9 @@ function InfluencerListRow({ influencer, onClick, isSelected = false }) {
      읽히면 안 된다.
 
      사람이 시트에 한 번 더 적게 하지 않는다 — attend/collabo shared에서 파생된다
-     (적게 하면 잊히고, 잊히면 시트가 거짓말을 한다). 판정은 리포트와 같은
-     isUnfulfilled를 쓴다 — 목록 배지와 손실 집계가 갈라지면 안 된다. */
-  const droppedReason = !isDropped ? null
-    : isUnfulfilled(influencer) ? 'No upload'
-      : !attend ? 'No-show'
-        : null;
+     (적게 하면 잊히고, 잊히면 시트가 거짓말을 한다). 판정은 Dropped 구간의 필터 칩과
+     같은 deriveDropReason을 쓴다 — 배지와 칩 카운트가 갈라지면 안 된다. */
+  const droppedReason = DROP_REASON_LABEL[deriveDropReason(influencer)] ?? null;
   /* 90일이 지나 경보가 꺼진 미이행 건. 경보를 되살리지는 않지만 문구는 바꿔야 한다 —
      "Awaiting Upload"는 아직 기다리는 중이라는 뜻이라, 200일 지난 건에 붙으면
      화면이 거짓말을 한다. 사실("No upload")로 바꾸고 경과일을 붙여 크기를 밝힌다.

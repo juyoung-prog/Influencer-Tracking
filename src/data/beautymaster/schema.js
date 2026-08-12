@@ -236,6 +236,53 @@ function daysSince(date, todayStart) {
 }
 
 /**
+ * 드롭 사유 — 왜 섭외를 접었는지. 시트 열이 아니라 사실에서 파생된다.
+ *
+ * 'other'를 두지 않는다 — 판정되지 않으면 null이고 화면은 그냥 "Dropped"만 말한다.
+ * 없는 분류를 만들어 넣는 것보다 모른다고 하는 편이 정직하다.
+ */
+export const DROP_REASONS = Object.freeze({
+  /** 방문했는데 콘텐츠가 없다 — 지출이 회수되지 않았다 */
+  NO_UPLOAD: 'no-upload',
+  /** 오지 않았다 — 슬롯만 비었다 */
+  NO_SHOW: 'no-show',
+});
+
+/**
+ * 드롭 사유 표시 어휘. 행 배지와 Dropped 구간의 필터 칩이 같은 맵을 쓴다 —
+ * 같은 것이 화면에서 두 이름으로 불리면 그때부터 학습 부담이 생긴다.
+ *
+ * 표시 문자열이 스키마에 있는 게 예외적이긴 하다. 원래는 행 라벨을 소유하는
+ * InfluencerListRow에 두려 했는데, 컴포넌트 파일에서 상수를 내보내면
+ * react-refresh 규칙에 걸린다(파일이 컴포넌트만 내보내야 한다). 값 하나를 위해
+ * 파일을 새로 만드는 것보다 열거형 바로 옆에 두는 편이 찾기 쉽다.
+ */
+export const DROP_REASON_LABEL = Object.freeze({
+  [DROP_REASONS.NO_UPLOAD]: 'No upload',
+  [DROP_REASONS.NO_SHOW]: 'No-show',
+});
+
+/**
+ * dropped 행의 사유 판정. dropped가 아니면 null.
+ *
+ * 목록 배지와 섹션 필터 칩이 **같은 함수**를 써야 한다 — 두 벌로 두면 한쪽만 고쳐져서
+ * "칩에는 3건인데 배지 달린 행은 2개"가 된다.
+ *
+ * 미이행을 먼저 본다. 방문 여부(attend)로 먼저 가르면 방문 후 미이행이 "왔으니 노쇼는
+ * 아님"으로 빠져나가 아무 사유도 안 붙는다 — 정작 돈이 나간 쪽이 무표시가 된다.
+ *
+ * @param {Influencer} influencer
+ * @param {Date} [today] - 테스트 주입점
+ * @returns {'no-upload'|'no-show'|null}
+ */
+export function deriveDropReason(influencer, today = new Date()) {
+  if (influencer.contactStatus !== CONTACT_STATUSES.DROPPED) return null;
+  if (isUnfulfilled(influencer, today)) return DROP_REASONS.NO_UPLOAD;
+  if (!influencer.attend) return DROP_REASONS.NO_SHOW;
+  return null;
+}
+
+/**
  * 티어별 방문 1회의 크레딧 가치 (USD) — 미이행 손실을 금액으로 환산하는 기준.
  *
  * 시트에 단가 열이 없어 상수로 둔다 (2026-08-12 사장님 확정: T1 $100 / T2 $20).

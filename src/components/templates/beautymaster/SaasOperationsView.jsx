@@ -20,9 +20,12 @@ import {
   ALL_STORES,
   CONTACT_STATUSES,
   DEFAULT_INFLUENCER_FILTERS,
+  DROP_REASONS,
+  DROP_REASON_LABEL,
   PERFORMANCE_STATES,
   SCHEDULE_GROUPS,
   SHEET_STATUS,
+  deriveDropReason,
   deriveKpiSummary,
   derivePerformanceStatus,
   deriveStores,
@@ -162,6 +165,16 @@ const ATTENTION_TYPES = [
   { key: 'upload', label: 'Awaiting Upload', flag: ALERT_FLAGS.ATTEND_NO_COLLABO },
   { key: 'visit', label: 'Visit Unconfirmed', flag: ALERT_FLAGS.AGREEMENT_NO_ATTEND },
   { key: 'perf', label: 'Record Performance' },
+];
+
+/**
+ * Dropped 구간의 사유 칩. 순서는 손실 크기 — 돈이 나간 쪽(No upload)이 먼저다.
+ * 라벨·판정 모두 행 배지와 같은 출처(DROP_REASON_LABEL·deriveDropReason)를 쓴다 —
+ * 같은 것이 화면에서 두 이름으로 불리거나 수가 어긋나면 안 된다.
+ */
+const DROPPED_TYPES = [
+  { key: DROP_REASONS.NO_UPLOAD, label: DROP_REASON_LABEL[DROP_REASONS.NO_UPLOAD] },
+  { key: DROP_REASONS.NO_SHOW, label: DROP_REASON_LABEL[DROP_REASONS.NO_SHOW] },
 ];
 
 /**
@@ -331,8 +344,18 @@ function SaasOperationsView({
    * 화면은 그대로라 버튼이 죽은 것처럼 보였다. 헤더를 직접 누른 건 명시적 의사라 이긴다.
    */
   const [dismissedSelectionId, setDismissedSelectionId] = useState(null);
-  /** Action required 안의 일 종류 필터(배칭용) — 섹션 스코프 일시 상태라 승격하지 않는다 */
-  const [attentionType, setAttentionType] = useState(null);
+  /**
+   * 섹션 안의 종류 칩 선택 — { [sectionKey]: typeKey|null }.
+   * Action required는 배칭용("오늘은 업로드 리마인드만"), Dropped는 명단 추리기용
+   * ("먹튀만 골라 보기")이다. 섹션마다 독립이어야 한다 — 값 하나로 두면 한쪽에서 고른
+   * 칩이 다른 쪽에도 걸린다. 섹션 스코프 일시 상태라 승격하지 않는다.
+   */
+  const [sectionTypes, setSectionTypes] = useState({});
+  /** 같은 칩을 다시 누르면 해제. All 칩은 typeKey에 null을 넘겨 언제나 전체로 돌아간다 */
+  const setSectionType = (sectionKey, typeKey) => setSectionTypes(prev => ({
+    ...prev,
+    [sectionKey]: prev[sectionKey] === typeKey ? null : typeKey,
+  }));
   const [searchQuery, setSearchQuery] = useState('');
   const [internalFilters, setInternalFilters] = useState(DEFAULT_INFLUENCER_FILTERS);
 
@@ -433,10 +456,20 @@ function SaasOperationsView({
       if (k) typeCounts[k] = (typeCounts[k] || 0) + 1;
     }
     /* 선택한 종류가 전역 필터 변경으로 사라지면 조용히 All로 돌아간다 (0건 화면 방지) */
-    const activeType = typeCounts[attentionType] ? attentionType : null;
+    const activeType = typeCounts[sectionTypes.attention] ? sectionTypes.attention : null;
     const staleItems = filtered.filter(i => !isDropped(i) && !isPerfDue(i) && i.alertFlags.length === 0 && !i.creditShared
       && isStaleVisit(i.scheduledTime)).sort(byPriority);
+
+    /* Dropped도 같은 칩 규약을 쓴다 — 이 구간은 다음 캠페인 명단을 짤 때 펼치는
+       블랙리스트이고, 거기서 실제로 하는 일이 "먹튀만 골라 보기"다.
+       사유 판정은 행 배지와 같은 deriveDropReason이라 칩 수와 배지가 어긋나지 않는다. */
     const droppedItems = filtered.filter(isDropped).sort(byTime);
+    const droppedCounts = {};
+    for (const inf of droppedItems) {
+      const k = deriveDropReason(inf);
+      if (k) droppedCounts[k] = (droppedCounts[k] || 0) + 1;
+    }
+    const droppedActive = droppedCounts[sectionTypes.dropped] ? sectionTypes.dropped : null;
     const all = [
       {
         key: 'attention',
@@ -494,16 +527,20 @@ function SaasOperationsView({
       {
         key: 'dropped',
         label: 'Dropped',
-        items: droppedItems,
-        /* Stale과 같은 이유로 헤더에서 센다 — 이 구간이 블랙리스트인데, 안 온 사람과
-           왔는데 콘텐츠를 안 준 사람이 섞여 있고 둘은 손실 성격이 다르다.
-           기본 접힘이라 펼치지 않으면 그 비율을 알 수 없었다. */
-        unfulfilledCount: droppedItems.filter(i => isUnfulfilled(i)).length,
+        items: droppedActive ? droppedItems.filter(i => deriveDropReason(i) === droppedActive) : droppedItems,
+        /* 헤더 카운트는 칩 필터 이전의 전체다 — 칩은 "지금 무엇을 보느냐"지
+           "몇 명을 접었나"를 바꾸는 게 아니다(Action required와 같은 규약). */
+        headerCount: droppedItems.length,
+        types: DROPPED_TYPES.filter(t => droppedCounts[t.key]).map(t => ({ ...t, count: droppedCounts[t.key] })),
+        activeType: droppedActive,
+        /* 접혀 있을 때를 위한 수 — 칩은 펼쳐야 보이는데, 이 구간은 기본 접힘이라
+           펼치지 않으면 돈이 나간 건이 몇 건인지 알 수 없다(Stale과 같은 이유). */
+        unfulfilledCount: droppedCounts[DROP_REASONS.NO_UPLOAD] ?? 0,
       },
     ];
     return all
       .filter(s => s.items.length > 0);
-  }, [filtered, attentionType]);
+  }, [filtered, sectionTypes]);
 
   const scheduleSections = useMemo(() => buildScheduleSections(filtered), [filtered]);
   /** Today는 항상 들어 있으므로 그룹 개수가 아니라 실제 방문 유무로 빈 상태를 판정한다 */
@@ -1037,6 +1074,7 @@ function SaasOperationsView({
               const holdsSelection = selectedId != null && selectedId !== dismissedSelectionId
                 && section.items.some(inf => inf.id === selectedId);
               const isCollapsed = !isSearching && !holdsSelection && collapsedSections.has(section.key);
+              const showTypeChips = !isCollapsed && section.types?.length > 1;
               return (
                 <Box
                   key={section.key}
@@ -1110,8 +1148,10 @@ function SaasOperationsView({
                     </Typography>
                     {/* 구간 안의 손실 건수 — 접힌 채로도 보여야 한다(그래서 헤더에 있다).
                         칩과 같은 "라벨 수" 형식이고 어휘도 행 문구와 같다.
-                        경보가 아니므로 warning 색을 쓰지 않고 굵기로만 올린다. */}
-                    {section.unfulfilledCount > 0 && (
+                        경보가 아니므로 warning 색을 쓰지 않고 굵기로만 올린다.
+                        칩이 떠 있으면 같은 수가 바로 아래에 또 있으므로 이 자리는 비운다 —
+                        접힘/펼침이 서로를 대신한다. */}
+                    {section.unfulfilledCount > 0 && !showTypeChips && (
                       <Typography
                         component="span"
                         data-section-note
@@ -1122,15 +1162,16 @@ function SaasOperationsView({
                     )}
                   </Box>
 
-                  {/* 일 종류 칩 — Action required 전용. 종류가 하나뿐이면 칩이 정보가 아니라 소음이다.
+                  {/* 종류 칩 — Action required(일 종류)와 Dropped(드롭 사유)가 공유한다.
+                      종류가 하나뿐이면 칩이 정보가 아니라 소음이라 그리지 않는다.
                       헤더(접기 버튼) 안에 넣지 않는다 — button 안의 button은 무효 HTML이고,
                       접으면 칩도 함께 사라지는 게 맞다(접힌 섹션의 필터는 보이지 않는 상태다). */}
-                  {!isCollapsed && section.key === 'attention' && section.types?.length > 1 && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  {showTypeChips && (
+                    <Box data-section-chips sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                       <Chip
                         label={`All ${section.headerCount}`}
                         size="small"
-                        onClick={() => setAttentionType(null)}
+                        onClick={() => setSectionType(section.key, null)}
                         variant={section.activeType === null ? 'filled' : 'outlined'}
                         sx={{ ...chipSx(section.activeType === null), height: 24, fontSize: 11 }}
                       />
@@ -1139,7 +1180,8 @@ function SaasOperationsView({
                           key={t.key}
                           label={`${t.label} ${t.count}`}
                           size="small"
-                          onClick={() => setAttentionType(section.activeType === t.key ? null : t.key)}
+                          data-section-chip={t.key}
+                          onClick={() => setSectionType(section.key, t.key)}
                           variant={section.activeType === t.key ? 'filled' : 'outlined'}
                           sx={{ ...chipSx(section.activeType === t.key), height: 24, fontSize: 11 }}
                         />

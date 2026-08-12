@@ -713,6 +713,72 @@ export const DroppedSeparatesNoShowFromNoUpload = {
 };
 
 /**
+ * Dropped 안에서 사유로 골라 본다.
+ *
+ * 이 구간에서 실제로 하는 일이 "다음에 절대 안 부를 사람 추리기"인데, 노쇼와 미이행은
+ * 그 판단의 무게가 다르다 — 앞은 슬롯이 빈 것이고 뒤는 지출이 회수되지 않은 것이다.
+ * 배지가 붙어 있어도 수십 명이면 눈으로 골라야 하므로, Action required의 일 종류 칩과
+ * **같은 규약**을 그대로 쓴다(새 패턴을 만들지 않는다 — 학습 부담이 생긴다).
+ *
+ * 헤더 카운트는 칩 필터 이전의 전체를 유지한다. 칩은 "지금 무엇을 보느냐"지
+ * "몇 명을 접었나"를 바꾸는 게 아니다.
+ *
+ * 접힘/펼침이 서로를 대신한다 — 접혀 있으면 헤더의 "No upload N"이, 펼치면 칩이 말한다.
+ * 둘 다 띄우면 같은 수가 위아래로 겹친다.
+ */
+export const DroppedChipsFilterByReason = {
+  args: {
+    influencers: [
+      gracePeriodRow('dc-noshow1', 'Never Came', 40, {
+        agreement: true, attend: false, contactStatus: 'dropped', lastContactDate: daysAgo(20),
+      }),
+      gracePeriodRow('dc-noshow2', 'Also Never', 50, {
+        agreement: true, attend: false, contactStatus: 'dropped', lastContactDate: daysAgo(25),
+      }),
+      gracePeriodRow('dc-noupload', 'Took And Left', 45, {
+        agreement: true, attend: true, contactStatus: 'dropped', lastContactDate: daysAgo(15),
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const dropped = canvasElement.querySelector('[data-section="dropped"]');
+    const header = dropped.querySelector('button');
+
+    // 접힘 — 칩은 없고 헤더의 수가 말한다
+    await expect(dropped.querySelector('[data-section-chips]')).toBeNull();
+    await expect(dropped.querySelector('[data-section-note]').textContent.trim()).toBe('No upload 1');
+
+    await userEvent.click(header);
+    await waitFor(async () => {
+      await expect(dropped.querySelector('[data-section-chips]')).toBeTruthy();
+    });
+    // 펼침 — 칩이 그 자리를 대신하므로 헤더의 수는 비운다(같은 수가 겹치면 안 된다)
+    await expect(dropped.querySelector('[data-section-note]')).toBeNull();
+
+    const idsOf = () => [...dropped.querySelectorAll('[data-influencer-id]')]
+      .map(r => r.getAttribute('data-influencer-id'));
+    await expect(idsOf().length).toBe(3);
+
+    // 손실 큰 쪽(No upload)이 먼저다
+    const chips = [...dropped.querySelectorAll('[data-section-chip]')];
+    await expect(chips.map(c => c.textContent.trim())).toEqual(['No upload 1', 'No-show 2']);
+
+    // 칩을 누르면 그 사유만 남는다 — 헤더 카운트는 전체를 유지한다
+    await userEvent.click(chips[0]);
+    await waitFor(async () => {
+      await expect(idsOf()).toEqual(['dc-noupload']);
+    });
+    await expect(dropped.querySelector('button').textContent).toContain('3');
+
+    // 같은 칩을 다시 누르면 해제된다
+    await userEvent.click(dropped.querySelectorAll('[data-section-chip]')[0]);
+    await waitFor(async () => {
+      await expect(idsOf().length).toBe(3);
+    });
+  },
+};
+
+/**
  * Action required의 일 종류 칩 — 배칭용.
  *
  * 실무 리듬은 "오늘은 업로드 리마인드만 다 돌리자"다. 칩 라벨은 행 상태 문구와
