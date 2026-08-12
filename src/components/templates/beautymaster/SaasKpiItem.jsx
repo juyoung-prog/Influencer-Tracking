@@ -14,11 +14,14 @@ import Typography from '@mui/material/Typography';
  * @param {number|null} total - 값 옆에 "of N"으로 붙일 모수 [Optional, 기본값: null]
  * @param {boolean} isFirst - 첫 셀 여부 (좌측 divider·padding 제거) [Optional, 기본값: false]
  * @param {boolean} isAlert - 주의 상태 여부 (warning 색으로 렌더) [Optional, 기본값: false]
+ * @param {string} note - 값 아래 한 줄. 수치가 스스로 말하지 못하는 단서를 붙인다
+ *   (예: 측정이 덜 된 지표의 "25 not recorded") [Optional, 기본값: '']
  *
  * Example usage:
  * <SaasKpiItem label="Agreement" value={12} total={20} isFirst />
+ * <SaasKpiItem label="Credit used" value={12} total={44} note="25 not recorded" />
  */
-function SaasKpiItem({ label, value, total = null, isFirst = false, isAlert = false }) {
+function SaasKpiItem({ label, value, total = null, isFirst = false, isAlert = false, note = '' }) {
   return (
     <Box
       sx={{
@@ -60,6 +63,17 @@ function SaasKpiItem({ label, value, total = null, isFirst = false, isAlert = fa
           </Typography>
         )}
       </Box>
+      {/* 값이 스스로 말하지 못하는 단서. 숫자 아래에 붙어야 그 숫자에 대한 말로 읽힌다 —
+          스트립 밖 각주로 빼면 어느 셀 이야기인지 잃는다. 셀 높이가 한 줄 늘어나지만
+          전 셀이 같은 baseline에서 시작하므로 정렬은 깨지지 않는다. */}
+      {note && (
+        <Typography
+          data-kpi-note
+          sx={{ mt: 0.5, fontSize: 10, lineHeight: 1.3, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+        >
+          {note}
+        </Typography>
+      )}
     </Box>
   );
 }

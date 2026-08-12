@@ -547,6 +547,66 @@ export const SummaryStartsFromAgreement = {
   },
 };
 
+/**
+ * 크레딧 사용률의 분모는 "발급 수"가 아니라 "적은 수"다.
+ *
+ * 시트의 Credit Used 칸은 비어 있는 행이 많다(실데이터 211행 중 19행만 기록).
+ * 발급 수로 나누면 미기록이 전부 미사용으로 계산돼 사용률이 실제보다 훨씬 낮게 나오고,
+ * 읽는 사람은 "발급한 크레딧을 아무도 안 쓴다"는 없는 결론을 얻는다.
+ * 적은 것 중에서만 세고, 얼마나 적혔는지를 셀 아래 한 줄로 밝힌다.
+ */
+export const CreditUsedCountsOnlyRecordedRows = {
+  args: {
+    influencers: [
+      // 발급 4건. 그중 사용 여부를 적은 건 2건이고, 그 2건 중 1건이 사용됨 → 50%
+      perfInf('cu-1', 'Used It', { creditShared: true, creditUsed: true, hasCreditUsedValue: true }),
+      perfInf('cu-2', 'Did Not Use', { creditShared: true, creditUsed: false, hasCreditUsedValue: true }),
+      perfInf('cu-3', 'Blank A', { creditShared: true, creditUsed: false, hasCreditUsedValue: false }),
+      perfInf('cu-4', 'Blank B', { creditShared: true, creditUsed: false, hasCreditUsedValue: false }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    /* 셀 단위로 본다 — 스트립 전체 문자열로 보면 옆 셀의 "100%"가 "0%"를 품는 식으로
+       엉뚱하게 걸린다(실제로 이 스토리를 처음 썼을 때 그렇게 실패했다) */
+    const kpis = canvasElement.querySelector('[data-summary-kpis]');
+    const cellOf = prefix => [...kpis.children].map(c => c.textContent.trim()).find(t => t.startsWith(prefix));
+
+    const cell = cellOf('Credit used (of recorded)');
+    await expect(cell).toBeTruthy();
+    // 발급 4건으로 나눴다면 25%였을 것 — 미기록을 미사용으로 세지 않는다
+    await expect(cell).toContain('50%');
+    await expect(cell).not.toContain('25%');
+
+    // 얼마나 적혔는지를 그 셀이 직접 밝힌다
+    const note = [...kpis.querySelectorAll('[data-kpi-note]')].map(n => n.textContent.trim());
+    await expect(note).toContain('2 of 4 sent recorded');
+  },
+};
+
+/**
+ * 아무도 안 적었으면 0%가 아니라 "안 적혔다"고 말한다.
+ *
+ * 이게 이 프로젝트에서 반복되는 규칙이다(퍼널의 not-measured 배지와 같다) —
+ * 빈 칸을 미사용으로 읽으면 화면이 없는 사실을 지어낸다.
+ */
+export const CreditUsedUnmeasuredSpeaks = {
+  args: {
+    influencers: [
+      perfInf('cu-n1', 'Blank A', { creditShared: true, creditUsed: false, hasCreditUsedValue: false }),
+      perfInf('cu-n2', 'Blank B', { creditShared: true, creditUsed: false, hasCreditUsedValue: false }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const kpis = canvasElement.querySelector('[data-summary-kpis]');
+    const cell = [...kpis.children].map(c => c.textContent.trim()).find(t => t.startsWith('Credit used'));
+
+    // 0%로 단정하지 않는다 — 퍼센트 자체를 내지 않는다
+    await expect(cell).toContain('—');
+    await expect(cell).not.toContain('%');
+    await expect(canvasElement.textContent).toContain('unmeasured, not 0%');
+  },
+};
+
 export const SingleStoreHidesStoreTable = {
   args: { selectedStore: STORES[0] },
   play: async ({ canvasElement }) => {

@@ -905,7 +905,20 @@ function SaasOperationsView({
           <SaasKpiItem label="Visit" value={kpi.attendCount} total={kpi.total} />
           <SaasKpiItem label="Upload" value={kpi.collaboSharedCount} total={kpi.total} />
           <SaasKpiItem label="Credit" value={kpi.creditSharedCount} total={kpi.total} />
-
+          {/* 마지막 단계 — 발급한 크레딧이 실제로 쓰였는지. 분모는 앞 셀들과 달리
+              전체가 아니라 **발급 수**다. 안 보낸 크레딧이 쓰일 리 없으므로 전체를
+              분모로 두면 늘 낮게 보인다.
+              시트의 credit used 칸은 빈 행이 많아서(실데이터 211행 중 19행만 기록),
+              수만 두면 나머지가 "미사용"으로 읽힌다 — 미기록 수를 아래에 붙여
+              그 오독을 막는다. 전부 기록됐으면 이 줄은 사라진다. */}
+          <SaasKpiItem
+            label="Credit used"
+            value={kpi.creditUsedCount}
+            total={kpi.creditSharedCount}
+            note={kpi.creditSharedCount > kpi.creditUsedRecordedCount
+              ? `${kpi.creditSharedCount - kpi.creditUsedRecordedCount} not recorded`
+              : ''}
+          />
         </Box>
           <Box
             sx={{
