@@ -60,6 +60,16 @@ export const DEFAULT_MESSAGE_TEMPLATES = [
     body: 'Hi! Before your visit, please complete the agreement form we sent to your email. Once it\'s completed, you\'ll be all set for your visit. Thank you!',
   },
   {
+    /* Visit Unconfirmed 경보는 "안 왔다"가 아니라 "왔는지 모른다"에 가깝다 —
+       스토어 매니저가 방문 기록을 빠뜨리면 실제로 방문한 사람도 이 경보에 걸린다.
+       그래서 재예약을 권하기 전에 본인에게 방문 여부부터 확인한다. */
+    id: 'visit-unconfirmed',
+    label: 'Visit confirmation check',
+    track: MESSAGE_TRACKS.AUTO,
+    triggerFlag: ALERT_FLAGS.AGREEMENT_NO_ATTEND,
+    body: "Hi! We have your visit down for {{scheduledTime}}, but we weren't able to confirm it on our end. Could you let us know whether you were able to visit? If you already did, we're sorry for the double-check — our records just missed it. If not, let us know and we'll help you find another date. Thank you!",
+  },
+  {
     id: 'reschedule-confirm',
     label: 'Reschedule confirmed',
     track: MESSAGE_TRACKS.AUTO,
