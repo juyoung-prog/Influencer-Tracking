@@ -147,7 +147,7 @@ export const Doc = {
                 ['2', 'no-show', 'pending-reply', 'no-show-unresolved'],
                 ['3', 'reschedule-request', 'pending-reply', 'reschedule-pending'],
                 ['4', 'reschedule-request', 'replied', '없음 (scheduledTime 갱신 후 해제됨)'],
-                ['5', '무관', 'dropped', '없음 — 종결. 모든 경보(단계 지연 포함)가 꺼지고 목록 맨 아래 Dropped 구간에 남는다. 드롭 여부 판단은 사람이 한다'],
+                ['5', '무관', 'dropped', '없음 — 종결. 모든 경보(단계 지연 포함)가 꺼지고 목록 맨 아래 Dropped 구간에 남는다. 드롭 여부 판단은 사람이 한다. 행에는 접은 이유(No upload / No-show)가 병기되고, 구간 헤더는 그중 미이행 건수를 "No upload N"으로 센다'],
               ].map(([n, reason, status, flag]) => (
                 <TableRow key={n}>
                   <TableCell sx={{ ...mono, color: 'text.disabled' }}>{n}</TableCell>
@@ -228,7 +228,7 @@ export const Doc = {
             <TableBody>
               {[
                 ['InfluencerPanel.jsx', 'ALERT_FLAG_SEVERITY 맵에 두 플래그를 warning으로 추가 → ACTION REQUIRED 섹션 정렬에 반영'],
-                ['InfluencerListRow.jsx', 'getContactAlert() 헬퍼 추가. 연락 미해결이면 "awaiting reply · Nd"로 경과일을 병기 — 무응답은 별도 상태가 아니라 이 숫자가 말한다(구 no-response 분기는 폐기). 라벨은 "No-show"/"Reschedule"로 축약 — 같은 컬럼의 다른 상태 라벨(Awaiting Upload 등)과 길이를 맞춰 줄바꿈 방지. requestedDate가 있으면 "→ Jul 14"로 끝에 덧붙임(⑧ 참고). Dropped는 경보·단계 문구 없이 "Dropped" 한 단어(text.disabled)만 남는다'],
+                ['InfluencerListRow.jsx', 'getContactAlert() 헬퍼 추가. 연락 미해결이면 "awaiting reply · Nd"로 경과일을 병기 — 무응답은 별도 상태가 아니라 이 숫자가 말한다(구 no-response 분기는 폐기). 라벨은 "No-show"/"Reschedule"로 축약 — 같은 컬럼의 다른 상태 라벨(Awaiting Upload 등)과 길이를 맞춰 줄바꿈 방지. requestedDate가 있으면 "→ Jul 14"로 끝에 덧붙임(⑧ 참고). Dropped는 경보·단계 문구 없이 text.disabled 한 줄만 남되, 왜 접었는지를 병기한다 — "Dropped · No upload"(방문 후 미이행) / "Dropped · No-show"(방문 안 함) / 판정 안 되면 "Dropped"(2026-08-12 추가). 시트에 열을 더하지 않고 attend·collabo shared에서 파생하며, 판정은 Analytics 손실 리포트와 같은 isUnfulfilled를 쓴다 — 배지와 집계가 갈라지면 안 된다. 톤은 올리지 않는다(구분은 색이 아니라 단어가 진다)'],
               ].map(([file, change]) => (
                 <TableRow key={file}>
                   <TableCell sx={{ ...mono, fontSize: 11 }}>{file}</TableCell>
