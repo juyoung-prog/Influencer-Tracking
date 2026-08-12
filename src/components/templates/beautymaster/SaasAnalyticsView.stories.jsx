@@ -438,11 +438,56 @@ export const UnfulfilledCountsTheLoss = {
       .map(r => r.getAttribute('data-unfulfilled-row'));
     await expect(ids).toEqual(['uf-t1', 'uf-t1-stale', 'uf-t2-dropped']);   // 금액 큰 순, 같으면 최근 순
 
-    // 아직 손댈 수 있는 건과 접은 건을 가른다 — 명단이 행동으로 이어지려면 필요하다
+    // 아직 손댈 수 있는 건과 접은 건을 가른다 — 명단이 행동으로 이어지려면 필요하다.
+    // 드롭은 사유까지 — "Dropped"만 있으면 노쇼로 접힌 건지 알 수 없다
     const statusOf = id => section.querySelector(`[data-unfulfilled-row="${id}"] td:last-child`).textContent.trim();
     await expect(statusOf('uf-t1')).toBe('Follow-up open');
     await expect(statusOf('uf-t1-stale')).toBe('Alert stopped (90+ days)');
-    await expect(statusOf('uf-t2-dropped')).toBe('Dropped');
+    await expect(statusOf('uf-t2-dropped')).toBe('Dropped · No upload');
+  },
+};
+
+/**
+ * 쿠폰이 실제로 나갔는지를 행마다 밝힌다.
+ *
+ * 쿠폰(보상 크레딧)은 콘텐츠를 받은 뒤에 보내는 것이라, 이 표의 사람들은 대개
+ * "Not sent"다. 그래서 더 밝혀야 한다 — 그 대개가 아닌 행, 즉 쿠폰까지 나갔는데
+ * 콘텐츠가 없는 행이 섞여 있으면 그건 성격이 다른 손실이다.
+ *
+ * "사용 안 함"과 "아직 안 적음"을 가르는 게 요점이다. 시트의 credit used 칸은 비어
+ * 있는 행이 많은데 빈 칸을 "미사용"으로 읽으면 화면이 없는 정보를 지어낸다
+ * (퍼널의 funnelMeasured와 같은 규칙).
+ */
+export const UnfulfilledShowsCouponState = {
+  args: {
+    influencers: [
+      // 평범한 미이행 — 쿠폰은 애초에 안 나갔다
+      unfulfilledInf('cp-notsent', 'Never Paid', 'tier1', 30),
+      // 쿠폰이 나갔는데 콘텐츠가 없다 — 돈이 실제로 나간 행
+      unfulfilledInf('cp-used', 'Took The Coupon', 'tier1', 40, {
+        creditShared: true, creditUsed: true, hasCreditUsedValue: true,
+      }),
+      // 나갔지만 안 썼다 — 회수 여지가 남아 있다
+      unfulfilledInf('cp-unused', 'Has It Unused', 'tier2', 50, {
+        creditShared: true, creditUsed: false, hasCreditUsedValue: true,
+      }),
+      // 나갔는데 사용 여부를 아직 안 적었다 — 미사용이 아니라 미측정이다
+      unfulfilledInf('cp-unknown', 'Not Recorded', 'tier2', 60, {
+        creditShared: true, creditUsed: false, hasCreditUsedValue: false,
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const section = canvasElement.querySelector('[data-unfulfilled-section]');
+    const couponOf = id => section
+      .querySelector(`[data-unfulfilled-row="${id}"] [data-unfulfilled-coupon]`).textContent.trim();
+
+    await expect(couponOf('cp-notsent')).toBe('Not sent');
+    await expect(couponOf('cp-used')).toBe('Sent · used');
+    await expect(couponOf('cp-unused')).toBe('Sent · unused');
+    // 빈 칸을 "미사용"으로 단정하지 않는다
+    await expect(couponOf('cp-unknown')).toBe('Sent · not recorded');
+    await expect(couponOf('cp-unknown')).not.toBe(couponOf('cp-unused'));
   },
 };
 

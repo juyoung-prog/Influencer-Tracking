@@ -315,7 +315,8 @@ export const TIER_CREDIT_VALUE_USD = Object.freeze({
  *   byTier: Object<string, {count: number, valueUsd: number}>,
  *   items: Array<{id: string, fullName: string, tier: string, platform: string,
  *     scheduledTime: Date|null, daysSinceVisit: number|null, valueUsd: number,
- *     isDropped: boolean, isStale: boolean}>,
+ *     isDropped: boolean, dropReason: 'no-upload'|'no-show'|null, isStale: boolean,
+ *     creditShared: boolean, creditUsed: boolean, hasCreditUsedValue: boolean}>,
  * }}
  */
 export function deriveUnfulfilledReport(influencers, today = new Date()) {
@@ -331,7 +332,18 @@ export function deriveUnfulfilledReport(influencers, today = new Date()) {
       daysSinceVisit: daysSince(inf.scheduledTime, todayStart),
       valueUsd: TIER_CREDIT_VALUE_USD[inf.tier] ?? 0,
       isDropped: inf.contactStatus === CONTACT_STATUSES.DROPPED,
+      /* 왜 접었는지 — 목록 배지와 같은 판정. 이 표에 실리는 행은 전부 방문한 사람이라
+         실제로는 항상 'no-upload'다. 그래도 파생을 그대로 싣는다: 화면이 "Dropped"
+         한 단어만 보여주면 읽는 사람은 노쇼로 접힌 건지 알 수 없다(실제 질문이었다). */
+      dropReason: deriveDropReason(inf, today),
       isStale: isStaleVisit(inf.scheduledTime, today),
+      /* 쿠폰(보상 크레딧) 상태 — 발송은 콘텐츠를 받은 뒤에 하므로 이 표의 사람들은
+         대개 미발송이다. 그 "대개"가 아닌 행이 있는지 화면이 직접 말하게 한다.
+         발송 여부와 사용 여부는 다른 사실이라 따로 싣고, 미측정(hasCreditUsedValue)도
+         함께 싣는다 — 빈 칸을 "미사용"으로 읽으면 안 된다. */
+      creditShared: inf.creditShared,
+      creditUsed: inf.creditUsed,
+      hasCreditUsedValue: inf.hasCreditUsedValue,
     }))
     .sort((a, b) => b.valueUsd - a.valueUsd || (a.daysSinceVisit ?? Infinity) - (b.daysSinceVisit ?? Infinity));
 

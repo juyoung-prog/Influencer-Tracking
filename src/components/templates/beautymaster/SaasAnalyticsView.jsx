@@ -17,6 +17,7 @@ import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALL_STORES,
+  DROP_REASON_LABEL,
   TIER_CREDIT_VALUE_USD,
   TIERS,
   deriveAnalyticsSummary,
@@ -394,10 +395,27 @@ const usd = n => `$${n.toLocaleString('en-US')}`;
 const TIER_LABEL = { [TIERS.TIER1]: 'Tier 1', [TIERS.TIER2]: 'Tier 2' };
 
 /**
+ * 쿠폰(보상 크레딧) 상태 한 줄.
+ *
+ * 발송과 사용은 다른 사실이고, "사용 안 함"과 "아직 안 적음"도 다른 사실이다 —
+ * 시트의 credit used 칸은 비어 있는 행이 많은데 그걸 "미사용"으로 읽으면 화면이
+ * 없는 정보를 지어낸다(퍼널의 funnelMeasured와 같은 규칙).
+ *
+ * @param {{creditShared: boolean, creditUsed: boolean, hasCreditUsedValue: boolean}} row
+ * @returns {string}
+ */
+function couponStatus({ creditShared, creditUsed, hasCreditUsedValue }) {
+  if (!creditShared) return 'Not sent';
+  if (!hasCreditUsedValue) return 'Sent · not recorded';
+  return creditUsed ? 'Sent · used' : 'Sent · unused';
+}
+
+/**
  * UnfulfilledTable — 방문시켰는데 콘텐츠를 못 받은 사람 명단
  *
  * 금액은 합계가 주인공이고 행별 값은 그 근거라 회색으로 둔다.
- * 마지막 컬럼은 상태 — 아직 손댈 수 있는 건과 이미 접은 건을 가른다.
+ * Coupon은 보상 크레딧이 실제로 나갔는지, 마지막 Status는 아직 손댈 수 있는 건과
+ * 이미 접은 건(사유 포함)을 가른다.
  *
  * Props:
  * @param {Array} rows - deriveUnfulfilledReport().items [Required]
@@ -415,7 +433,8 @@ function UnfulfilledTable({ rows, onRowClick }) {
             <TableCell>Influencer</TableCell>
             <TableCell>Tier</TableCell>
             <TableCell align="right">Visited</TableCell>
-            <TableCell align="right">Credit</TableCell>
+            <TableCell align="right">Credit value</TableCell>
+            <TableCell>Coupon</TableCell>
             <TableCell>Status</TableCell>
           </TableRow>
         </TableHead>
@@ -440,10 +459,20 @@ function UnfulfilledTable({ rows, onRowClick }) {
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                 {usd(row.valueUsd)}
               </TableCell>
+              {/* 쿠폰은 콘텐츠를 받은 뒤 보내는 보상이라 이 표에서는 대개 "Not sent"다.
+                  그 예외가 있는지 — 보냈는데 콘텐츠가 없는 행이 있는지 — 를 화면이 말한다 */}
+              <TableCell data-unfulfilled-coupon sx={{ color: 'text.secondary', fontSize: 11 }}>
+                {couponStatus(row)}
+              </TableCell>
               {/* 아직 손댈 수 있는 건과 이미 접은 건을 가른다 — 명단이 행동으로 이어지려면
-                  "누구에게 독촉이 남았나"가 한 눈에 보여야 한다 */}
+                  "누구에게 독촉이 남았나"가 한 눈에 보여야 한다.
+                  드롭은 사유까지 적는다 — "Dropped"만 있으면 노쇼로 접힌 건지 알 수 없다
+                  (이 표에는 방문한 사람만 실리므로 실제로는 늘 No upload지만,
+                  읽는 사람이 그걸 알 방법이 화면에 없었다). */}
               <TableCell sx={{ color: 'text.secondary', fontSize: 11 }}>
-                {row.isDropped ? 'Dropped' : row.isStale ? 'Alert stopped (90+ days)' : 'Follow-up open'}
+                {row.isDropped
+                  ? `Dropped · ${DROP_REASON_LABEL[row.dropReason] ?? '—'}`
+                  : row.isStale ? 'Alert stopped (90+ days)' : 'Follow-up open'}
               </TableCell>
             </TableRow>
           ))}
