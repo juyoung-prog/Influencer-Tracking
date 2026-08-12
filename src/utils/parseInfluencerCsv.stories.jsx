@@ -51,6 +51,13 @@ const HANDLE_CSV = [
   '4,G10,2026-07,G10INF2026,Instagram,General,,,,Mari Vega,Mari | UGC content creator,,7/8/2026 2pm,TRUE,TRUE,,,,,',
   // 5) 4번과 같은 쓰레기 칸이지만 이름이 오버라이드 목록에 있는 행 — 링크가 살아나므로 핸들도 살아난다
   '5,G10,2026-07,G10INF2026,TikTok,General,,,,Jakkah kebbay,\u{1F36D}Jakkah\u{1F380},,7/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 6) 핸들 문법은 통과하지만 **이름 한 토막**만 적힌 행 — 4번보다 위험하다.
+  //    링크가 만들어져 버리고, 그 주소에는 동명의 남이 산다(실제로 @Jasmaine =
+  //    팔로워 3명의 다른 사람). 4번은 눈에 띄지만 이건 조용히 틀린다.
+  '6,G10,2026-08,G10INF2026,TikTok,General,,,,Vera Lindqvist,Vera,,8/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 7) 이름 칸이 비어 소셜 칸이 이름 자리에 들어온 행 — 6번 규칙이 여기까지 번지면
+  //    멀쩡한 핸들이 날아간다. 이름이 곧 셀이므로 규칙에서 빠져야 한다.
+  '7,G10,2026-08,G10INF2026,TikTok,General,,,,,solvbrandt,,8/8/2026 2pm,TRUE,TRUE,,,,,',
 ].join('\n');
 
 const handleRows = parseInfluencerCsv(HANDLE_CSV, SHEET_STATUS.PROCESSING, 'H_');
@@ -173,6 +180,15 @@ export const HandleContract = {
     // 목록 핸들과 상세 패널 링크가 같은 출처를 쓴다는 뜻이다.
     await expect(by['Jakkah kebbay'].socialHandle).toBe('oyastormm');
     await expect(by['Jakkah kebbay'].socialAccountUrl).toContain('oyastormm');
+
+    // 이름 한 토막만 적힌 칸도 링크를 만들지 않는다 — 문법은 통과하지만
+    // tiktok.com/@Vera 에는 동명의 남이 산다. 없는 링크가 남의 링크보다 낫다
+    await expect(by['Vera Lindqvist'].socialAccountUrl).toBe('');
+    await expect(by['Vera Lindqvist'].socialHandle).toBe('');
+
+    // 다만 이름 칸이 비어 셀이 이름 자리에 들어온 행은 그 규칙에서 빠진다 —
+    // 그 셀은 적다 만 이름이 아니라 진짜 핸들이다
+    await expect(by['solvbrandt'].socialHandle).toBe('solvbrandt');
 
     // 통과한 값은 전부 핸들 문법을 지킨다 — 공백·기호가 화면에 나가지 않는다
     for (const inf of handleRows) {

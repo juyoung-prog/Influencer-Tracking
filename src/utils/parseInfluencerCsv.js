@@ -228,7 +228,30 @@ function parseMonth(val) {
    "링크는 있는데 핸들은 없는" 어긋남이 생기지 않는다. */
 const HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
-function normalizeSocialUrl(raw, platform) {
+/**
+ * 셀이 "핸들"이 아니라 **이름 한 토막**인지 판별한다.
+ *
+ * 시트에 "Jasmaine Sumpter → Jasmaine", "Kalee Thompson → kalee",
+ * "Eduarda De Oliveira → Eduarda"처럼 이름의 한 토막만 적힌 행이 있다. 핸들 문법은
+ * 통과하니 링크는 만들어지는데, 실제로 그 주소를 열어보면 전혀 다른 사람이다
+ * (@Jasmaine = 팔로워 3명 "jasmine", @kalee = 팔로워 0명 "Kâtrïnà",
+ * @Eduarda = 이름도 안 지은 user51167376269).
+ *
+ * 이름 칸이 따로 있는데 소셜 칸에 그 이름의 한 토막만 적혀 있다면, 그건 핸들을
+ * 적다 만 것이지 핸들이 아니다. 이름 칸이 비어서 소셜 칸을 이름 자리에 쓴 행은
+ * (fullName === raw) 이 규칙에서 제외한다 — 그 행의 셀은 진짜 핸들이다.
+ *
+ * @param {string} fullName - 시트의 Full Name (없으면 소셜 셀이 대신 들어온다)
+ * @param {string} username - @를 벗긴 소셜 셀 값
+ * @returns {boolean} 이름 한 토막이면 true
+ */
+function isNameFragment(fullName, username) {
+  const tokens = fullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return false;
+  return tokens.includes(username.toLowerCase());
+}
+
+function normalizeSocialUrl(fullName, raw, platform) {
   if (!raw) return '';
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
   const username = raw.replace(/^@/, '').trim();
@@ -236,6 +259,10 @@ function normalizeSocialUrl(raw, platform) {
      들어오는 행이 있어서("Karol en Atlanta 🇺🇸🇭🇳"), 검증 없이 URL 틀에
      끼우면 상세 패널 링크가 없는 주소로 간다. 깨진 링크보다 링크 없음이 낫다. */
   if (!HANDLE_PATTERN.test(username)) return '';
+  /* 문법은 통과하지만 이름 한 토막인 셀도 같은 이유로 링크를 만들지 않는다.
+     이쪽이 더 위험하다: 깨진 링크는 눈에 띄지만 남의 계정으로 가는 링크는
+     조용히 틀리고, 그 사람에게 DM까지 보내게 된다. */
+  if (isNameFragment(fullName, username)) return '';
   const p = platform.toLowerCase();
   if (p.includes('tiktok')) return `https://www.tiktok.com/@${username}`;
   return `https://www.instagram.com/${username}`;
@@ -274,12 +301,16 @@ const SOCIAL_URL_OVERRIDES = {
   /* 셀은 "Wannie_N"(약칭)이라 tiktok.com/@Wannie_N 로 가버렸다 — 본인 계정이 아니다.
      이름·이메일(teamwannie01@gmail.com)로 확인된 실제 TikTok은 @wannienshobole. */
   'wannie nshobole': 'https://www.tiktok.com/@wannienshobole',
+  /* 셀이 자기소개("anna simone ⭐️ | atl creator")라 링크가 아예 없었다.
+     그 문구가 @annaasimonee의 TikTok 표시명과 글자 그대로 같고, 그 계정이 공개한
+     연락처(collabannasimone@gmail.com)가 시트의 이메일과 같아 두 갈래로 확인된다. */
+  'anna harris': 'https://www.tiktok.com/@annaasimonee',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
   const override = SOCIAL_URL_OVERRIDES[fullName.trim().toLowerCase()];
   if (override) return override;
-  return normalizeSocialUrl(raw, platform);
+  return normalizeSocialUrl(fullName, raw, platform);
 }
 
 /**
