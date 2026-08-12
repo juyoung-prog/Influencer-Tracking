@@ -580,6 +580,53 @@ export const CreditUsedIsARawFraction = {
   },
 };
 
+/**
+ * 크레딧을 누가 썼는지는 Breakdown 표의 한 컬럼이 답한다.
+ *
+ * "티어별로 몇 개 썼나", "쓴 사람이 인스타냐 틱톡이냐, 어느 카테고리냐"는 결국
+ * 같은 질문을 축만 바꿔 묻는 것이라, 표를 새로 만들지 않고 이미 Platform·Category·Tier
+ * 세 축으로 나뉘어 있는 Breakdown에 컬럼 하나를 더한다(Store 표도 같은 컴포넌트라 함께 얻는다).
+ *
+ * 표기는 KPI 스트립과 같은 원시 분수다 — 비율을 내면 시트의 빈 Credit Used 칸이
+ * 전부 미사용으로 계산된다. 발급이 0인 그룹은 나눌 것이 없어 "—".
+ */
+export const BreakdownShowsCreditUsedPerGroup = {
+  args: {
+    influencers: [
+      // T1 / Instagram / kbeauty — 발급 2, 사용 1
+      perfInf('bc-1', 'Ig One', { tier: 'tier1', platform: 'Instagram', category: 'kbeauty', creditShared: true, creditUsed: true, hasCreditUsedValue: true }),
+      perfInf('bc-2', 'Ig Two', { tier: 'tier1', platform: 'Instagram', category: 'kbeauty', creditShared: true, creditUsed: false, hasCreditUsedValue: false }),
+      // T2 / TikTok / general — 발급 1, 사용 1
+      perfInf('bc-3', 'Tt One', { tier: 'tier2', platform: 'TikTok', category: 'general', creditShared: true, creditUsed: true, hasCreditUsedValue: true }),
+      // T2 / TikTok / general — 크레딧 미발급. 그룹 분모에는 안 들어간다
+      perfInf('bc-4', 'Tt Two', { tier: 'tier2', platform: 'TikTok', category: 'general', creditShared: false, creditUsed: false, hasCreditUsedValue: false }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    /** 표의 첫 컬럼 헤더로 어느 축인지 고른 뒤, 행 라벨 → Credit used 셀을 읽는다 */
+    const creditOf = (axis, label) => {
+      const table = [...canvasElement.querySelectorAll('table')]
+        .find(t => t.querySelector('thead th')?.textContent.trim() === axis);
+      const row = [...table.querySelectorAll('tbody tr')]
+        .find(r => r.children[0].textContent.trim() === label);
+      return row?.querySelector('[data-breakdown-credit]')?.textContent.trim();
+    };
+
+    // 티어별 — 사장님 질문 그대로 "T1은 몇 개, T2는 몇 개"
+    await expect(creditOf('Tier', 'Tier 1')).toBe('1 of 2');
+    await expect(creditOf('Tier', 'Tier 2')).toBe('1 of 1');
+
+    // 그 사람들이 인스타냐 틱톡이냐
+    await expect(creditOf('Platform', 'Instagram')).toBe('1 of 2');
+    await expect(creditOf('Platform', 'TikTok')).toBe('1 of 1');
+
+    // 어느 카테고리냐
+    await expect(creditOf('Category', 'kbeauty')).toBe('1 of 2');
+    // 미발급 1명은 분모에서 빠진다 — 발급된 1건만 분모다
+    await expect(creditOf('Category', 'general')).toBe('1 of 1');
+  },
+};
+
 export const SingleStoreHidesStoreTable = {
   args: { selectedStore: STORES[0] },
   play: async ({ canvasElement }) => {

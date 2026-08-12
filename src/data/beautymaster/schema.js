@@ -824,6 +824,13 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
     const valid = list.map(i => i.views).filter(v => v != null);
     return valid.length === 0 ? null : Math.round(valid.reduce((s, v) => s + v, 0) / valid.length);
   };
+  /* 크레딧 발급·사용 수. 그룹 표마다 같은 두 줄을 반복해 적으면 한쪽만 고쳐져 갈라진다.
+     사용 수는 비율이 아니라 발급 수와 짝으로 쓴다 — 시트의 credit used 칸은 빈 행이
+     많아서 비율을 내면 미기록이 전부 미사용으로 계산된다(KPI 스트립과 같은 규칙). */
+  const creditStats = list => ({
+    creditSharedCount: list.filter(i => i.creditShared).length,
+    creditUsedCount: list.filter(i => i.creditUsed).length,
+  });
   const countOpinions = list => {
     const withOp = list.filter(i => i.opinion);
     return {
@@ -847,6 +854,7 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
       uploadRate:         safeRate(collaboSharedCount, ga),
       avgViews:           avgViews(list),
       opinionCounts:      countOpinions(list),
+      ...creditStats(list),
     };
   };
 
@@ -898,6 +906,7 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
       attendRate: safeRate(pAttend, list.length),
       uploadRate: safeRate(pUpload, pAttend),
       avgViews:   avgViews(list),
+      ...creditStats(list),
     };
   }
 
@@ -919,6 +928,7 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
       attendRate: safeRate(sAttend, list.length),
       uploadRate: safeRate(sUpload, sAttend),
       avgViews:   avgViews(list),
+      ...creditStats(list),
     };
   }
 
@@ -947,6 +957,7 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
       attendRate: safeRate(cAttend, list.length),
       uploadRate: safeRate(cUpload, cAttend),
       avgViews:   avgViews(list),
+      ...creditStats(list),
     };
   }
 

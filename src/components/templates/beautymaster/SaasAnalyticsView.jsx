@@ -346,6 +346,7 @@ function Rate({ rate, numerator, denominator }) {
 function BreakdownTable({ groupHeader, rows }) {
   // 전 행이 비어 있으면 "—"만 늘어선 컬럼이 남는다 — 데이터가 붙기 전까지 숨긴다
   const hasAvgViews = rows.some(r => r.avgViews != null);
+  const hasCredit = rows.some(r => r.creditSharedCount > 0);
 
   return (
     <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
@@ -356,6 +357,8 @@ function BreakdownTable({ groupHeader, rows }) {
             <TableCell align="right">Count</TableCell>
             <TableCell align="right">Visit rate</TableCell>
             <TableCell align="right">Upload rate</TableCell>
+            {/* 퍼널 순서대로 방문 → 업로드 다음에 온다. Avg views는 성과 지표라 뒤에 남긴다 */}
+            {hasCredit && <TableCell align="right">Credit used</TableCell>}
             {hasAvgViews && <TableCell align="right">Avg views</TableCell>}
           </TableRow>
         </TableHead>
@@ -378,6 +381,13 @@ function BreakdownTable({ groupHeader, rows }) {
               <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                 <Rate rate={row.uploadRate} numerator={row.collaboSharedCount ?? 0} denominator={row.attendCount ?? 0} />
               </TableCell>
+              {/* KPI 스트립과 같은 원시 분수 — 비율을 내면 시트의 빈 credit used 칸이
+                  전부 미사용으로 계산된다. 발급이 0인 그룹은 나눌 것이 없어 "—" */}
+              {hasCredit && (
+                <TableCell align="right" data-breakdown-credit sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                  {row.creditSharedCount > 0 ? `${row.creditUsedCount} of ${row.creditSharedCount}` : '—'}
+                </TableCell>
+              )}
               {hasAvgViews && (
                 <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                   {row.avgViews != null ? formatCompact(row.avgViews) : '—'}
