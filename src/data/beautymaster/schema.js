@@ -146,9 +146,9 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {number} attendCount
  * @property {number} collaboSharedCount
  * @property {number} creditSharedCount
- * @property {number} creditUsedCount
- * @property {number} creditUsedRecordedCount - 사용 여부를 실제로 적은 행 수.
- *   creditUsedCount의 정직한 분모다 — 빈 칸은 "미사용"이 아니라 "미측정"이다
+ * @property {number} creditUsedCount - 사용이 **확인된** 수. 분모는 creditSharedCount이고,
+ *   화면은 비율이 아니라 원시 분수로 쓴다 — 시트의 credit used 칸은 빈 행이 많아서
+ *   비율을 내면 미기록이 전부 미사용으로 계산된다
  * @property {number} alertCount
  */
 
@@ -732,10 +732,6 @@ export function deriveKpiSummary(influencers) {
     if (inf.collaboShared) acc.collaboSharedCount += 1;
     if (inf.creditShared) acc.creditSharedCount += 1;
     if (inf.creditUsed) acc.creditUsedCount += 1;
-    /* 사용 여부를 **적은** 행 수를 따로 센다. 실데이터에서 211행 중 19행만 채워져
-       있어서, 이 수 없이 "사용 12 / 발급 44"만 보이면 나머지 32건이 미사용으로 읽힌다 —
-       실제로는 측정 자체가 없다. 화면이 그 차이를 말할 수 있게 분모를 들려 보낸다. */
-    if (inf.hasCreditUsedValue) acc.creditUsedRecordedCount += 1;
     if (inf.alertFlags.length > 0) acc.alertCount += 1;
     return acc;
   }, createKpiSummary());
@@ -1061,7 +1057,6 @@ export function createKpiSummary(overrides = {}) {
     collaboSharedCount: 0,
     creditSharedCount: 0,
     creditUsedCount: 0,
-    creditUsedRecordedCount: 0,
     alertCount: 0,
     ...overrides,
   };

@@ -12,7 +12,6 @@ export default {
     total: { control: { type: 'number' }, description: '값 옆에 "of N"으로 붙일 모수. null이면 생략' },
     isFirst: { control: 'boolean', description: '첫 셀 여부 — 좌측 divider와 padding을 없앤다' },
     isAlert: { control: 'boolean', description: '주의 상태 — 라벨·값을 warning 색으로 렌더' },
-    note: { control: 'text', description: '값 아래 한 줄 — 수치가 스스로 말하지 못하는 단서' },
   },
   decorators: [
     Story => (
@@ -39,20 +38,10 @@ export const Alert = {
 };
 
 /**
- * 단서 한 줄 — 수치가 스스로 말하지 못하는 것을 값 **아래**에 붙인다.
- *
- * "Credit used 12 of 44"만 보면 나머지 32건이 미사용으로 읽힌다. 실제로는 시트의
- * Credit Used 칸이 비어 있어 측정 자체가 없는 건이다(실데이터 211행 중 19행만 기록).
- * 스트립 밖 각주로 빼면 어느 셀 이야기인지 잃으므로 숫자 바로 아래에 둔다.
- */
-export const WithNote = {
-  args: { label: 'Credit used', value: 12, total: 44, note: '25 not recorded', isFirst: true },
-};
-
-/**
  * 스트립 구성 — 실제로는 여러 셀을 나란히 놓고 첫 셀만 isFirst를 준다.
  * 셀 구분은 카드가 아니라 좌측 1px divider로만 한다.
- * 한 셀에 note가 붙어도 나머지 셀의 라벨·숫자 baseline은 그대로다.
+ *
+ * 마지막 셀만 분모가 다르다(전체가 아니라 발급 수) — 안 보낸 크레딧이 쓰일 리 없어서다.
  */
 export const Strip = {
   parameters: { controls: { disable: true } },
@@ -62,7 +51,7 @@ export const Strip = {
       <SaasKpiItem label="Visit" value={130} total={189} />
       <SaasKpiItem label="Upload" value={101} total={189} />
       <SaasKpiItem label="Credit" value={102} total={189} />
-      <SaasKpiItem label="Credit used" value={12} total={102} note="83 not recorded" />
+      <SaasKpiItem label="Credit used" value={12} total={102} />
     </>
   ),
 };

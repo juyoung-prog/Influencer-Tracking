@@ -663,7 +663,6 @@ function SaasAnalyticsView({
   /* 크레딧 사용 지표는 Operations KPI 스트립과 **같은 함수**에서 가져온다 —
      두 화면이 같은 이름의 수를 다르게 계산하면 어느 쪽을 믿을지 알 수 없다. */
   const kpi = useMemo(() => deriveKpiSummary(filtered), [filtered]);
-  const creditUsedRecorded = kpi.creditUsedRecordedCount;
 
   /* 미이행 손실 — 퍼널의 attended→uploaded 낙차를 금액으로 옮긴 것이다.
      비율은 "85%면 잘 되고 있네"로 읽히고 금액은 "이거 회수해야겠네"로 읽힌다. */
@@ -773,26 +772,12 @@ function SaasAnalyticsView({
           <SaasKpiItem label="Visit rate (of agreement)" value={pct(visitRate)} />
           <SaasKpiItem label="Upload rate (of visited)" value={pct(uploadRate)} />
           {/* 발급한 크레딧이 실제로 쓰였는지 — 캠페인의 마지막 단계다.
-              분모는 "발급 수"가 아니라 **사용 여부를 적은 수**다. 시트의 credit used
-              칸은 빈 행이 많아서(실데이터 211행 중 19행), 발급 수로 나누면 미기록이
-              전부 미사용으로 계산돼 사용률이 실제보다 훨씬 낮게 나온다.
-              적은 것 중에서만 세고, 얼마나 적혔는지를 아래에 밝힌다. */}
-          <SaasKpiItem
-            label="Credit used (of recorded)"
-            value={creditUsedRecorded > 0 ? pct(kpi.creditUsedCount / creditUsedRecorded) : '—'}
-            note={creditUsedRecorded < kpi.creditSharedCount
-              ? `${creditUsedRecorded} of ${kpi.creditSharedCount} sent recorded`
-              : ''}
-          />
+              옆 두 셀과 달리 비율이 아니라 **원시 분수**다. 시트의 credit used 칸은
+              빈 행이 많아서 비율을 내면 미기록이 전부 미사용으로 계산되고, 사용률이
+              실제보다 훨씬 낮게 나온다. "44건 중 16건 확인"은 그 자체로 참이고
+              남은 수를 미사용이라 주장하지 않는다. 표기는 Operations 스트립과 같다. */}
+          <SaasKpiItem label="Credit used" value={kpi.creditUsedCount} total={kpi.creditSharedCount} />
         </Box>
-        {creditUsedRecorded === 0 && kpi.creditSharedCount > 0 && (
-          /* 0%가 아니라 "아직 아무도 안 적었다"라고 말한다 — 퍼널의 not-measured 배지와
-             같은 규칙이다. 빈 칸을 미사용으로 읽으면 없는 사실을 지어내는 것이다. */
-          <Typography sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
-            No credit-used values recorded yet — the sheet&apos;s Credit Used column is empty for all
-            {' '}{kpi.creditSharedCount} sent credits, so this is unmeasured, not 0%.
-          </Typography>
-        )}
       </Box>
 
       {/* Funnel — 수평 바 또는 테이블 토글 */}
