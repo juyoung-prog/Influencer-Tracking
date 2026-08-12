@@ -852,6 +852,52 @@ export const RailSelectionScrollsListIntoView = {
 };
 
 /**
+ * 한 번 본 사람이 든 구간도 접힌다.
+ *
+ * 드로어를 닫아도 selectedId는 남는다(마지막으로 본 행 강조). 그런데 "선택을 품은
+ * 구간은 펼쳐둔다"는 규칙이 그 잔상까지 그대로 받아서, Upcoming에 있는 사람을 한 번
+ * 열어본 뒤에는 헤더를 눌러도 안 접혔다 — 접힘 상태는 토글되는데 화면은 그대로라
+ * 버튼이 죽은 것처럼 보인다. 헤더를 직접 누른 건 명시적 의사라 잔상보다 우선한다.
+ *
+ * 다만 새로 고른 사람은 다시 드러나야 한다(레일에서 고른 경우까지).
+ */
+export const CollapseWinsOverStaleSelection = {
+  render: () => <SelectionHarness />,
+  play: async ({ canvasElement }) => {
+    const upcoming = canvasElement.querySelector('[data-section="upcoming"]');
+    if (!upcoming) return;   // 예정 건이 없으면 구간 자체가 없다
+
+    const header = upcoming.querySelector('button');
+    if (header.getAttribute('aria-expanded') !== 'true') await userEvent.click(header);
+
+    const row = await waitFor(() => {
+      const r = upcoming.querySelector('[data-influencer-id]');
+      if (!r) throw new Error('rows not rendered');
+      return r;
+    });
+    const id = row.getAttribute('data-influencer-id');
+
+    // 한 명 열어본다 — 드로어를 닫아도 이 선택은 남는다
+    await userEvent.click(row);
+
+    // 그 상태로 헤더를 누르면 접혀야 한다
+    await userEvent.click(header);
+    await waitFor(async () => {
+      await expect(header.getAttribute('aria-expanded')).toBe('false');
+      await expect(upcoming.querySelectorAll('[data-influencer-id]').length).toBe(0);
+    });
+
+    // 레일에서 다시 고르면 접힌 구간이 그 사람을 위해 다시 열린다
+    const railRow = canvasElement.querySelector(`[data-rail-row="${CSS.escape(id)}"]`);
+    if (!railRow) return;
+    await userEvent.click(railRow);
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector(`[data-influencer-id="${CSS.escape(id)}"]`)).toBeTruthy();
+    });
+  },
+};
+
+/**
  * 콘텐츠가 레일 오른쪽 남은 공간의 가운데에 놓이는지.
  *
  * 좌우 여백이 같아야 "가운데"다. 레일은 콘텐츠 컬럼의 직전 형제라 그 사이 틈을

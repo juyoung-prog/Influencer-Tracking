@@ -319,6 +319,12 @@ function SaasOperationsView({
    * 긴 섹션을 접어 아래 섹션으로 바로 갈 수 있어야 한다.
    */
   const [collapsedSections, setCollapsedSections] = useState(() => new Set(['upcoming', 'inProgress', 'stale', 'completed', 'dropped']));
+  /**
+   * 접기로 손을 뗀 선택. 드로어를 닫아도 selectedId는 살아 있어서(마지막으로 본 행 강조),
+   * 그 사람이 든 섹션은 아래 holdsSelection 때문에 눌러도 안 접혔다 — 상태는 토글되는데
+   * 화면은 그대로라 버튼이 죽은 것처럼 보였다. 헤더를 직접 누른 건 명시적 의사라 이긴다.
+   */
+  const [dismissedSelectionId, setDismissedSelectionId] = useState(null);
   /** Action required 안의 일 종류 필터(배칭용) — 섹션 스코프 일시 상태라 승격하지 않는다 */
   const [attentionType, setAttentionType] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -358,12 +364,24 @@ function SaasOperationsView({
 
   const kpi = useMemo(() => deriveKpiSummary(scoped), [scoped]);
 
-  const toggleSection = key => setCollapsedSections(prev => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    return next;
-  });
+  const toggleSection = (key, holdsSelection = false) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else {
+        next.add(key);
+        // 선택을 품은 섹션을 접는 순간, 그 선택은 더 이상 섹션을 펼쳐두지 않는다
+        if (holdsSelection) setDismissedSelectionId(selectedId);
+      }
+      return next;
+    });
+  };
+
+  /** 행을 새로 고르면 해제를 되돌린다 — 방금 고른 사람은 접힌 구간에서도 보여야 한다 */
+  const handleSelect = inf => {
+    setDismissedSelectionId(null);
+    onSelect?.(inf);
+  };
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -710,7 +728,7 @@ function SaasOperationsView({
                           <Box
                             key={inf.id}
                             data-rail-row={inf.id}
-                            onClick={() => onSelect?.(inf)}
+                            onClick={() => handleSelect(inf)}
                             sx={{
                               display: 'flex',
                               alignItems: 'center',
@@ -973,7 +991,8 @@ function SaasOperationsView({
                  "COMPLETED 1"만 보이고 행은 하나도 안 보인다 — 찾았는데 안 보인다.
                  접힘 상태 자체는 유지해서 검색어를 지우면 원래대로 돌아온다.
                  (이펙트에서 setState로 펼치면 렌더가 연쇄된다 — 여기서 계산한다.) */
-              const holdsSelection = selectedId != null && section.items.some(inf => inf.id === selectedId);
+              const holdsSelection = selectedId != null && selectedId !== dismissedSelectionId
+                && section.items.some(inf => inf.id === selectedId);
               const isCollapsed = !isSearching && !holdsSelection && collapsedSections.has(section.key);
               return (
                 <Box
@@ -996,7 +1015,7 @@ function SaasOperationsView({
                   <Box
                     component="button"
                     type="button"
-                    onClick={() => toggleSection(section.key)}
+                    onClick={() => toggleSection(section.key, holdsSelection)}
                     aria-expanded={!isCollapsed}
                     sx={{
                       position: 'sticky',
@@ -1110,7 +1129,7 @@ function SaasOperationsView({
                         <InfluencerListRow
                           key={inf.id}
                           influencer={inf}
-                          onClick={() => onSelect?.(inf)}
+                          onClick={() => handleSelect(inf)}
                           isSelected={selectedId === inf.id}
                         />
                       ))}
