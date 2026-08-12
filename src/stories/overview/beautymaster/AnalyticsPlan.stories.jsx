@@ -1,3 +1,5 @@
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
@@ -54,6 +56,30 @@ export const Doc = {
         version="1.0"
       />
       <PageContainer>
+
+        {/* 이 문서는 구현 전에 쓴 계획서다. 구현하며 구조가 바뀌었고 그 격차는 앞으로 더
+            벌어진다 — 계획서를 현황 문서로 덮으면 "왜 이렇게 만들기로 했나"의 근거가
+            사라지므로, 덮는 대신 어긋난다는 사실을 문서 맨 앞에서 밝힌다.
+            읽는 사람이 코드보다 문서를 먼저 믿는 것을 막는 게 목적이다. */}
+        <Alert severity="warning" variant="outlined" sx={{ mb: 4, fontSize: 13 }}>
+          <AlertTitle sx={{ fontSize: 13, fontWeight: 700 }}>
+            2026-07 기획 시점 문서 — 현재 화면과 다르다
+          </AlertTitle>
+          구현하며 구조가 바뀌었다. 현재 Analytics 탭은
+          {' '}<Box component="span" sx={mono}>
+            Campaign summary → Conversion funnel → Unfulfilled visits → Breakdown(Platform·Category·Tier) → Performance → Store
+          </Box>
+          {' '}순서이고, 아래 계획서의 4개 섹션 구성과 다르다. 특히:
+          <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.5, '& li': { mb: 0.5 } }}>
+            <li>“필터 없음 — 전체 집계”가 아니다. 스토어 Select와 Performance 티어 칩이 있다.</li>
+            <li>Performance는 조회수 Top이 아니라 <strong>총 반응 수(Engagements)</strong> 순위다 — 조회수 기반 ER은 소형 계정을 부풀리고 대형 계정을 깎았다(2026-08-03 변경).</li>
+            <li>미이행 손실 섹션(Unfulfilled visits)이 2026-08-12에 추가됐다 — 방문시켰는데 콘텐츠를 못 받은 건수와 금액. 계획서에는 없던 블록이다.</li>
+          </Box>
+          <Box sx={{ mt: 1 }}>
+            현재 동작의 기준은 코드와 component-work 스킬의 <Box component="code" sx={mono}>components.md</Box>다.
+            이 문서는 “왜 이렇게 만들기로 했나”의 이력으로 남긴다.
+          </Box>
+        </Alert>
 
         {/* ① 목적 */}
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>Analytics View</Typography>
