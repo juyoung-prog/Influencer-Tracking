@@ -429,12 +429,12 @@ export const UnfulfilledCountsTheLoss = {
     const section = canvasElement.querySelector('[data-unfulfilled-section]');
     await expect(section).toBeTruthy();
 
-    // T1 2건 × $100 + T2 1건 × $20 = $220. 유예 안·업로드 완료는 빠진다.
+    // T1 2건 × $8.58 + T2 1건 × $2.65 = $19.81. 유예 안·업로드 완료는 빠진다.
     // 금액의 정체는 이미 건네준 기프트백이다 — 보상 크레딧은 아직 안 나갔으므로
     // 제목이 "unrecovered credit"처럼 읽히면 안 된다
-    await expect(section.textContent).toContain('Visited, no content — 3 gift bags · $220');
-    await expect(section.textContent).toContain('Tier 1 2 × $100 = $200');
-    await expect(section.textContent).toContain('Tier 2 1 × $20 = $20');
+    await expect(section.textContent).toContain('3 visits with no content — $19.81 in gift bags');
+    await expect(section.textContent).toContain('Tier 1 2 × $8.58 = $17.16');
+    await expect(section.textContent).toContain('Tier 2 1 × $2.65 = $2.65');
 
     const ids = [...section.querySelectorAll('[data-unfulfilled-row]')]
       .map(r => r.getAttribute('data-unfulfilled-row'));
@@ -505,8 +505,8 @@ export const UnfulfilledZeroStateSpeaks = {
   },
   play: async ({ canvasElement }) => {
     const section = canvasElement.querySelector('[data-unfulfilled-section]');
-    await expect(section.textContent).toContain('Visited, no content — none');
-    await expect(section.textContent).toContain('Every gift bag came back as content');
+    await expect(section.textContent).toContain('No missing content — every visit delivered');
+    await expect(section.textContent).toContain('Nothing outstanding in this view');
     await expect(section.querySelector('[data-unfulfilled-row]')).toBeNull();
   },
 };

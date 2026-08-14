@@ -401,7 +401,13 @@ function BreakdownTable({ groupHeader, rows }) {
   );
 }
 
-const usd = n => `$${n.toLocaleString('en-US')}`;
+/* 기프트백 단가가 센트 단위($8.58)라 소수점이 있는 값은 두 자리까지 그대로 쓴다.
+   반올림해서 "$9"로 보여주면 6개 합계($51.48)와 행별 값이 맞지 않아 보인다.
+   정수 값은 예전대로 "$220" — 없는 ".00"을 붙이지 않는다. */
+const usd = n => `$${n.toLocaleString('en-US', {
+  minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  maximumFractionDigits: 2,
+})}`;
 
 const TIER_LABEL = { [TIERS.TIER1]: 'Tier 1', [TIERS.TIER2]: 'Tier 2' };
 
@@ -837,16 +843,18 @@ function SaasAnalyticsView({
           경보는 90일이 지나면 꺼지므로 Operations 화면만으로는 이 손실의 총량을
           알 수 없다 — 세는 일은 리포트가 맡는다(울릴 것과 셀 것은 다르다). */}
       <Box sx={{ mb: 4 }} data-unfulfilled-section>
+        {/* 못 받은 콘텐츠 수가 주인공이고 금액은 그 뒤에 붙는다 — 기프트백 단가가
+            센트 단위라 합계($19.81)만으로는 규모가 읽히지 않는다. */}
         <SectionTitle
           title={unfulfilled.count === 0
-            ? 'Visited, no content — none'
-            : `Visited, no content — ${unfulfilled.count} gift ${unfulfilled.count === 1 ? 'bag' : 'bags'} · ${usd(unfulfilled.lostValueUsd)}`}
+            ? 'No missing content — every visit delivered'
+            : `${unfulfilled.count} ${unfulfilled.count === 1 ? 'visit' : 'visits'} with no content — ${usd(unfulfilled.lostValueUsd)} in gift bags`}
         />
         {unfulfilled.count === 0 ? (
           /* 0건은 숨기지 않고 말한다 — 섹션이 없으면 "집계는 하고 있나"가 남는다.
              손실이 없다는 건 리포트에서 가장 좋은 소식이라 적을 값어치가 있다. */
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Every gift bag came back as content in this view.
+            Nothing outstanding in this view.
           </Typography>
         ) : (
           <Box>

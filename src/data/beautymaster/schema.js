@@ -293,13 +293,15 @@ export function deriveDropReason(influencer, today = new Date()) {
  * 기프트백이고 크레딧은 붙들고 있는 상태다. 이 둘을 한 단어로 부르면
  * 화면이 "회수 못 한 크레딧"처럼 읽혀 실제와 어긋난다(2026-08-14 지적).
  *
- * 시트에 단가 열이 없어 상수로 둔다 (2026-08-12 사장님 확정: T1 $100 / T2 $20).
+ * 시트에 단가 열이 없어 상수로 둔다 (2026-08-14 확정: T1 $8.58 / T2 $2.65 — 기프트백
+ * 원가다). 여기 있던 T1 $100 / T2 $20은 크레딧 액면가였다 — 시트 type 열의
+ * "$100 Credit"에서 온 값이라 손실 환산에 쓰면 안 나간 돈을 잃은 것처럼 부풀린다.
  * 건수만으로는 "7건"이 큰지 작은지 판단할 근거가 없다 — T1 7건과 T2 7건은
- * 손실이 5배 차이인데 같은 숫자로 보인다. 단가가 바뀌면 여기 한 곳만 고친다.
+ * 손실이 3배 차이인데 같은 숫자로 보인다. 단가가 바뀌면 여기 한 곳만 고친다.
  */
 export const TIER_GIFT_VALUE_USD = Object.freeze({
-  [TIERS.TIER1]: 100,
-  [TIERS.TIER2]: 20,
+  [TIERS.TIER1]: 8.58,
+  [TIERS.TIER2]: 2.65,
 });
 
 /**
@@ -355,16 +357,21 @@ export function deriveUnfulfilledReport(influencers, today = new Date()) {
     }))
     .sort((a, b) => b.valueUsd - a.valueUsd || (a.daysSinceVisit ?? Infinity) - (b.daysSinceVisit ?? Infinity));
 
+  /* 단가가 센트 단위($8.58)라 그냥 더하면 부동소수점 찌꺼기가 남는다
+     (8.58 × 3 = 25.740000000000002). 합계는 센트로 반올림해 내보낸다 —
+     화면이 자릿수를 줄여 가려주더라도 값 자체가 지저분하면 어디선가 새어나온다. */
+  const cents = n => Math.round(n * 100) / 100;
+
   const byTier = {};
   for (const item of items) {
     if (!byTier[item.tier]) byTier[item.tier] = { count: 0, valueUsd: 0 };
     byTier[item.tier].count += 1;
-    byTier[item.tier].valueUsd += item.valueUsd;
+    byTier[item.tier].valueUsd = cents(byTier[item.tier].valueUsd + item.valueUsd);
   }
 
   return {
     count: items.length,
-    lostValueUsd: items.reduce((sum, i) => sum + i.valueUsd, 0),
+    lostValueUsd: cents(items.reduce((sum, i) => sum + i.valueUsd, 0)),
     byTier,
     items,
   };
