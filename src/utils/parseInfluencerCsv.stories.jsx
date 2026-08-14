@@ -58,6 +58,9 @@ const HANDLE_CSV = [
   // 7) 이름 칸이 비어 소셜 칸이 이름 자리에 들어온 행 — 6번 규칙이 여기까지 번지면
   //    멀쩡한 핸들이 날아간다. 이름이 곧 셀이므로 규칙에서 빠져야 한다.
   '7,G10,2026-08,G10INF2026,TikTok,General,,,,,solvbrandt,,8/8/2026 2pm,TRUE,TRUE,,,,,',
+  // 8) 이름 토막에 마침표를 찍은 행("Ty Coleman → Ty.") — 6번과 같은 경우인데
+  //    글자 그대로 비교하면 "ty." ≠ "ty" 라 규칙을 빠져나가 남의 계정으로 링크됐다.
+  '8,G10,2026-08,G10INF2026,Instagram,General,,,,Nora Vandelay,Nora.,,8/16/2026 10pm,TRUE,TRUE,,,,,',
 ].join('\n');
 
 const handleRows = parseInfluencerCsv(HANDLE_CSV, SHEET_STATUS.PROCESSING, 'H_');
@@ -185,6 +188,11 @@ export const HandleContract = {
     // tiktok.com/@Vera 에는 동명의 남이 산다. 없는 링크가 남의 링크보다 낫다
     await expect(by['Vera Lindqvist'].socialAccountUrl).toBe('');
     await expect(by['Vera Lindqvist'].socialHandle).toBe('');
+
+    // 이름 토막 뒤의 마침표는 핸들의 일부가 아니다 — 두 플랫폼 모두 양끝 마침표를
+    // 허용하지 않는다. "Nora." 도 "Nora" 와 똑같이 걸러져야 한다
+    await expect(by['Nora Vandelay'].socialAccountUrl).toBe('');
+    await expect(by['Nora Vandelay'].socialHandle).toBe('');
 
     // 다만 이름 칸이 비어 셀이 이름 자리에 들어온 행은 그 규칙에서 빠진다 —
     // 그 셀은 적다 만 이름이 아니라 진짜 핸들이다

@@ -241,14 +241,22 @@ const HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
  * 적다 만 것이지 핸들이 아니다. 이름 칸이 비어서 소셜 칸을 이름 자리에 쓴 행은
  * (fullName === raw) 이 규칙에서 제외한다 — 그 행의 셀은 진짜 핸들이다.
  *
+ * 이름 토막 뒤에 마침표를 찍은 행도 같은 경우다("Ty Coleman → Ty."). 글자 그대로
+ * 비교하면 "ty." ≠ "ty" 라 규칙을 빠져나가 instagram.com/Ty. 로 링크가 만들어졌다.
+ * Instagram·TikTok 둘 다 핸들 양끝에 마침표를 허용하지 않으므로, 양끝의 마침표는
+ * 핸들의 일부가 아니라 사람이 찍은 문장부호로 보고 떼어내고 비교한다.
+ * (밑줄은 양끝에 올 수 있는 진짜 핸들이 있어서 — "jessglows_" — 떼지 않는다.)
+ *
  * @param {string} fullName - 시트의 Full Name (없으면 소셜 셀이 대신 들어온다)
  * @param {string} username - @를 벗긴 소셜 셀 값
  * @returns {boolean} 이름 한 토막이면 true
  */
+const stripEdgeDots = s => s.replace(/^\.+|\.+$/g, '');
+
 function isNameFragment(fullName, username) {
-  const tokens = fullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const tokens = fullName.trim().toLowerCase().split(/\s+/).filter(Boolean).map(stripEdgeDots);
   if (tokens.length < 2) return false;
-  return tokens.includes(username.toLowerCase());
+  return tokens.includes(stripEdgeDots(username.toLowerCase()));
 }
 
 function normalizeSocialUrl(fullName, raw, platform) {
@@ -301,6 +309,13 @@ const SOCIAL_URL_OVERRIDES = {
   /* 셀은 "Wannie_N"(약칭)이라 tiktok.com/@Wannie_N 로 가버렸다 — 본인 계정이 아니다.
      이름·이메일(teamwannie01@gmail.com)로 확인된 실제 TikTok은 @wannienshobole. */
   'wannie nshobole': 'https://www.tiktok.com/@wannienshobole',
+  /* 셀이 "kalee"(이름 토막)라 tiktok.com/@kalee 로 가버렸다 — 팔로워 0명의 다른 사람이다.
+     실제 계정은 @kaleeirl(사용자 확인). */
+  'kalee thompson': 'https://www.tiktok.com/@kaleeirl',
+  /* 셀이 "Ty."(이름 토막 + 마침표)라 instagram.com/Ty. 로 가버렸다 — 본인 계정이 아니다.
+     실제 계정은 TikTok @tyistyping(사용자 확인). 시트의 이메일(tyistyping@gmail.com)과
+     핸들이 같아 한 번 더 맞물린다. */
+  'ty coleman': 'https://www.tiktok.com/@tyistyping',
   /* 셀이 자기소개("anna simone ⭐️ | atl creator")라 링크가 아예 없었다.
      그 문구가 @annaasimonee의 TikTok 표시명과 글자 그대로 같고, 그 계정이 공개한
      연락처(collabannasimone@gmail.com)가 시트의 이메일과 같아 두 갈래로 확인된다. */
