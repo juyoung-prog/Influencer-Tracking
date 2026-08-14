@@ -286,13 +286,18 @@ export function deriveDropReason(influencer, today = new Date()) {
 }
 
 /**
- * 티어별 방문 1회의 크레딧 가치 (USD) — 미이행 손실을 금액으로 환산하는 기준.
+ * 티어별 **기프트백** 1개의 가치 (USD) — 미이행 손실을 금액으로 환산하는 기준.
+ *
+ * 여기서 세는 손실은 방문 때 이미 건네준 기프트백이다. 보상 크레딧(쿠폰)은
+ * 콘텐츠를 받은 뒤에 보내므로 미이행 건에는 **아직 나가지 않았다** — 잃은 건
+ * 기프트백이고 크레딧은 붙들고 있는 상태다. 이 둘을 한 단어로 부르면
+ * 화면이 "회수 못 한 크레딧"처럼 읽혀 실제와 어긋난다(2026-08-14 지적).
  *
  * 시트에 단가 열이 없어 상수로 둔다 (2026-08-12 사장님 확정: T1 $100 / T2 $20).
  * 건수만으로는 "7건"이 큰지 작은지 판단할 근거가 없다 — T1 7건과 T2 7건은
  * 손실이 5배 차이인데 같은 숫자로 보인다. 단가가 바뀌면 여기 한 곳만 고친다.
  */
-export const TIER_CREDIT_VALUE_USD = Object.freeze({
+export const TIER_GIFT_VALUE_USD = Object.freeze({
   [TIERS.TIER1]: 100,
   [TIERS.TIER2]: 20,
 });
@@ -333,7 +338,7 @@ export function deriveUnfulfilledReport(influencers, today = new Date()) {
       platform: inf.platform,
       scheduledTime: inf.scheduledTime,
       daysSinceVisit: daysSince(inf.scheduledTime, todayStart),
-      valueUsd: TIER_CREDIT_VALUE_USD[inf.tier] ?? 0,
+      valueUsd: TIER_GIFT_VALUE_USD[inf.tier] ?? 0,
       isDropped: inf.contactStatus === CONTACT_STATUSES.DROPPED,
       /* 왜 접었는지 — 목록 배지와 같은 판정. 이 표에 실리는 행은 전부 방문한 사람이라
          실제로는 항상 'no-upload'다. 그래도 파생을 그대로 싣는다: 화면이 "Dropped"

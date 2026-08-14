@@ -18,7 +18,7 @@ import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALL_STORES,
   DROP_REASON_LABEL,
-  TIER_CREDIT_VALUE_USD,
+  TIER_GIFT_VALUE_USD,
   TIERS,
   deriveAnalyticsSummary,
   deriveKpiSummary,
@@ -444,7 +444,7 @@ function UnfulfilledTable({ rows, onRowClick }) {
             <TableCell>Influencer</TableCell>
             <TableCell>Tier</TableCell>
             <TableCell align="right">Visited</TableCell>
-            <TableCell align="right">Credit value</TableCell>
+            <TableCell align="right">Gift bag value</TableCell>
             <TableCell>Coupon</TableCell>
             <TableCell>Status</TableCell>
           </TableRow>
@@ -839,14 +839,14 @@ function SaasAnalyticsView({
       <Box sx={{ mb: 4 }} data-unfulfilled-section>
         <SectionTitle
           title={unfulfilled.count === 0
-            ? 'Unfulfilled visits — none'
-            : `Unfulfilled visits — ${unfulfilled.count} · ${usd(unfulfilled.lostValueUsd)} unrecovered`}
+            ? 'Visited, no content — none'
+            : `Visited, no content — ${unfulfilled.count} gift ${unfulfilled.count === 1 ? 'bag' : 'bags'} · ${usd(unfulfilled.lostValueUsd)}`}
         />
         {unfulfilled.count === 0 ? (
           /* 0건은 숨기지 않고 말한다 — 섹션이 없으면 "집계는 하고 있나"가 남는다.
              손실이 없다는 건 리포트에서 가장 좋은 소식이라 적을 값어치가 있다. */
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Every visit produced content in this view.
+            Every gift bag came back as content in this view.
           </Typography>
         ) : (
           <Box>
@@ -856,7 +856,7 @@ function SaasAnalyticsView({
             <Typography sx={{ mb: 1.5, fontSize: 13, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
               {[TIERS.TIER1, TIERS.TIER2]
                 .filter(tier => unfulfilled.byTier[tier]?.count)
-                .map(tier => `${TIER_LABEL[tier]} ${unfulfilled.byTier[tier].count} × ${usd(TIER_CREDIT_VALUE_USD[tier])} = ${usd(unfulfilled.byTier[tier].valueUsd)}`)
+                .map(tier => `${TIER_LABEL[tier]} ${unfulfilled.byTier[tier].count} × ${usd(TIER_GIFT_VALUE_USD[tier])} = ${usd(unfulfilled.byTier[tier].valueUsd)}`)
                 .join('  ·  ')}
             </Typography>
             <UnfulfilledTable
@@ -869,7 +869,9 @@ function SaasAnalyticsView({
             {/* 단가는 시트에 없는 값이라 화면이 출처를 밝힌다 — 어디서 온 숫자인지
                 모르면 보고받는 쪽이 검증할 수 없다. */}
             <Typography sx={{ mt: 1, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
-              Credit values are a fixed rate, not read from the sheet.
+              Gift bag values are a fixed rate, not read from the sheet.
+              Reward credit goes out only after content, so it has not been sent for these —
+              what is gone is the gift bag, not the credit.
               Dropped rows stay counted — giving up on the follow-up did not undo the spend.
             </Typography>
           </Box>
