@@ -378,6 +378,119 @@ export function deriveUnfulfilledReport(influencers, today = new Date()) {
 }
 
 /**
+ * 로컬 자정 기준 'YYYY-MM-DD'. <input type="date">의 value 형식과 같다 —
+ * 날짜 컨트롤과 집계가 같은 문자열을 쓰게 해서 키가 갈라지지 않도록 한다.
+ *
+ * @param {Date|null} date
+ * @returns {string} 날짜가 없으면 빈 문자열
+ */
+export function toDateKey(date) {
+  if (!date) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * 'YYYY-MM-DD' → 로컬 자정 Date.
+ *
+ * new Date('2026-08-20')을 쓰지 않는 이유: 그건 UTC 자정으로 읽혀서 미국 동부에서는
+ * 하루 전(8/19 20:00)이 된다. 사용자가 고른 날과 세는 날이 하루 어긋나면
+ * 경계일의 방문이 조용히 빠진다.
+ *
+ * @param {string} value
+ * @returns {Date|null} 형식이 아니면 null
+ */
+export function parseDateKey(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * 기간별 방문 인원 — "언제부터 언제까지 몇 명 왔나".
+ *
+ * 세는 대상은 attend가 찍힌 사람이고, 날짜 축에 놓는 자리는 그 사람의 방문일
+ * (scheduledTime)이다. 둘 중 하나가 없으면 기간 안에 놓을 수 없는데, 그 두 경우를
+ * 0으로 흡수하지 않고 따로 센다:
+ * - attend는 찍혔는데 방문일이 빈 행 → `undatedCount`. 합계에서 조용히 빠지면
+ *   "그 기간에 덜 왔다"로 읽힌다. 빠졌다는 사실을 화면이 말할 수 있어야 한다.
+ * - 방문일은 이 기간인데 attend가 아직 안 찍힌 행 → `pendingCount`. 앞으로 올
+ *   사람일 수도, 왔는데 시트에 안 적힌 것일 수도 있다. 왔다고 세지는 않되
+ *   있다고는 말한다(과거 기간이면 이 수가 시트 미기입 신호가 된다).
+ *
+ * 경계는 자정 기준 **양끝 포함**이다 — 사람이 고른 "8/1 ~ 8/20"에 8/20이 빠지면
+ * 화면이 거짓말을 한다. from/to가 null이면 그쪽 끝은 열려 있다(= 전체 기간).
+ *
+ * @param {Influencer[]} influencers
+ * @param {{from: Date|null, to: Date|null}} [range] - 양끝 포함. 기본값은 전체 기간
+ * @returns {{
+ *   count: number,
+ *   byDate: Array<{key: string, date: Date, count: number}>,
+ *   items: Array<{id: string, fullName: string, tier: string, store: string, scheduledTime: Date}>,
+ *   undatedCount: number,
+ *   pendingCount: number,
+ *   busiest: {key: string, date: Date, count: number}|null,
+ *   bounds: {from: Date|null, to: Date|null},
+ * }}
+ */
+export function deriveVisitReport(influencers, range = {}) {
+  const list = influencers || [];
+  const attended = list.filter(i => i.attend);
+
+  const startOf = date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const fromDay = range.from ? startOf(range.from).getTime() : -Infinity;
+  const toDay = range.to ? startOf(range.to).getTime() : Infinity;
+  const inRange = date => {
+    if (!date) return false;
+    const day = startOf(date).getTime();
+    return day >= fromDay && day <= toDay;
+  };
+
+  /* 선택 범위와 무관한 **전체** 방문일의 양끝. 컨트롤이 입력의 min/max로 쓴다 —
+     데이터에 없는 날짜부터 고르게 두면 빈 결과가 나오고, 읽는 사람은 그걸
+     자기가 잘못 고른 탓인지 데이터가 없는 탓인지 구분할 수 없다. */
+  const datedDays = attended.filter(i => i.scheduledTime).map(i => startOf(i.scheduledTime).getTime());
+  const bounds = datedDays.length === 0
+    ? { from: null, to: null }
+    : { from: new Date(Math.min(...datedDays)), to: new Date(Math.max(...datedDays)) };
+
+  const items = attended
+    .filter(i => inRange(i.scheduledTime))
+    .map(inf => ({
+      id: inf.id,
+      fullName: inf.fullName,
+      tier: inf.tier,
+      store: inf.store,
+      scheduledTime: inf.scheduledTime,
+    }))
+    .sort((a, b) => a.scheduledTime - b.scheduledTime);
+
+  const byDateMap = new Map();
+  for (const item of items) {
+    const key = toDateKey(item.scheduledTime);
+    if (!byDateMap.has(key)) byDateMap.set(key, { key, date: startOf(item.scheduledTime), count: 0 });
+    byDateMap.get(key).count += 1;
+  }
+  const byDate = [...byDateMap.values()].sort((a, b) => a.date - b.date);
+
+  /* 최다 방문일은 하나만 고른다 — 동수면 앞선 날짜가 이긴다.
+     "제일 몰린 날이 언제였나"는 다음 캠페인 일정을 잡을 때 쓰는 값이다. */
+  const busiest = byDate.reduce((best, day) => (best && best.count >= day.count ? best : day), null);
+
+  return {
+    count: items.length,
+    byDate,
+    items,
+    undatedCount: attended.filter(i => !i.scheduledTime).length,
+    pendingCount: list.filter(i => !i.attend && inRange(i.scheduledTime)).length,
+    busiest,
+    bounds,
+  };
+}
+
+/**
  * 업로드 후 성과(조회수·좋아요 등)를 시트에 기록하는 시점 (일 단위).
  *
  * 측정 시점을 고정해야 인플루언서 간 성과 비교가 공정해진다 — "생각날 때" 적으면

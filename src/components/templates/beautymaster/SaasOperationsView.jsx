@@ -13,6 +13,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import InfluencerListRow from '../../data-display/InfluencerListRow';
+import SaasDateRangeSelect from './SaasDateRangeSelect';
 import SaasKpiItem from './SaasKpiItem';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
@@ -29,11 +30,15 @@ import {
   deriveKpiSummary,
   derivePerformanceStatus,
   deriveStores,
+  deriveVisitReport,
   isStaleVisit,
   isTomorrow,
   isUnfulfilled,
   toDisplayName,
 } from '../../../data/beautymaster/schema.js';
+
+/** 기간 라벨 — 레일 날짜 헤더와 같은 en-US 짧은 형식 */
+const rangeDayLabel = date => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 const PLATFORM_OPTIONS = ['Instagram', 'TikTok'];
 const TIER_OPTIONS = [
@@ -392,6 +397,24 @@ function SaasOperationsView({
   }, [influencers, selectedStore, activeFilters]);
 
   const kpi = useMemo(() => deriveKpiSummary(scoped), [scoped]);
+
+  /**
+   * 방문 인원을 볼 기간. 기본은 전체다 — 캠페인이 여러 달에 걸쳐 있어서 "이번 달"로
+   * 시작하면 0으로 보이고, 읽는 사람은 그걸 연결 실패로 읽는다.
+   * 모수는 KPI 스트립과 같은 scoped다(스토어·플랫폼·티어·카테고리까지). 한 화면에서
+   * 위 스트립과 이 줄의 모수가 다르면 어느 쪽을 믿을지 알 수 없다.
+   */
+  const [visitRange, setVisitRange] = useState({ from: null, to: null });
+  const visits = useMemo(() => deriveVisitReport(scoped, visitRange), [scoped, visitRange]);
+  const hasVisitGaps = visits.pendingCount > 0 || visits.undatedCount > 0;
+
+  /* 라벨이 어느 기간의 수인지 말한다 — 컨트롤을 보지 않고도 읽히게.
+     한쪽 끝만 고른 경우도 문장으로 만든다(빈 자리를 두면 "— –"가 된다). */
+  const visitRangeLabel = !visitRange.from && !visitRange.to
+    ? 'all time'
+    : visitRange.from && visitRange.to
+      ? `${rangeDayLabel(visitRange.from)} – ${rangeDayLabel(visitRange.to)}`
+      : visitRange.from ? `from ${rangeDayLabel(visitRange.from)}` : `through ${rangeDayLabel(visitRange.to)}`;
 
   const toggleSection = (key, holdsSelection = false) => {
     setCollapsedSections(prev => {
@@ -886,6 +909,7 @@ function SaasOperationsView({
             목록 컬럼 안에 있으므로 툴바·탭·섹션과 같은 인셋을 쓴다.
             덕분에 레일과의 세로 경계선이 화면 위끝까지 끊기지 않고 이어진다. */}
         <Box
+          data-kpi-strip
           sx={{
             flexShrink: 0,
             display: 'flex',
@@ -913,6 +937,49 @@ function SaasOperationsView({
               참이고, 남은 수를 미사용이라고 주장하지도 않는다. */}
           <SaasKpiItem label="Credit used" value={kpi.creditUsedCount} total={kpi.creditSharedCount} />
         </Box>
+
+          {/* 기간 방문 인원 — 위 스트립의 Visit은 캠페인 **누적**이라 "이번 주에 몇 명
+              왔나"에 답하지 못한다. 레일이 날짜별 명단을 보여주는 화면이니, 그 옆에서
+              기간의 수를 세는 자리도 여기다.
+              스트립을 고치지 않고 줄을 따로 두는 이유: 같은 이름의 수가 기간에 따라
+              달라지면 Analytics의 Visit rate와 갈라진다(모수가 화면마다 달라진다). */}
+          <Box
+            data-visits-band
+            sx={{
+              flexShrink: 0,
+              pt: 1.5,
+              /* KPI 스트립과 같은 광학 보정. 마지막 잉크가 22px 숫자면 그 글자 상자의
+                 baseline 아래 여유(약 9px) 때문에 아래가 더 벌어져 보인다.
+                 안내 줄이 있으면 마지막 잉크가 11px 텍스트라 보정이 필요 없다. */
+              pb: hasVisitGaps ? 1.5 : 1.25,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {/* 수는 **하나만** 둔다. 처음에는 옆에 "Days with visits"(방문이 있던 날짜 수)를
+                같이 뒀는데, 기간을 하나 골랐는데 수가 둘 나오니 어느 쪽이 답인지 헷갈렸다
+                (2026-08-20 사장님: "난 6월 22일부터 8월 7일까지 선택했는데 왜 두 개가 나오냐").
+                이 줄이 답해야 하는 질문은 "그 기간에 몇 명 왔나" 하나다.
+                컨트롤에 ml:auto 대신 space-between을 쓰는 이유: auto는 좁은 폭에서
+                줄바꿈된 뒤에도 살아 있어 컨트롤이 혼자 오른쪽으로 들여쓰인 것처럼 보인다. */}
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 1.5, rowGap: 2 }}>
+              {/* 라벨이 기간을 말한다 — 값만 두면 컨트롤을 봐야 무슨 기간인지 안다 */}
+              <SaasKpiItem label={`Visited · ${visitRangeLabel}`} value={visits.count} isFirst />
+              <SaasDateRangeSelect value={visitRange} onChange={setVisitRange} />
+            </Box>
+            {/* 셀 수 없는 것을 0으로 흡수하지 않는다 — 빠진 게 있으면 화면이 먼저 말한다.
+                방문일이 이 기간인데 attend가 안 찍힌 행은 아직 안 왔거나 시트 미기입이고
+                (지난 기간이면 이 수가 곧 미기입 신호다), attend는 찍혔는데 날짜가 없는
+                행은 레일에도 이 수에도 실리지 못한다. */}
+            {hasVisitGaps && (
+              <Typography data-visit-gaps sx={{ mt: 1, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
+                {/* "in this range"는 기간을 고른 경우에만 붙인다 — 전체 기간에서 그 말을 하면
+                    없는 범위를 가리킨다 */}
+                {visits.pendingCount > 0 && `${visits.pendingCount} have a visit date${visitRange.from || visitRange.to ? ' in this range' : ''} but no attend check yet. `}
+                {visits.undatedCount > 0 && `${visits.undatedCount} visited with no date on the sheet — not counted in any range.`}
+              </Typography>
+            )}
+          </Box>
           <Box
             sx={{
               flexShrink: 0,

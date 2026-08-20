@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
 import SaasOperationsView from './SaasOperationsView';
 import { SAAS_FONT } from './SaasShell';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
@@ -1185,15 +1185,13 @@ export const ContentIsCenteredInRemainingSpace = {
  */
 export const KpiDividerIsOpticallyBalanced = {
   play: async ({ canvasElement }) => {
-    // 필터 바(위아래 1px 보더 + 검색 input)를 찾고, 그 직전 형제가 KPI 스트립이다
+    /* 스트립을 직접 가리킨다 — 전에는 "필터 바의 직전 형제"로 찾았는데, 그 사이에
+       Visits 밴드가 들어오자 엉뚱한 요소의 padding을 재면서 실패했다.
+       측정 대상이 무엇인지는 마크업 순서가 아니라 훅이 말해야 한다. */
     const strip = await waitFor(() => {
-      const col = canvasElement.querySelector('[data-content-column]');
-      const bar = [...(col?.querySelectorAll('div') || [])].find(b => {
-        const st = getComputedStyle(b);
-        return st.borderTopWidth === '1px' && st.borderBottomWidth === '1px' && b.querySelector('input');
-      });
-      if (!bar?.previousElementSibling) throw new Error('KPI strip not mounted');
-      return bar.previousElementSibling;
+      const el = canvasElement.querySelector('[data-kpi-strip]');
+      if (!el) throw new Error('KPI strip not mounted');
+      return el;
     });
 
     const { paddingTop, paddingBottom } = getComputedStyle(strip);
@@ -1375,5 +1373,65 @@ export const CreditNotSentRisesToTheTop = {
 
     await expect(checkedSections).toBeGreaterThan(0);
     await expect(checkedLabels).toBeGreaterThan(0);
+  },
+};
+
+/**
+ * 기간을 골라 몇 명 왔는지 센다.
+ *
+ * 위 KPI 스트립의 Visit은 캠페인 **누적**이라 "이번 주에 몇 명 왔나"에 답하지 못한다.
+ * 이 줄은 같은 attend 값을 방문일로 좁혀서 센다 — 기본은 전체 기간.
+ * mock의 방문은 6/20, 6/28, 7/2, 7/5 ×2 — 전체 기간이면 5명이다.
+ */
+export const VisitsInRange = {
+  play: async ({ canvasElement }) => {
+    const band = canvasElement.querySelector('[data-visits-band]');
+    await expect(band.textContent).toContain('Visited · all time');
+    await expect(band.textContent).toMatch(/all time5/);
+
+    /* 수는 하나만 나온다 — 기간을 하나 골랐는데 수가 둘이면 어느 쪽이 답인지 헷갈린다.
+       전에 옆에 있던 "Days with visits"(방문이 있던 날짜 수)를 뺀 이유이고,
+       "정리하는 김에 다시 넣자"는 회귀를 이 줄이 막는다. */
+    await expect(band.textContent).not.toContain('Days with visits');
+
+    /* 셀 수 없는 것을 0으로 흡수하지 않는다 — mock에는 방문일이 잡혔는데 attend가
+       아직 안 찍힌 행이 4개 있다. 그 사실이 화면에 남아야 한다. */
+    await expect(canvasElement.querySelector('[data-visit-gaps]').textContent)
+      .toContain('4 have a visit date but no attend check yet');
+  },
+};
+
+/**
+ * 기간을 좁히면 수가 따라온다. 경계는 **양끝 포함**이다 —
+ * 7/1~7/31에 7/2와 7/5가 들어가고 6월 방문은 빠진다.
+ *
+ * 프리셋이 아니라 날짜 입력으로 검사한다 — 프리셋은 실제 오늘에서 계산돼서
+ * 스토리가 날짜에 따라 흔들린다(프리셋 계산은 컨트롤 스토리가 고정 기준일로 검사).
+ */
+export const VisitRangeNarrows = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await fireEvent.change(canvas.getByLabelText('Start date'), { target: { value: '2026-07-01' } });
+    await fireEvent.change(canvas.getByLabelText('End date'), { target: { value: '2026-07-31' } });
+
+    await waitFor(async () => {
+      const band = canvasElement.querySelector('[data-visits-band]');
+      await expect(band.textContent).toContain('Visited · Jul 1 – Jul 31');
+      await expect(band.textContent).toMatch(/Jul 313/);
+    });
+  },
+};
+
+/**
+ * 기간 방문 수는 KPI 스트립과 **같은 모수**(스토어·플랫폼·티어·카테고리)를 쓴다.
+ * 한 화면에서 두 줄의 모수가 다르면 어느 쪽을 믿을지 알 수 없다.
+ */
+export const VisitsFollowStoreFilter = {
+  args: { selectedStore: 'G10' },
+  play: async ({ canvasElement }) => {
+    const g10Visits = MOCK_INFLUENCERS.filter(i => i.store === 'G10' && i.attend).length;
+    const band = canvasElement.querySelector('[data-visits-band]');
+    await expect(band.textContent).toMatch(new RegExp(`all time${g10Visits}`));
   },
 };
