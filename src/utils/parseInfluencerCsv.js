@@ -320,6 +320,21 @@ const SOCIAL_URL_OVERRIDES = {
      그 문구가 @annaasimonee의 TikTok 표시명과 글자 그대로 같고, 그 계정이 공개한
      연락처(collabannasimone@gmail.com)가 시트의 이메일과 같아 두 갈래로 확인된다. */
   'anna harris': 'https://www.tiktok.com/@annaasimonee',
+  /* 셀이 표시명("Celebrity Bratz Tingz")이라 링크가 아예 없었다. 실제 계정은
+     TikTok @idoldabarbie(사용자 확인). */
+  'idol barbie': 'https://www.tiktok.com/@idoldabarbie',
+  /* 셀이 "Francheska"(이름 토막)라 링크가 막혔다. 실제 핸들은 n이 둘인
+     @franncheska(사용자 확인) — 토막으로 링크를 만들었다면 철자가 달라
+     남의 계정으로 갔을 자리다. */
+  'francheska monge': 'https://www.tiktok.com/@franncheska',
+  /* 셀이 "Jasmaine"(이름 토막)이라 링크가 막혔다 — tiktok.com/@Jasmaine 은
+     팔로워 3명의 다른 사람이다. 실제 계정은 이름과 무관한 @jazz.k9(사용자 확인)
+     이라 시트 값만으로는 유추할 수 없다. */
+  'jasmaine sumpter': 'https://www.tiktok.com/@jazz.k9',
+  /* 셀이 이모지 섞인 표시명("LONGLEGZK 💜🫶🏿💚")이라 링크가 아예 없었다.
+     실제 계정은 @longlegzk(사용자 확인). 시트의 이메일(Collab@longlegzk.org)과
+     한 번 더 맞물린다. */
+  'denise aiyedatiwa': 'https://www.tiktok.com/@longlegzk',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
