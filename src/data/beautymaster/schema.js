@@ -435,18 +435,43 @@ export function parseDateKey(value) {
  *   bounds: {from: Date|null, to: Date|null},
  * }}
  */
+/**
+ * 날짜가 기간 안에 드는지 — **자정 기준, 양끝 포함**이다. null 끝은 열린 끝.
+ *
+ * 기간을 쓰는 모든 자리(Operations Visits 밴드, Report 기간 한정)가 이 판정
+ * 하나를 쓴다 — 경계 규칙이 화면마다 다르면 같은 기간의 수가 서로 어긋난다.
+ *
+ * @param {Date|null} date
+ * @param {{from?: Date|null, to?: Date|null}} range
+ * @returns {boolean} 날짜가 없으면 false — 없는 날짜는 어떤 기간에도 들지 않는다
+ */
+export function isDayInRange(date, range = {}) {
+  if (!date) return false;
+  const startOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = startOf(date).getTime();
+  const fromDay = range.from ? startOf(range.from).getTime() : -Infinity;
+  const toDay = range.to ? startOf(range.to).getTime() : Infinity;
+  return day >= fromDay && day <= toDay;
+}
+
+/**
+ * 방문일(scheduledTime)이 기간에 드는 행만 남긴다 — Report의 기간 코호트.
+ * 방문일이 없는 행은 어떤 기간에도 들지 않으므로 빠진다(호출부가 그 수를 밝힌다).
+ *
+ * @param {Influencer[]} influencers
+ * @param {{from?: Date|null, to?: Date|null}} range
+ * @returns {Influencer[]}
+ */
+export function filterByVisitRange(influencers, range = {}) {
+  return (influencers || []).filter(i => isDayInRange(i.scheduledTime, range));
+}
+
 export function deriveVisitReport(influencers, range = {}) {
   const list = influencers || [];
   const attended = list.filter(i => i.attend);
 
   const startOf = date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const fromDay = range.from ? startOf(range.from).getTime() : -Infinity;
-  const toDay = range.to ? startOf(range.to).getTime() : Infinity;
-  const inRange = date => {
-    if (!date) return false;
-    const day = startOf(date).getTime();
-    return day >= fromDay && day <= toDay;
-  };
+  const inRange = date => isDayInRange(date, range);
 
   /* 선택 범위와 무관한 **전체** 방문일의 양끝. 컨트롤이 입력의 min/max로 쓴다 —
      데이터에 없는 날짜부터 고르게 두면 빈 결과가 나오고, 읽는 사람은 그걸

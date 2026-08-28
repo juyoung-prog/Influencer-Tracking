@@ -12,6 +12,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import SaasDateRangeSelect from './SaasDateRangeSelect';
 import SaasKpiItem from './SaasKpiItem';
 import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
@@ -25,6 +26,7 @@ import {
   derivePerformanceReport,
   deriveStores,
   deriveUnfulfilledReport,
+  filterByVisitRange,
   normalizePlatform,
   toDisplayName,
 } from '../../../data/beautymaster/schema.js';
@@ -668,21 +670,45 @@ function SaasAnalyticsView({
     [influencers, selectedStore],
   );
 
+  /* 기간 한정 — 리포트 전체가 이 코호트로 다시 계산된다(뷰 내부 일시 상태라
+     승격하지 않는다. 스토어와 달리 다른 뷰와 공유할 이유가 없다).
+     축은 방문일(scheduledTime)이다 — 시트에 계약일이 따로 없어 행을 기간에
+     묶을 수 있는 날짜가 사실상 이것뿐이다. 기본은 전체 기간 — 캠페인이 여러
+     달에 걸쳐 있어 "이번 달"로 시작하면 0으로 보이고 연결 실패로 읽힌다. */
+  const [visitRange, setVisitRange] = useState({ from: null, to: null });
+  const hasRange = Boolean(visitRange.from || visitRange.to);
+  const ranged = useMemo(
+    () => (hasRange ? filterByVisitRange(filtered, visitRange) : filtered),
+    [filtered, hasRange, visitRange],
+  );
+  /* 방문일이 없는 행은 어떤 기간에도 들 수 없다 — 조용히 빼면 수가 왜 주는지
+     알 수 없으므로, 기간이 걸려 있는 동안에는 그 수를 화면이 직접 밝힌다. */
+  const undatedCount = useMemo(
+    () => (hasRange ? filtered.filter(i => !i.scheduledTime).length : 0),
+    [filtered, hasRange],
+  );
+
   /** 초대 인원도 같은 스토어로 좁힌다 — 퍼널 Invited 단계가 목록과 어긋나지 않도록 */
   const filteredInviteCounts = useMemo(() => {
     if (selectedStore === ALL_STORES) return inviteCounts;
     return inviteCounts[selectedStore] ? { [selectedStore]: inviteCounts[selectedStore] } : {};
   }, [inviteCounts, selectedStore]);
 
-  const summary = useMemo(() => deriveAnalyticsSummary(filtered, filteredInviteCounts), [filtered, filteredInviteCounts]);
+  /* 기간이 걸리면 초대 인원은 뺀다 — Number 탭에는 날짜가 없어서 기간 코호트
+     위에 캠페인 전체 초대 수를 얹으면 "% of invited"가 거짓말이 된다. 초대가
+     빠지면 schema가 퍼널 첫 줄을 Tracked(기간 내 추적 행)로 대체한다. */
+  const summary = useMemo(
+    () => deriveAnalyticsSummary(ranged, hasRange ? {} : filteredInviteCounts),
+    [ranged, hasRange, filteredInviteCounts],
+  );
 
   /* 크레딧 사용 지표는 Operations KPI 스트립과 **같은 함수**에서 가져온다 —
      두 화면이 같은 이름의 수를 다르게 계산하면 어느 쪽을 믿을지 알 수 없다. */
-  const kpi = useMemo(() => deriveKpiSummary(filtered), [filtered]);
+  const kpi = useMemo(() => deriveKpiSummary(ranged), [ranged]);
 
   /* 미이행 손실 — 퍼널의 attended→uploaded 낙차를 금액으로 옮긴 것이다.
      비율은 "85%면 잘 되고 있네"로 읽히고 금액은 "이거 회수해야겠네"로 읽힌다. */
-  const unfulfilled = useMemo(() => deriveUnfulfilledReport(filtered), [filtered]);
+  const unfulfilled = useMemo(() => deriveUnfulfilledReport(ranged), [ranged]);
 
   /* 성과 리포트는 두 벌이다 — 전체(제목 커버리지·그룹 비교표)와 티어 코호트(순위표).
      그룹 표는 T1 vs T2 비교가 존재 이유라 티어 필터를 따라가면 비교 대상이 사라진다.
@@ -690,10 +716,10 @@ function SaasAnalyticsView({
      배지가 붙어 있으면 화면이 거짓말을 한다. */
   const [perfTier, setPerfTier] = useState('all');
   const [showAllPerf, setShowAllPerf] = useState(false);
-  const perfReport = useMemo(() => derivePerformanceReport(filtered), [filtered]);
+  const perfReport = useMemo(() => derivePerformanceReport(ranged), [ranged]);
   const perfCohort = useMemo(
-    () => (perfTier === 'all' ? null : derivePerformanceReport(filtered.filter(i => i.tier === perfTier))),
-    [filtered, perfTier],
+    () => (perfTier === 'all' ? null : derivePerformanceReport(ranged.filter(i => i.tier === perfTier))),
+    [ranged, perfTier],
   );
   const cohortRanked = (perfCohort ?? perfReport).ranked;
   const cohortUnranked = (perfCohort ?? perfReport).unrankedRecordedCount;
@@ -737,6 +763,9 @@ function SaasAnalyticsView({
       {/* 추적 수를 여기 두지 않는다 — Campaign Summary의 Agreement 카드가 "of N"으로,
           퍼널 제목이 "of N tracked"로 이미 말한다. 한 화면에 같은 숫자를 세 번 둘 이유가 없다. */}
       <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
+      {/* 기간은 우측 끝 — 스토어처럼 "무엇을"이 아니라 "언제를"을 거르는 뷰 스코프라
+          같은 줄에서 성격이 다름을 자리로 말한다. Operations Visits 밴드와 같은 컨트롤. */}
+      <SaasDateRangeSelect value={visitRange} onChange={setVisitRange} sx={{ ml: 'auto' }} />
     </Box>
   );
 
@@ -749,6 +778,21 @@ function SaasAnalyticsView({
             {selectedStore === ALL_STORES
               ? 'No data yet — campaign analytics appear once the sheet has rows'
               : `No data for ${selectedStore}`}
+          </Typography>
+        </Box>
+      </>
+    );
+  }
+
+  /* 기간 안에 방문이 하나도 없는 상태 — 데이터 없음과 구분해서 말한다.
+     기간 컨트롤은 툴바에 계속 있으므로 여기서 바로 넓혀 나갈 수 있다. */
+  if (ranged.length === 0) {
+    return (
+      <>
+        {toolbar}
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 8, textAlign: 'center' }}>
+          <Typography data-report-period-empty sx={{ fontSize: 13, color: 'text.secondary' }}>
+            No visits in this period — widen the range or pick All
           </Typography>
         </Box>
       </>
@@ -773,6 +817,13 @@ function SaasAnalyticsView({
     <>
       {toolbar}
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+      {/* 기간이 걸려 있는데 방문일 없는 행이 있으면 그 수를 밝힌다 — 조용히 빠지면
+          All과 기간의 차이가 어디서 오는지 알 수 없다. Operations의 gaps 줄과 같은 원칙. */}
+      {hasRange && undatedCount > 0 && (
+        <Typography data-report-range-note sx={{ mb: 2, fontSize: 12, color: 'text.secondary' }}>
+          {undatedCount} with no visit date {undatedCount === 1 ? 'is' : 'are'} outside any period — shown only in All
+        </Typography>
+      )}
       {/* Summary — KPI 카드 행 */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Campaign Summary" />
@@ -784,7 +835,7 @@ function SaasAnalyticsView({
               Agreement N of 전체 → 방문율 → 업로드율이 한 줄로 이어지게 한다.
               표기는 Operations의 KPI 스트립과 같다 — 같은 지표를 화면마다 다르게
               그리지 않는다. 전체 추적 수는 아래 퍼널 제목이 계속 말한다. */}
-          <SaasKpiItem label="Agreement" value={f.agreement} total={filtered.length} isFirst />
+          <SaasKpiItem label="Agreement" value={f.agreement} total={ranged.length} isFirst />
           <SaasKpiItem label="Visit rate (of agreement)" value={pct(visitRate)} />
           <SaasKpiItem label="Upload rate (of visited)" value={pct(uploadRate)} />
           {/* 발급한 크레딧이 실제로 쓰였는지 — 캠페인의 마지막 단계다.

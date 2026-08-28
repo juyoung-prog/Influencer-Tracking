@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
 import SaasAnalyticsView from './SaasAnalyticsView';
 import { SAAS_FONT } from './SaasShell';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
@@ -52,6 +52,103 @@ export default {
 
 /** 기본 — Campaign summary → Conversion funnel → Breakdown → Performance → Store */
 export const Default = {};
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_LABEL_RE = /^(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
+
+/**
+ * 열린 달력을 목표 연·월까지 넘긴다 — 첫 화면 달이 실제 오늘(또는 이미 고른 값)에
+ * 따라 달라서 클릭 수를 하드코딩할 수 없다. 헤더를 읽어 방향을 정한다.
+ */
+const gotoCalendarMonth = async (year, monthIdx) => {
+  for (let i = 0; i < 36; i++) {
+    const [monthName, y] = screen.getByText(MONTH_LABEL_RE).textContent.split(' ');
+    const current = Number(y) * 12 + MONTH_NAMES.indexOf(monthName);
+    const target = year * 12 + monthIdx;
+    if (current === target) return;
+    await userEvent.click(screen.getByRole('button', { name: current > target ? 'Previous month' : 'Next month' }));
+  }
+  throw new Error('calendar month not reached');
+};
+
+/**
+ * 기간을 걸면 리포트 전체가 기간 코호트(방문일 기준)로 다시 계산된다.
+ *
+ * mock 방문일은 6/20·6/28 + 7월 7건 — 7/1~7/14를 고르면 코호트가 7명이 된다.
+ * 초대 인원(Number 탭)에는 날짜가 없으므로 기간이 걸리는 동안 퍼널에서 빠지고
+ * 첫 줄이 Invited → Tracked로 바뀐다 — 기간 코호트 위에 캠페인 전체 초대 수를
+ * 얹으면 "% of invited"가 거짓말이 되기 때문이다.
+ * 방문이 없는 기간은 데이터 없음과 구분해 말하고, All 프리셋으로 바로 돌아온다.
+ */
+export const PeriodScopesReport = {
+  args: { inviteCounts: INVITE_COUNTS },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // 기간 전 — 초대 데이터가 있으니 퍼널 첫 줄은 Invited다
+    const labelOf = key => canvasElement
+      .querySelector(`[data-funnel-step="${key}"] [data-funnel-label]`);
+    await expect(labelOf('invited').textContent).toBe('Invited');
+
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    await gotoCalendarMonth(2026, 6);
+    await userEvent.click(screen.getByRole('button', { name: 'July 1, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'July 14, 2026' }));
+
+    await waitFor(async () => {
+      // 코호트 7명 — Agreement 카드의 모수가 따라온다
+      await expect(canvasElement.querySelector('[data-summary-kpis]').textContent).toContain('of 7');
+      // 초대가 빠져 첫 줄이 Tracked로, 값은 기간 내 추적 수로
+      await expect(labelOf('invited').textContent).toBe('Tracked');
+      await expect(canvasElement
+        .querySelector('[data-funnel-step="invited"] [data-funnel-value]').textContent).toBe('7');
+    });
+
+    // 방문이 없는 기간(7/20~7/25) — 데이터 없음과 구분되는 빈 상태
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    await gotoCalendarMonth(2026, 6);
+    await userEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'July 25, 2026' }));
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-report-period-empty]')).toBeTruthy();
+    });
+
+    // All 프리셋으로 복귀 — 리포트가 돌아오고 Invited도 되살아난다
+    await userEvent.click(canvas.getByRole('button', { name: 'All' }));
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-summary-kpis]')).toBeTruthy();
+      await expect(labelOf('invited').textContent).toBe('Invited');
+    });
+  },
+};
+
+/**
+ * 방문일 없는 행은 어떤 기간에도 들 수 없다 — 조용히 빼면 All과 기간의 차이가
+ * 어디서 오는지 알 수 없으므로, 기간이 걸려 있는 동안 그 수를 화면이 직접 밝힌다.
+ */
+export const UndatedRowsAreCalledOut = {
+  args: {
+    influencers: [
+      { ...MOCK_INFLUENCERS[0], scheduledTime: null, hasScheduledTimeOfDay: false },
+      ...MOCK_INFLUENCERS.slice(1),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvasElement.querySelector('[data-report-range-note]')).toBeNull();
+
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    await gotoCalendarMonth(2026, 6);
+    await userEvent.click(screen.getByRole('button', { name: 'July 1, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'July 31, 2026' }));
+
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-report-range-note]').textContent)
+        .toBe('1 with no visit date is outside any period — shown only in All');
+    });
+  },
+};
 
 /** 초대 인원 연결 — 퍼널에 Invited/Responded 단계가 반영된다 */
 export const WithInviteCounts = {
