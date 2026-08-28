@@ -335,6 +335,18 @@ const SOCIAL_URL_OVERRIDES = {
      실제 계정은 @longlegzk(사용자 확인). 시트의 이메일(Collab@longlegzk.org)과
      한 번 더 맞물린다. */
   'denise aiyedatiwa': 'https://www.tiktok.com/@longlegzk',
+  /* 셀이 "Nuni"(짧은 별명)라 핸들 문법은 통과해 tiktok.com/@Nuni 로 가버렸다 —
+     이름 토막도 아니라 그 규칙에도 걸리지 않는, 조용히 남의 계정으로 가는 링크였다.
+     실제 계정은 @youngsweetmya(사용자 확인). */
+  'amyah fountain': 'https://www.tiktok.com/@youngsweetmya',
+  /* 셀이 "Aikos Interlude"(띄어쓰기 있는 표시명)라 핸들 문법을 통과 못 해
+     링크가 아예 없었다. 실제 계정은 끝에 e가 둘인 @aikosinterludee(사용자 확인)로,
+     시트의 이메일(Collabs.AikosInterludee@gmail.com)과 철자가 맞물려 두 갈래로 확인된다. */
+  'jasmine wilson': 'https://www.tiktok.com/@aikosinterludee',
+  /* 셀이 자기소개("Ashley | Lifestyle + Travel")라 링크가 아예 없었다.
+     실제 계정은 @prettycashbeauty(사용자 확인)로, 시트의 이메일
+     (prettycashcollabs@gmail.com)과 prettycash가 겹쳐 두 갈래로 확인된다. */
+  'ashley clark': 'https://www.tiktok.com/@prettycashbeauty?lang=en',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
