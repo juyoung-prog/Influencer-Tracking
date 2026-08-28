@@ -79,6 +79,9 @@ function SaasDateRangeSelect({ value, onChange, today = new Date(), sx }) {
 
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, ...sx }}>
+      {/* 테마는 flat(shape.borderRadius 0)이라 그룹에 radius를 직접 줘야 한다 —
+          빼먹으면 이 그룹만 완전 각짐으로 렌더돼 옆 입력(6px)과 어긋난다(issue11).
+          모서리는 그룹과 양끝 버튼이 따로 갖고 있어 세 군데 다 맞춘다. */}
       <ToggleButtonGroup
         size="small"
         value={activePreset}
@@ -87,9 +90,15 @@ function SaasDateRangeSelect({ value, onChange, today = new Date(), sx }) {
           const preset = PRESETS.find(p => p.key === key);
           if (preset) onChange?.(preset.build(today));
         }}
+        sx={{
+          borderRadius: '6px',
+          '& .MuiToggleButtonGroup-firstButton': { borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px' },
+          '& .MuiToggleButtonGroup-lastButton': { borderTopRightRadius: '6px', borderBottomRightRadius: '6px' },
+        }}
       >
         {PRESETS.map(preset => (
-          <ToggleButton key={preset.key} value={preset.key} sx={{ px: 1.25, py: 0.25, fontSize: 11 }}>
+          /* 높이 36은 inputSx와 같은 값 — 한 줄에 놓이는 컨트롤은 같은 문법을 쓴다 */
+          <ToggleButton key={preset.key} value={preset.key} sx={{ height: 36, px: 1.25, py: 0, fontSize: 11 }}>
             {preset.label}
           </ToggleButton>
         ))}

@@ -115,3 +115,26 @@ export const KeepsRangeOrdered = {
     await expect(emitted.to.getDate()).toBe(20);
   },
 };
+
+/**
+ * 프리셋 그룹도 옆 날짜 입력과 같은 컨트롤 문법(radius 6px · 높이 36px)이다.
+ *
+ * 테마가 flat(shape.borderRadius 0)이라 오버라이드를 빼먹으면 이 그룹만
+ * 완전 각짐으로 렌더돼 한 줄의 컨트롤 중 혼자 튄다(issue11, 2026-08-28).
+ * 모서리는 그룹이 아니라 양끝 버튼이 실제로 그리므로 버튼의 계산값을 실측한다.
+ */
+export const MatchesControlSurface = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const first = canvas.getByRole('button', { name: 'All' });
+    const last = canvas.getByRole('button', { name: 'Last 30 days' });
+    const input = canvas.getByLabelText('Start date').closest('.MuiOutlinedInput-root');
+
+    await expect(getComputedStyle(first).borderTopLeftRadius).toBe('6px');
+    await expect(getComputedStyle(first).borderBottomLeftRadius).toBe('6px');
+    await expect(getComputedStyle(last).borderTopRightRadius).toBe('6px');
+    await expect(getComputedStyle(last).borderBottomRightRadius).toBe('6px');
+    // 한 줄에 놓이는 컨트롤은 높이도 같아야 한다 — 입력 칸(36px)과 실측 비교
+    await expect(first.getBoundingClientRect().height).toBe(input.getBoundingClientRect().height);
+  },
+};
