@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { expect, fireEvent, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
 import SaasDateRangeSelect from './SaasDateRangeSelect';
 import { SAAS_FONT } from './SaasShell';
 
@@ -15,7 +15,7 @@ export default {
   argTypes: {
     value: { control: 'object', description: '현재 기간 { from, to }. null은 열린 끝(전체)' },
     onChange: { action: 'rangeChanged', description: '변경 핸들러 ({ from, to }) => void' },
-    today: { control: 'date', description: '프리셋 기준일. 테스트 주입점' },
+    today: { control: 'date', description: '프리셋·달력 기준일. 테스트 주입점' },
     sx: { control: 'object', description: '바깥 Box에 적용할 MUI sx 오버라이드' },
   },
   args: {
@@ -32,10 +32,10 @@ export default {
   ],
 };
 
-/** 기본 — 전체 기간. 양끝이 열려 있으면 All 프리셋이 눌린 상태다 */
+/** 기본 — 전체 기간. 양끝이 열려 있으면 All 프리셋이 눌리고 트리거는 All time이다 */
 export const Default = {};
 
-/** 이번 달 — 프리셋이 계산한 값이 그대로 입력 두 칸에 보인다 */
+/** 이번 달 — 프리셋이 계산한 값이 트리거 문구에 그대로 보인다 */
 export const ThisMonth = {
   args: { value: { from: D(2026, 8, 1), to: D(2026, 8, 20) } },
 };
@@ -48,7 +48,7 @@ export const CustomRange = {
   args: { value: { from: D(2026, 6, 20), to: D(2026, 7, 14) } },
 };
 
-/** 한쪽 끝만 — 시작일만 고르면 그 뒤 전부가 대상이다 */
+/** 한쪽 끝만 — 시작일만 있으면 그 뒤 전부가 대상이라 From으로 읽는다 */
 export const OpenEnded = {
   args: { value: { from: D(2026, 7, 1), to: null } },
 };
@@ -81,45 +81,56 @@ export const PresetEmitsRange = {
 };
 
 /**
- * 날짜 문자열은 로컬 자정으로 읽는다.
+ * 기간을 한 번 열어 두 클릭으로 고른다.
  *
- * new Date('2026-08-20')은 UTC 자정이라 미국 동부에서는 8/19가 된다 —
- * 그러면 사용자가 고른 날과 세는 날이 하루 어긋나 경계일 방문이 조용히 빠진다.
+ * 입력 두 칸이던 시절에는 시작을 고르고 닫고 끝을 다시 열어야 했다
+ * (2026-08-28 사장님 지적). 이제 달력 하나에서 1일 → 10일을 연속으로 찍으면
+ * 그때 onChange가 한 번 불리고 팝오버가 닫힌다.
  */
-export const ParsesAsLocalMidnight = {
+export const PicksRangeInOneOpen = {
   play: async ({ args, canvasElement }) => {
-    const start = within(canvasElement).getByLabelText('Start date');
+    const canvas = within(canvasElement);
 
-    await fireEvent.change(start, { target: { value: '2026-08-20' } });
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    // 팝오버는 포털로 뜨므로 canvas 밖(screen)에서 찾는다
+    await userEvent.click(await screen.findByRole('button', { name: 'August 1, 2026' }));
+    // 첫 클릭은 시작점만 잡는다 — 아직 아무것도 내보내지 않는다
+    await expect(args.onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'August 10, 2026' }));
     const emitted = args.onChange.mock.calls.at(-1)[0];
-    await expect(emitted.from.getFullYear()).toBe(2026);
-    await expect(emitted.from.getMonth()).toBe(7);
-    await expect(emitted.from.getDate()).toBe(20);
-    await expect(emitted.from.getHours()).toBe(0);
+    await expect(emitted.from.getDate()).toBe(1);
+    await expect(emitted.to.getDate()).toBe(10);
+
+    // 범위가 확정됐으니 팝오버는 닫힌다
+    await waitFor(async () => {
+      await expect(screen.queryByRole('button', { name: 'August 10, 2026' })).toBeNull();
+    });
   },
 };
 
 /**
- * 시작이 종료보다 뒤로 가면 결과가 늘 0이 된다.
- * 입력을 막는 대신 방금 건드리지 않은 쪽을 끌고 온다 — 사람이 고친 값은 그대로 둔다.
+ * 끝을 시작보다 앞에 찍어도 막지 않는다 — 순서만 맞춰 내보낸다.
+ * 순서를 강제하면 "20일부터 거꾸로 골라야지"라는 손을 틀리게 만든다.
  */
 export const KeepsRangeOrdered = {
-  args: { value: { from: D(2026, 7, 1), to: D(2026, 7, 14) } },
   play: async ({ args, canvasElement }) => {
-    const start = within(canvasElement).getByLabelText('Start date');
+    const canvas = within(canvasElement);
 
-    await fireEvent.change(start, { target: { value: '2026-07-20' } });
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'August 20, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'August 14, 2026' }));
+
     const emitted = args.onChange.mock.calls.at(-1)[0];
-    // 사람이 고친 쪽(from)은 그대로, 뒤집힌 종료일이 따라온다
-    await expect(emitted.from.getDate()).toBe(20);
+    await expect(emitted.from.getDate()).toBe(14);
     await expect(emitted.to.getDate()).toBe(20);
   },
 };
 
 /**
- * 프리셋 그룹도 옆 날짜 입력과 같은 컨트롤 문법(radius 6px · 높이 36px)이다.
+ * 프리셋 그룹과 달력 트리거는 같은 컨트롤 문법(radius 6px · 높이 36px)이다.
  *
- * 테마가 flat(shape.borderRadius 0)이라 오버라이드를 빼먹으면 이 그룹만
+ * 테마가 flat(shape.borderRadius 0)이라 오버라이드를 빼먹으면 그 컨트롤만
  * 완전 각짐으로 렌더돼 한 줄의 컨트롤 중 혼자 튄다(issue11, 2026-08-28).
  * 모서리는 그룹이 아니라 양끝 버튼이 실제로 그리므로 버튼의 계산값을 실측한다.
  */
@@ -128,13 +139,14 @@ export const MatchesControlSurface = {
     const canvas = within(canvasElement);
     const first = canvas.getByRole('button', { name: 'All' });
     const last = canvas.getByRole('button', { name: 'Last 30 days' });
-    const input = canvas.getByLabelText('Start date').closest('.MuiOutlinedInput-root');
+    const trigger = canvas.getByRole('button', { name: /Select date range/ });
 
     await expect(getComputedStyle(first).borderTopLeftRadius).toBe('6px');
     await expect(getComputedStyle(first).borderBottomLeftRadius).toBe('6px');
     await expect(getComputedStyle(last).borderTopRightRadius).toBe('6px');
     await expect(getComputedStyle(last).borderBottomRightRadius).toBe('6px');
-    // 한 줄에 놓이는 컨트롤은 높이도 같아야 한다 — 입력 칸(36px)과 실측 비교
-    await expect(first.getBoundingClientRect().height).toBe(input.getBoundingClientRect().height);
+    await expect(getComputedStyle(trigger).borderTopLeftRadius).toBe('6px');
+    // 한 줄에 놓이는 컨트롤은 높이도 같아야 한다 — 트리거(36px)와 실측 비교
+    await expect(first.getBoundingClientRect().height).toBe(trigger.getBoundingClientRect().height);
   },
 };

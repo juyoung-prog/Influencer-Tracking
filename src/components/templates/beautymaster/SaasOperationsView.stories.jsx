@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
-import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
 import SaasOperationsView from './SaasOperationsView';
 import { SAAS_FONT } from './SaasShell';
 import { MOCK_INFLUENCERS } from '../../../pages/beautymaster/BeautymasterDashboard';
@@ -1405,15 +1405,25 @@ export const VisitsInRange = {
  * 기간을 좁히면 수가 따라온다. 경계는 **양끝 포함**이다 —
  * 7/1~7/31에 7/2와 7/5가 들어가고 6월 방문은 빠진다.
  *
- * 프리셋이 아니라 날짜 입력으로 검사한다 — 프리셋은 실제 오늘에서 계산돼서
+ * 프리셋이 아니라 달력으로 검사한다 — 프리셋은 실제 오늘에서 계산돼서
  * 스토리가 날짜에 따라 흔들린다(프리셋 계산은 컨트롤 스토리가 고정 기준일로 검사).
+ * 뷰는 달력에 기준일을 넘기지 않아 첫 화면 달이 실제 오늘의 달이다 —
+ * 실제 오늘에서 2026년 7월까지의 거리를 계산해 달을 넘긴다.
  */
 export const VisitRangeNarrows = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await fireEvent.change(canvas.getByLabelText('Start date'), { target: { value: '2026-07-01' } });
-    await fireEvent.change(canvas.getByLabelText('End date'), { target: { value: '2026-07-31' } });
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    // 팝오버는 포털로 뜨므로 canvas 밖(screen)에서 찾는다
+    const now = new Date();
+    const monthsPastJuly = (now.getFullYear() - 2026) * 12 + (now.getMonth() - 6);
+    const navLabel = monthsPastJuly > 0 ? 'Previous month' : 'Next month';
+    const nav = await screen.findByRole('button', { name: navLabel });
+    for (let i = 0; i < Math.abs(monthsPastJuly); i++) await userEvent.click(nav);
+
+    await userEvent.click(screen.getByRole('button', { name: 'July 1, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'July 31, 2026' }));
 
     await waitFor(async () => {
       const band = canvasElement.querySelector('[data-visits-band]');

@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
+import Popover from '@mui/material/Popover';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Typography from '@mui/material/Typography';
-import { parseDateKey, toDateKey } from '../../../data/beautymaster/schema.js';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import { toDateKey } from '../../../data/beautymaster/schema.js';
+import SaasRangeCalendar from './SaasRangeCalendar';
 
 /** 자정으로 내린 사본 — 시각이 섞이면 같은 날인데도 프리셋 비교가 어긋난다 */
 const startOfDay = date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -28,59 +31,52 @@ const PRESETS = [
 /** 두 범위가 같은 날짜를 가리키는지 — Date 객체 비교는 항상 false라 키로 본다 */
 const isSameRange = (a, b) => toDateKey(a?.from) === toDateKey(b?.from) && toDateKey(a?.to) === toDateKey(b?.to);
 
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    height: 36,
-    fontSize: 12,
-    borderRadius: '6px',
-    backgroundColor: 'background.paper',
-  },
-  /* SaasStoreSelect와 같은 컨트롤 문법 — 기본 테두리만 divider로 낮추고
-     포커스 규칙은 테마 것을 덮지 않는다(덮으면 포커스가 회색으로 남는다). */
-  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-  '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 1, borderColor: 'accent.main' },
-  '& .MuiOutlinedInput-root.Mui-focused': { boxShadow: theme => `0 0 0 3px ${theme.palette.accent.ring}` },
-  '& input': { py: 0, fontVariantNumeric: 'tabular-nums' },
-};
+const fmtDay = date => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const fmtDayYear = date => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+/**
+ * 트리거에 얹는 기간 문구 — 값만으로 무슨 기간인지 읽혀야 한다.
+ * 열린 끝(null)은 From/Until로 말하고, 양끝이 다 열려 있으면 All time이다.
+ */
+function formatRangeLabel({ from, to }) {
+  if (!from && !to) return 'All time';
+  if (from && !to) return `From ${fmtDayYear(from)}`;
+  if (!from && to) return `Until ${fmtDayYear(to)}`;
+  const sameYear = from.getFullYear() === to.getFullYear();
+  return `${sameYear ? fmtDay(from) : fmtDayYear(from)} – ${fmtDayYear(to)}`;
+}
 
 /**
  * SaasDateRangeSelect component
  *
- * flat-SaaS 시안의 기간(시작~종료) 선택 컨트롤. 프리셋 버튼 + 날짜 입력 두 칸이
- * 같은 값을 가리킨다 — 프리셋을 누르면 입력이 따라가고, 입력을 직접 고치면
- * 프리셋 선택이 풀린다(없는 프리셋을 눌린 채로 두면 화면이 거짓말을 한다).
+ * flat-SaaS 시안의 기간(시작~종료) 선택 컨트롤. 프리셋 버튼 + 달력 트리거가
+ * 같은 값을 가리킨다 — 프리셋을 누르면 트리거 문구가 따라가고, 달력에서 직접
+ * 고르면 프리셋 선택이 풀린다(없는 프리셋을 눌린 채로 두면 화면이 거짓말을 한다).
  *
- * 날짜 문자열 ↔ Date 변환은 schema의 toDateKey/parseDateKey 한 쌍만 쓴다.
- * new Date('2026-08-20')은 UTC 자정으로 읽혀 하루가 밀린다.
+ * 달력은 팝오버 하나로 뜨고 시작·끝을 연속 두 클릭으로 고른다 — 입력 두 칸이던
+ * 시절에는 시작을 고르고 닫고 끝을 다시 열어야 했다(2026-08-28 사장님 지적).
+ * 범위가 확정되는 두 번째 클릭에서만 onChange가 불리고 팝오버가 닫힌다.
  *
  * Props:
  * @param {object} value - 현재 기간 { from: Date|null, to: Date|null }. null은 열린 끝(전체) [Required]
  * @param {function} onChange - 변경 핸들러 ({ from, to }) => void [Optional]
- * @param {Date} today - 프리셋 기준일. 테스트 주입점 [Optional, 기본값: new Date()]
+ * @param {Date} today - 프리셋·달력 기준일. 테스트 주입점 [Optional, 기본값: new Date()]
  * @param {object} sx - 바깥 Box에 적용할 MUI sx 오버라이드 [Optional]
  *
  * Example usage:
  * <SaasDateRangeSelect value={range} onChange={setRange} />
  */
 function SaasDateRangeSelect({ value, onChange, today = new Date(), sx }) {
+  const [anchorEl, setAnchorEl] = useState(null);
   const range = value ?? { from: null, to: null };
   const activePreset = PRESETS.find(p => isSameRange(p.build(today), range))?.key ?? null;
-
-  /* 시작이 종료보다 뒤면 결과가 늘 0이 된다. 입력을 막는 대신 방금 건드리지 않은
-     쪽을 끌고 온다 — 사람이 고친 값은 그대로 두는 게 예측 가능하다. */
-  const emitEdge = (edge, date) => {
-    const next = { ...range, [edge]: date };
-    if (next.from && next.to && next.from > next.to) {
-      if (edge === 'from') next.to = date;
-      else next.from = date;
-    }
-    onChange?.(next);
-  };
+  const label = formatRangeLabel(range);
+  const open = Boolean(anchorEl);
 
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, ...sx }}>
       {/* 테마는 flat(shape.borderRadius 0)이라 그룹에 radius를 직접 줘야 한다 —
-          빼먹으면 이 그룹만 완전 각짐으로 렌더돼 옆 입력(6px)과 어긋난다(issue11).
+          빼먹으면 이 그룹만 완전 각짐으로 렌더돼 옆 컨트롤(6px)과 어긋난다(issue11).
           모서리는 그룹과 양끝 버튼이 따로 갖고 있어 세 군데 다 맞춘다. */}
       <ToggleButtonGroup
         size="small"
@@ -97,33 +93,65 @@ function SaasDateRangeSelect({ value, onChange, today = new Date(), sx }) {
         }}
       >
         {PRESETS.map(preset => (
-          /* 높이 36은 inputSx와 같은 값 — 한 줄에 놓이는 컨트롤은 같은 문법을 쓴다 */
+          /* 높이 36은 옆 트리거와 같은 값 — 한 줄에 놓이는 컨트롤은 같은 문법을 쓴다 */
           <ToggleButton key={preset.key} value={preset.key} sx={{ height: 36, px: 1.25, py: 0, fontSize: 11 }}>
             {preset.label}
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <TextField
-          type="date"
-          size="small"
-          value={toDateKey(range.from)}
-          onChange={e => emitEdge('from', parseDateKey(e.target.value))}
-          slotProps={{ htmlInput: { 'aria-label': 'Start date' } }}
-          sx={inputSx}
+      <ButtonBase
+        onClick={e => setAnchorEl(e.currentTarget)}
+        aria-haspopup="dialog"
+        aria-expanded={open || undefined}
+        aria-label={`Select date range (${label})`}
+        sx={{
+          height: 36,
+          px: 1.25,
+          gap: 0.75,
+          // 문구 길이(All time ↔ Jul 22 – Aug 20, 2026)에 따라 옆 컨트롤이 밀리지 않게
+          minWidth: 170,
+          justifyContent: 'flex-start',
+          borderRadius: '6px',
+          border: '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'background.paper',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          fontVariantNumeric: 'tabular-nums',
+          color: 'text.primary',
+          '&:hover': { backgroundColor: 'action.hover' },
+          /* SaasStoreSelect와 같은 포커스 문법 — 테두리는 1px 유지, 링 번짐으로만 알린다 */
+          '&.Mui-focusVisible': {
+            borderColor: 'accent.main',
+            boxShadow: theme => `0 0 0 3px ${theme.palette.accent.ring}`,
+          },
+        }}
+      >
+        <CalendarMonthOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+        {label}
+      </ButtonBase>
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          /* Select 드롭다운과 같은 표면 — 테마 Paper는 각지므로 여기도 6px로 맞춘다 */
+          paper: { elevation: 2, sx: { mt: 0.5, borderRadius: '6px', border: '1px solid', borderColor: 'divider' } },
+        }}
+      >
+        <SaasRangeCalendar
+          value={range}
+          today={today}
+          onChange={next => {
+            onChange?.(next);
+            setAnchorEl(null);
+          }}
         />
-        {/* 두 입력 사이를 잇는 기호. 텍스트가 아니라 관계라서 스크린리더에서 뺀다 */}
-        <Typography aria-hidden sx={{ fontSize: 12, color: 'text.disabled' }}>–</Typography>
-        <TextField
-          type="date"
-          size="small"
-          value={toDateKey(range.to)}
-          onChange={e => emitEdge('to', parseDateKey(e.target.value))}
-          slotProps={{ htmlInput: { 'aria-label': 'End date' } }}
-          sx={inputSx}
-        />
-      </Box>
+      </Popover>
     </Box>
   );
 }
