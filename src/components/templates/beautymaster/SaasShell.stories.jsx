@@ -138,7 +138,8 @@ export const HeaderStaysPut = {
 export const NavigateByClick = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByText('Analytics'));
+    // 라벨은 Report지만 올라가는 키는 analytics다(내부 식별자는 그대로)
+    await userEvent.click(canvas.getByText('Report'));
     await expect(args.onNavigate).toHaveBeenCalledWith('analytics');
   },
 };
@@ -153,7 +154,7 @@ export const NotSynced = {
   args: { lastSyncedAt: null },
 };
 
-/** Analytics 활성 */
+/** Report(analytics) 활성 */
 export const AnalyticsActive = {
   args: { activeNav: 'analytics' },
 };
@@ -203,7 +204,7 @@ export const NavIsReachableAtEveryWidth = {
     const labels = [...nav.querySelectorAll('button, a')]
       .map(e => e.textContent.trim())
       .filter(Boolean);
-    for (const want of ['Operations', 'Analytics', 'Workflow', 'Refresh', 'Open Google Sheet', 'Settings']) {
+    for (const want of ['Operations', 'Report', 'Workflow', 'Refresh', 'Open Google Sheet', 'Settings']) {
       await expect(labels).toContain(want);
     }
 

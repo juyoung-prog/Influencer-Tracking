@@ -15,7 +15,10 @@ export const SAAS_FONT = '"Inter Variable", Inter, "Pretendard Variable", Preten
 /** 기존 대시보드의 탭 구성(Operations / Analytics / Workflow)을 사이드바로 옮긴 것 */
 const NAV_ITEMS = [
   { key: 'operations', label: 'Operations', Icon: ListAltOutlinedIcon },
-  { key: 'analytics', label: 'Analytics', Icon: BarChartOutlinedIcon },
+  /* 라벨만 Report다 — key·컴포넌트명은 analytics로 남긴다(내부 식별자까지 갈면
+     schema의 deriveAnalyticsSummary부터 스토리 타이틀까지 연쇄 개명이라 보이는
+     이득 없이 diff만 커진다). 2026-08-28 사장님 지시로 화면 단어만 교체. */
+  { key: 'analytics', label: 'Report', Icon: BarChartOutlinedIcon },
   { key: 'workflow', label: 'Workflow', Icon: RouteOutlinedIcon },
 ];
 

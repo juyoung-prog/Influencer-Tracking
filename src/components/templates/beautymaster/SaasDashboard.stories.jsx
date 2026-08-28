@@ -47,7 +47,7 @@ export const Default = {
   },
 };
 
-/** Analytics — 전환 KPI + 퍼널 + By store/tier 테이블 */
+/** Report(analytics 뷰) — 전환 KPI + 퍼널 + By store/tier 테이블 */
 export const Analytics = {
   args: {
     ...Default.args,
