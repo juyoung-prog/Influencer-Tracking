@@ -3,6 +3,12 @@
  *
  * Fetches all configured sheet sources simultaneously, merges the results,
  * and re-fetches on a configurable interval (default 60 s).
+ *
+ * Stale-while-revalidate: the last successful sync is mirrored to localStorage,
+ * so a page refresh paints the previous data immediately instead of a skeleton
+ * while the five CSV fetches run. The cache is keyed by the source-URL set —
+ * changing the sheet config in settings invalidates it rather than showing
+ * another sheet's rows.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -21,6 +27,44 @@ async function fetchCsvText(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} — ${url}`);
   return res.text();
+}
+
+const CACHE_KEY = 'beautymaster:csvCache:v1';
+
+/* JSON 왕복에서 문자열이 되는 Date 필드 — 복원 시 여기 나열된 필드만 되살린다.
+   (alertFlags는 파싱 시점의 '오늘' 기준 파생값이라 캐시에서 잠깐 하루 전 기준일 수
+   있지만, 첫 동기화가 곧바로 덮어쓴다.) */
+const INFLUENCER_DATE_FIELDS = ['scheduledTime', 'uploadDate', 'recordDate', 'lastContactDate', 'requestedDate'];
+
+function readCache(sourcesKey) {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed.sourcesKey !== sourcesKey) return null;
+    const influencers = (parsed.influencers || []).map(inf => {
+      const revived = { ...inf };
+      INFLUENCER_DATE_FIELDS.forEach(field => {
+        revived[field] = inf[field] ? new Date(inf[field]) : null;
+      });
+      return revived;
+    });
+    return {
+      ...parsed,
+      influencers,
+      lastSyncedAt: parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(sourcesKey, data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ sourcesKey, ...data }));
+  } catch {
+    // localStorage full/unavailable — polling still works, only the fast-refresh path is lost
+  }
 }
 
 /**
@@ -47,12 +91,23 @@ async function fetchCsvText(url) {
  * }}
  */
 export function useCsvPolling({ sources = [], inviteCountsUrl = '', storeDocsUrl = '', messageTemplatesUrl = '', pollingIntervalMs = 30000 }) {
-  const [influencers, setInfluencers] = useState([]);
-  const [kpi, setKpi] = useState(createKpiSummary());
-  const [inviteCounts, setInviteCounts] = useState({});
-  const [storeDocs, setStoreDocs] = useState({});
-  const [messageTemplates, setMessageTemplates] = useState(DEFAULT_MESSAGE_TEMPLATES);
-  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  // Stable key — sync is recreated only when URLs actually change
+  const sourcesKey = sources
+    .map(s => `${s.processingCsvUrl}|${s.doneCsvUrl || ''}`)
+    .join(';;') + `|${inviteCountsUrl}|${storeDocsUrl}|${messageTemplatesUrl}`;
+
+  /* 마운트 시 한 번만 캐시를 읽어 초기 상태를 채운다(stale-while-revalidate).
+     아래 useEffect가 곧바로 sync()를 돌리므로 이 값은 첫 동기화 완료까지의 자리다. */
+  const [cached] = useState(() => readCache(sourcesKey));
+
+  const [influencers, setInfluencers] = useState(cached ? cached.influencers : []);
+  const [kpi, setKpi] = useState(() => (cached ? deriveKpiSummary(cached.influencers) : createKpiSummary()));
+  const [inviteCounts, setInviteCounts] = useState(cached?.inviteCounts || {});
+  const [storeDocs, setStoreDocs] = useState(cached?.storeDocs || {});
+  const [messageTemplates, setMessageTemplates] = useState(
+    cached?.messageTemplates?.length ? cached.messageTemplates : DEFAULT_MESSAGE_TEMPLATES
+  );
+  const [lastSyncedAt, setLastSyncedAt] = useState(cached?.lastSyncedAt || null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
   const intervalRef = useRef(null);
@@ -66,11 +121,8 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', storeDocsUrl
   useEffect(() => { storeDocsUrlRef.current = storeDocsUrl; });
   const messageTemplatesUrlRef = useRef(messageTemplatesUrl);
   useEffect(() => { messageTemplatesUrlRef.current = messageTemplatesUrl; });
-
-  // Stable key — sync is recreated only when URLs actually change
-  const sourcesKey = sources
-    .map(s => `${s.processingCsvUrl}|${s.doneCsvUrl || ''}`)
-    .join(';;') + `|${inviteCountsUrl}|${storeDocsUrl}|${messageTemplatesUrl}`;
+  const sourcesKeyRef = useRef(sourcesKey);
+  useEffect(() => { sourcesKeyRef.current = sourcesKey; });
 
   const sync = useCallback(async () => {
     const activeSources = sourcesRef.current.filter(s => s.processingCsvUrl);
@@ -134,6 +186,20 @@ export function useCsvPolling({ sources = [], inviteCountsUrl = '', storeDocsUrl
     intervalRef.current = setInterval(sync, pollingIntervalMs);
     return () => clearInterval(intervalRef.current);
   }, [sync, pollingIntervalMs]);
+
+  /* 동기화가 성공할 때마다(= lastSyncedAt 갱신) 커밋된 상태를 캐시에 미러링한다.
+     sync() 내부에서 쓰지 않는 이유: 클로저의 상태값이 stale이라, 부분 응답(null 결과로
+     유지된 이전 값)까지 정확히 담으려면 커밋 후의 상태를 읽는 이 자리가 맞다. */
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    writeCache(sourcesKeyRef.current, {
+      influencers,
+      inviteCounts,
+      storeDocs,
+      messageTemplates,
+      lastSyncedAt: lastSyncedAt.toISOString(),
+    });
+  }, [lastSyncedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { influencers, kpi, inviteCounts, storeDocs, messageTemplates, lastSyncedAt, isSyncing, error, refresh: sync };
 }
