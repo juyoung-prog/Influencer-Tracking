@@ -1,4 +1,4 @@
-# Vibe Design Starter Kit v1.0
+# Influencer Tracking
 
 바이브 코딩으로 **예측 가능하고 퀄리티 높은 UI**를 만들기 위한 스타터킷.
 디자인을 잘 모르는 개발자, 코딩이 처음인 디자이너 모두를 위해 설계되었습니다.
