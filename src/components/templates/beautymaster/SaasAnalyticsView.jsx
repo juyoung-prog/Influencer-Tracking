@@ -18,7 +18,9 @@ import Typography from '@mui/material/Typography';
 import SaasStoreSelect from './SaasStoreSelect';
 import {
   ALL_STORES,
+  CATEGORIES,
   DROP_REASON_LABEL,
+  PLATFORMS,
   TIER_GIFT_VALUE_USD,
   TIERS,
   deriveAnalyticsSummary,
@@ -27,6 +29,7 @@ import {
   deriveStores,
   deriveUnfulfilledReport,
   filterByVisitRange,
+  filterInviteCounts,
   normalizePlatform,
   toDisplayName,
 } from '../../../data/beautymaster/schema.js';
@@ -106,6 +109,67 @@ function buildFunnelRows(funnel, funnelMeasured = {}) {
         : (prev.value > 0 ? step.value / prev.value : 0),
     };
   });
+}
+
+/* 퍼널 코호트 필터 옵션 — [value, label]. 값은 시트 파싱 결과의 필드 값과 같다.
+   플랫폼만 includes 매칭이라 값이 라벨을 겸한다(아래 matchesPlatform 참조). */
+const FUNNEL_PLATFORM_OPTIONS = [['all', 'All'], [PLATFORMS.INSTAGRAM, 'Instagram'], [PLATFORMS.TIKTOK, 'TikTok']];
+const FUNNEL_TIER_OPTIONS = [['all', 'All'], [TIERS.TIER1, 'Tier 1'], [TIERS.TIER2, 'Tier 2']];
+const FUNNEL_CATEGORY_OPTIONS = [['all', 'All'], [CATEGORIES.GENERAL, 'General'], [CATEGORIES.KBEAUTY, 'K-Beauty'], [CATEGORIES.SPECIFIC, 'Specific']];
+
+/**
+ * 플랫폼 코호트 매칭 — 정확 일치가 아니라 포함 여부.
+ * 시트에 "Instagram, Tiktok" 같은 복수 플랫폼 행이 실제로 있다(실데이터 12행).
+ * 정확 일치로 거르면 이 사람들이 어느 플랫폼을 골라도 안 잡힌다 — 양쪽 다 포함이 맞다.
+ * 표기 편차(Tiktok/TikTok)도 소문자 비교로 흡수한다.
+ */
+const matchesPlatform = (influencer, platform) =>
+  (influencer.platform || '').toLowerCase().includes(platform.toLowerCase());
+
+/**
+ * FilterChips — 퍼널 코호트 필터 칩 한 그룹.
+ * Performance 섹션의 티어 칩과 같은 시각 문법(액센트 outlined/filled)을 쓴다 —
+ * 같은 화면에서 "코호트를 고른다"는 같은 행동이 다르게 생기면 안 된다.
+ *
+ * Props:
+ * @param {Array} options - [value, label] 쌍 목록 [Required]
+ * @param {string} value - 현재 선택값 [Required]
+ * @param {function} onChange - 선택 핸들러 (value) => void [Required]
+ * @param {string} dataKey - data-funnel-{dataKey} 속성 이름 (테스트 셀렉터) [Required]
+ *
+ * Example usage:
+ * <FilterChips options={FUNNEL_TIER_OPTIONS} value={tier} onChange={setTier} dataKey="tier" />
+ */
+function FilterChips({ options, value, onChange, dataKey }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 0.75 }}>
+      {options.map(([val, label]) => {
+        const isActive = value === val;
+        return (
+          <Chip
+            key={val}
+            label={label}
+            size="small"
+            {...{ [`data-funnel-${dataKey}`]: val }}
+            onClick={() => onChange(val)}
+            variant={isActive ? 'filled' : 'outlined'}
+            sx={{
+              height: 24, fontSize: 11, fontWeight: 500, borderRadius: '6px',
+              ...(isActive
+                ? {
+                  color: 'accent.main',
+                  border: '1px solid',
+                  borderColor: 'accent.main',
+                  backgroundColor: theme => alpha(theme.palette.accent.main, 0.08),
+                  '&:hover': { backgroundColor: theme => alpha(theme.palette.accent.main, 0.12) },
+                }
+                : { color: 'text.secondary' }),
+            }}
+          />
+        );
+      })}
+    </Box>
+  );
 }
 
 /**
@@ -702,6 +766,38 @@ function SaasAnalyticsView({
     [ranged, hasRange, filteredInviteCounts],
   );
 
+  /* 퍼널 코호트 필터 — 퍼널 카드에만 적용된다(Performance 티어 칩과 같은 문법).
+     Summary 카드·Breakdown은 페이지 전체 기준을 유지한다 — 섹션마다 모수가 다르면
+     제목이 그걸 말하지만, 화면 전체가 조용히 바뀌는 건 다른 얘기다. */
+  const [funnelPlatform, setFunnelPlatform] = useState('all');
+  const [funnelTier, setFunnelTier] = useState('all');
+  const [funnelCategory, setFunnelCategory] = useState('all');
+  const hasFunnelCohort = funnelPlatform !== 'all' || funnelTier !== 'all' || funnelCategory !== 'all';
+
+  const funnelCohort = useMemo(
+    () => ranged.filter(i =>
+      (funnelPlatform === 'all' || matchesPlatform(i, funnelPlatform))
+      && (funnelTier === 'all' || i.tier === funnelTier)
+      && (funnelCategory === 'all' || i.category === funnelCategory)),
+    [ranged, funnelPlatform, funnelTier, funnelCategory],
+  );
+
+  /* 초대 인원의 코호트 규칙 — Number 탭의 축이 tier × category뿐이다.
+     - 티어/카테고리 필터: 같은 축으로 좁혀 Invited부터 정직하게 표시
+     - 플랫폼 필터(또는 기간): 축이 없어 좁힐 수 없다 → 초대를 빼고 첫 줄이
+       Tracked로 바뀐다(기간 필터가 이미 쓰는 규칙 재사용) */
+  const funnelInviteCounts = useMemo(() => {
+    if (hasRange || funnelPlatform !== 'all') return {};
+    return filterInviteCounts(filteredInviteCounts, funnelTier, funnelCategory);
+  }, [hasRange, funnelPlatform, funnelTier, funnelCategory, filteredInviteCounts]);
+
+  /* 필터가 다 All이면 페이지 summary를 그대로 쓴다 — 같은 입력을 두 번 집계하지
+     않고, 기본 상태의 퍼널이 기존과 완전히 동일함을 코드로 보장한다. */
+  const funnelSummary = useMemo(
+    () => (hasFunnelCohort ? deriveAnalyticsSummary(funnelCohort, funnelInviteCounts) : null),
+    [hasFunnelCohort, funnelCohort, funnelInviteCounts],
+  );
+
   /* 크레딧 사용 지표는 Operations KPI 스트립과 **같은 함수**에서 가져온다 —
      두 화면이 같은 이름의 수를 다르게 계산하면 어느 쪽을 믿을지 알 수 없다. */
   const kpi = useMemo(() => deriveKpiSummary(ranged), [ranged]);
@@ -802,7 +898,11 @@ function SaasAnalyticsView({
   const f = summary.funnel || {};
   const visitRate = f.agreement > 0 ? f.attended / f.agreement : 0;
   const uploadRate = f.attended > 0 ? f.uploaded / f.attended : 0;
-  const funnelRows = buildFunnelRows(f, summary.funnelMeasured || {});
+  /* 퍼널만 코호트 summary를 본다 — 위의 visitRate/uploadRate(Summary 카드)는
+     계속 페이지 전체 기준이다. */
+  const funnelSource = funnelSummary ?? summary;
+  const funnelRows = buildFunnelRows(funnelSource.funnel || {}, funnelSource.funnelMeasured || {});
+  const funnelStartsFromTracked = funnelRows[0]?.label === 'Tracked';
 
   /* 초대 데이터가 지금 보고 있는 스토어 전부를 덮지 못하면 "% of invited"의 분모가
      실제보다 좁거나 넓다. 시트의 Number 탭에는 G10만 있다 — 조용히 비율을 내면
@@ -865,6 +965,15 @@ function SaasAnalyticsView({
             </ToggleButtonGroup>
           }
         />
+        {/* 코호트 필터 — 그룹 사이는 얇은 세로선으로만 가른다. 라벨("Platform:")을
+            달면 한 줄이 두 줄로 접히는 폭이 앞당겨진다 — 칩 내용만으로 축이 읽힌다. */}
+        <Box data-funnel-filters sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 1.25, rowGap: 1, mb: 2 }}>
+          <FilterChips options={FUNNEL_PLATFORM_OPTIONS} value={funnelPlatform} onChange={setFunnelPlatform} dataKey="platform" />
+          <Box sx={{ width: '1px', height: 16, backgroundColor: 'divider' }} />
+          <FilterChips options={FUNNEL_TIER_OPTIONS} value={funnelTier} onChange={setFunnelTier} dataKey="tier" />
+          <Box sx={{ width: '1px', height: 16, backgroundColor: 'divider' }} />
+          <FilterChips options={FUNNEL_CATEGORY_OPTIONS} value={funnelCategory} onChange={setFunnelCategory} dataKey="category" />
+        </Box>
         {funnelView === 'bar' ? (
           /* 막대는 폭을 늘리지 않는다 — 늘리면 작은 값이 실선이 되어 오히려 안 보인다.
              남는 폭에는 막대가 답하지 못하는 것(어디서 새는지)을 넣는다. */
@@ -875,7 +984,9 @@ function SaasAnalyticsView({
         ) : (
           <FunnelTable rows={funnelRows} />
         )}
-        {inviteGap && (
+        {/* "% of invited" 얘기는 첫 줄이 실제로 Invited일 때만 — Tracked로 바뀐
+            화면(기간·플랫폼 필터)에서 이 캡션이 남아 있으면 없는 분모를 설명하게 된다. */}
+        {inviteGap && !funnelStartsFromTracked && (
           <Typography sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
             Invite data covers {inviteGap.inviteStores.join(', ')} only —
             {' '}“% of invited” excludes {inviteGap.uncoveredStores.length} tracked{' '}
@@ -885,6 +996,17 @@ function SaasAnalyticsView({
         {!hasInviteData && (
           <Typography sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
             No invite data for this store — the funnel starts from tracked sheet rows, not people invited.
+          </Typography>
+        )}
+        {/* 플랫폼 필터의 두 가지 정직성: ① 초대는 플랫폼별 기록이 없어 Tracked로
+            출발한다는 것(초대 데이터가 있고 기간이 없을 때만 — 그 외엔 이미 다른
+            이유로 Tracked다) ② 복수 플랫폼 크리에이터는 양쪽 다 잡힌다는 것 */}
+        {funnelPlatform !== 'all' && (
+          <Typography data-funnel-platform-note sx={{ mt: 1.5, fontSize: 11, color: 'text.secondary', lineHeight: 1.5 }}>
+            {hasInviteData && !hasRange
+              ? 'The Number tab does not record invites per platform, so this cohort starts from tracked rows. '
+              : ''}
+            Creators active on both platforms are counted in either platform selection.
           </Typography>
         )}
       </Box>

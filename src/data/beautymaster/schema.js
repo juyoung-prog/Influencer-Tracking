@@ -951,6 +951,36 @@ export function sumInviteCountsByCategory(inviteCounts) {
 }
 
 /**
+ * 초대 인원(Number 탭)을 티어/카테고리 코호트로 좁힌다 — 구조는 그대로 유지.
+ * Number 탭의 축이 store × tier × category뿐이라 이 두 축만 받는다.
+ * 플랫폼은 축이 없어 여기서 거를 수 없다 — 그 경우 호출부가 초대를 통째로 빼고
+ * 퍼널 첫 줄을 Tracked로 돌리는 기존 규칙(기간 필터와 동일)을 쓴다.
+ *
+ * @param {Object<string, Object<string, Object<string, number>>>} inviteCounts - { [store]: { [tier]: { [category]: count } } }
+ * @param {string} tier - TIERS 값 또는 'all'
+ * @param {string} category - CATEGORIES 값 또는 'all'
+ * @returns {Object<string, Object<string, Object<string, number>>>} 같은 구조로 좁혀진 사본
+ */
+export function filterInviteCounts(inviteCounts, tier = 'all', category = 'all') {
+  if (tier === 'all' && category === 'all') return inviteCounts || {};
+  const result = {};
+  for (const [store, tiers] of Object.entries(inviteCounts || {})) {
+    const outTiers = {};
+    for (const [t, categories] of Object.entries(tiers)) {
+      if (tier !== 'all' && t !== tier) continue;
+      const outCategories = {};
+      for (const [cat, count] of Object.entries(categories)) {
+        if (category !== 'all' && cat !== category) continue;
+        outCategories[cat] = count;
+      }
+      if (Object.keys(outCategories).length > 0) outTiers[t] = outCategories;
+    }
+    if (Object.keys(outTiers).length > 0) result[store] = outTiers;
+  }
+  return result;
+}
+
+/**
  * Aggregate an Influencer array into a full analytics summary for the report view.
  *
  * @param {Influencer[]} influencers

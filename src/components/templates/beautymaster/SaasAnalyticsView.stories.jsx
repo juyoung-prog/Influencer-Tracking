@@ -156,6 +156,64 @@ export const WithInviteCounts = {
 };
 
 /**
+ * 퍼널 코호트 필터 — 플랫폼/티어/카테고리 칩은 퍼널 카드에만 적용된다.
+ *
+ * 정직성 규칙이 축마다 다르다: Number 탭이 tier × category 축만 갖고 있어서
+ * 티어·카테고리 필터는 Invited까지 같이 좁혀지고, 플랫폼 필터는 초대를 뺀 채
+ * 첫 줄이 Tracked로 바뀐다(기간 필터가 이미 쓰는 규칙). Summary 카드는
+ * 필터와 무관하게 페이지 전체 기준을 유지한다.
+ */
+export const FunnelCohortFilters = {
+  args: { inviteCounts: INVITE_COUNTS },
+  play: async ({ canvasElement }) => {
+    const stepOf = (key, part) => canvasElement
+      .querySelector(`[data-funnel-step="${key}"] [data-funnel-${part}]`);
+    const chip = selector => canvasElement.querySelector(selector);
+
+    // 필터 전 — 초대 데이터가 있으니 첫 줄은 Invited, 값은 전 티어 합
+    const invitedTotal = Object.values(INVITE_COUNTS)
+      .flatMap(tiers => Object.values(tiers))
+      .flatMap(cats => Object.values(cats))
+      .reduce((s, n) => s + n, 0);
+    await expect(stepOf('invited', 'label').textContent).toBe('Invited');
+    await expect(stepOf('invited', 'value').textContent).toBe(String(invitedTotal));
+
+    // Tier 1 — Invited가 tier1 초대 합으로, Responded가 tier1 추적 수로 좁혀진다
+    const tier1Invited = Object.values(INVITE_COUNTS)
+      .flatMap(tiers => Object.values(tiers.tier1 || {}))
+      .reduce((s, n) => s + n, 0);
+    const tier1Tracked = MOCK_INFLUENCERS.filter(i => i.tier === 'tier1').length;
+    await userEvent.click(chip('[data-funnel-tier="tier1"]'));
+    await waitFor(async () => {
+      await expect(stepOf('invited', 'label').textContent).toBe('Invited');
+      await expect(stepOf('invited', 'value').textContent).toBe(String(tier1Invited));
+      await expect(stepOf('responded', 'value').textContent).toBe(String(tier1Tracked));
+    });
+
+    // Summary 카드는 필터를 따라가지 않는다 — 모수가 페이지 전체 그대로
+    await expect(canvasElement.querySelector('[data-summary-kpis]').textContent)
+      .toContain(`of ${MOCK_INFLUENCERS.length}`);
+
+    // + TikTok — 초대는 플랫폼별 기록이 없으므로 첫 줄이 Tracked(코호트 수)로
+    const tier1Tiktok = MOCK_INFLUENCERS
+      .filter(i => i.tier === 'tier1' && i.platform.toLowerCase().includes('tiktok')).length;
+    await userEvent.click(chip('[data-funnel-platform="TikTok"]'));
+    await waitFor(async () => {
+      await expect(stepOf('invited', 'label').textContent).toBe('Tracked');
+      await expect(stepOf('invited', 'value').textContent).toBe(String(tier1Tiktok));
+      await expect(canvasElement.querySelector('[data-funnel-platform-note]')).toBeTruthy();
+    });
+
+    // 플랫폼을 All로 되돌리면 Invited가 되살아난다 — 티어 코호트는 유지
+    await userEvent.click(chip('[data-funnel-platform="all"]'));
+    await waitFor(async () => {
+      await expect(stepOf('invited', 'label').textContent).toBe('Invited');
+      await expect(stepOf('invited', 'value').textContent).toBe(String(tier1Invited));
+    });
+  },
+};
+
+/**
  * 스토어 한정 — influencers와 inviteCounts를 **함께** 좁힌다.
  * 한쪽만 좁히면 퍼널의 Invited 단계가 목록과 어긋난다.
  */
