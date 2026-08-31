@@ -347,6 +347,8 @@ const SOCIAL_URL_OVERRIDES = {
      실제 계정은 @prettycashbeauty(사용자 확인)로, 시트의 이메일
      (prettycashcollabs@gmail.com)과 prettycash가 겹쳐 두 갈래로 확인된다. */
   'ashley clark': 'https://www.tiktok.com/@prettycashbeauty?lang=en',
+  /* 실제 계정은 @thegoddessbrand.co(사용자 확인). */
+  'myah turner': 'https://www.tiktok.com/@thegoddessbrand.co',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
