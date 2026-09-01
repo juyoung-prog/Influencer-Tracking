@@ -427,15 +427,16 @@ function renderReport_(ss, model) {
 
   // ── KPI 4칸 (라벨 위, 큰 숫자 아래) ──
   var t = model.tiers.totals;
-  var kpiLabels = ['Visited (of goal)', 'No show', 'Total spent', 'Strong performers'];
+  var kpiLabels = ['Visited (of goal)', 'Uploaded', 'No show', 'Total spent', 'Strong performers'];
   var kpiValues = [
     t.visited + ' / ' + t.goal,
+    t.uploaded + ' / ' + t.visited,
     t.noShow,
     fmtUsd_(model.spend.total),
     model.performers.length,
   ];
-  sh.getRange(5, 2, 1, 4).setValues([kpiLabels]).setFontSize(9).setFontColor(STYLE.gray);
-  sh.getRange(6, 2, 1, 4).setValues([kpiValues]).setFontSize(15).setFontWeight('bold');
+  sh.getRange(5, 2, 1, 5).setValues([kpiLabels]).setFontSize(9).setFontColor(STYLE.gray);
+  sh.getRange(6, 2, 1, 5).setValues([kpiValues]).setFontSize(15).setFontWeight('bold');
 
   // ── 티어 표 ──
   var tierHeaderRow = 8;
@@ -512,7 +513,7 @@ function renderReport_(ss, model) {
 
   // ── 컬럼 폭 ──
   sh.setColumnWidth(1, 20);
-  sh.setColumnWidth(2, 40);   // #/Tier
+  sh.setColumnWidth(2, 95);   // KPI 첫 칸("70 / 100")과 # 컬럼 겸용 — 40으로 두면 KPI가 잘린다
   sh.setColumnWidth(3, 160);  // Influencer / Goal
   for (var c = 4; c <= 8; c++) sh.setColumnWidth(c, 105);
   sh.setColumnWidth(7, 230);  // Email
