@@ -532,15 +532,19 @@ function renderReport_(ss, model) {
     sh.getRange(perfHeaderRow + 1, 15, perfRows, 1).setFontWeight('bold');     // Engagements 강조
   }
 
-  // ── 비고 (작게 2줄만) ──
-  var noteRow = perfHeaderRow + perfRows + 3;
-  sh.getRange(noteRow, 2).setValue(
-    'Credit $ = face value on each row\'s credit type; "used" counts sheet-confirmed use only. '
-    + 'Gift bags: one per visit, T1 $8.58 / T2 $2.65 — 5 Tier 2 visits received the Tier 1 bag by store mistake (counted as given).')
-    .setFontSize(8).setFontColor(STYLE.gray);
-  sh.getRange(noteRow + 1, 2).setValue(
-    'Goals, dates and gift costs are fixed program values (not sheet columns). Rows join this report via Store = G10 and Purpose = grand opening.')
-    .setFontSize(8).setFontColor(STYLE.gray);
+  // ── 산정 규칙은 화면 문단이 아니라 셀 메모로 — 회장님 보고서에 설명 텍스트를
+  //    쌓지 않는다(issue22, 대시보드 issue13과 같은 지적·같은 해법). 헤더 셀에
+  //    마우스를 올리면 보인다.
+  sh.getRange(2, 2).setNote(
+    'Rows join this report via Store = G10 and Purpose = "grand opening" in the sheet. Refresh from the Report menu rebuilds this tab from the GA tab.');
+  var headerNote = function (col, text) { sh.getRange(tierHeaderRow, col).setNote(text); };
+  headerNote(3, 'Fixed program target (T1 30 / T2 70) — a program value, not a sheet column.');
+  headerNote(4, 'From the Number tab (DMs sent).');
+  headerNote(8, 'Visit date passed with no attend check. Future visits stay in Scheduled.');
+  headerNote(11, "Sum of each row's credit type face value ($100 / $20).");
+  headerNote(12, 'Counts sheet-confirmed use only — a blank cell is not counted as unused.');
+  headerNote(15, 'One bag per visit, T1 $8.58 / T2 $2.65 (fixed program values). '
+    + '5 Tier 2 visits received the Tier 1 bag by store mistake — counted as the bag actually given.');
 
   // ── 컬럼 폭 ──
   sh.setColumnWidth(1, 20);
