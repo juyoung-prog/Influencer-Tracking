@@ -432,11 +432,18 @@ function renderReport_(ss, model) {
     t.visited + ' / ' + t.goal,
     t.uploaded + ' / ' + t.visited,
     t.noShow,
-    fmtUsd_(model.spend.total),
+    model.spend.total,
     model.performers.length,
   ];
   sh.getRange(5, 2, 1, 5).setValues([kpiLabels]).setFontSize(9).setFontColor(STYLE.gray);
   sh.getRange(6, 2, 1, 5).setValues([kpiValues]).setFontSize(15).setFontWeight('bold');
+  /* KPI 셀 서식을 명시한다 — 문자열 "$1,639.68"을 쓰면 구글이 통화로 파싱하면서
+     이웃 셀까지 서식이 물들어 No show가 "$28.00"으로 나왔다(issue19). 값은 숫자로
+     쓰고 서식은 칸마다 직접 지정한다. */
+  sh.getRange(6, 2, 1, 2).setNumberFormat('@');         // "70 / 100" — 텍스트
+  sh.getRange(6, 4).setNumberFormat('0');               // No show
+  sh.getRange(6, 5).setNumberFormat('$#,##0.00');       // Total spent
+  sh.getRange(6, 6).setNumberFormat('0');               // Strong performers
 
   // ── 티어 표 ──
   var tierHeaderRow = 8;
