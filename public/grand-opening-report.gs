@@ -436,7 +436,7 @@ function renderReport_(ss, model) {
     + ' · ' + model.period.days + ' days'
     + (model.isOngoing ? ' · in progress' : ' · completed')
     + '   (refreshed ' + fmtDate(model.refreshedAt, 'MMM d, yyyy HH:mm') + ')';
-  sh.getRange('B3').setValue(periodText).setFontColor(STYLE.gray).setFontSize(10);
+  sh.getRange('B3').setValue(periodText).setFontColor(STYLE.gray).setFontSize(12);
 
   // ── KPI 4칸 (라벨 위, 큰 숫자 아래) ──
   var t = model.tiers.totals;
@@ -454,7 +454,8 @@ function renderReport_(ss, model) {
   sh.getRange(5, 2, 1, 5).setValues([kpiLabels]).setFontSize(10).setFontWeight('bold')
     .setBackground(STYLE.header).setHorizontalAlignment('center');
   sh.getRange(6, 2, 1, 5).setValues([kpiValues]).setFontSize(12).setHorizontalAlignment('center');
-  sh.getRange(5, 2, 2, 5).setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(5, 2, 2, 5).setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID)
+    .setVerticalAlignment('middle');
   sh.setRowHeight(5, 30);
   sh.setRowHeight(6, 34);
   /* KPI 셀 서식을 명시한다 — 문자열 "$1,639.68"을 쓰면 구글이 통화로 파싱하면서
@@ -554,7 +555,7 @@ function renderReport_(ss, model) {
 
   // ── 컬럼 폭 ──
   sh.setColumnWidth(1, 20);
-  sh.setColumnWidth(2, 95);   // KPI 첫 칸("70 / 100")과 # 컬럼 겸용 — 40으로 두면 KPI가 잘린다
+  sh.setColumnWidth(2, 112);  // KPI 첫 칸 라벨("Visited (of goal)")과 # 컬럼 겸용 — 좁으면 잘린다
   sh.setColumnWidth(3, 150);  // Influencer / Goal
   for (var c = 4; c <= 18; c++) sh.setColumnWidth(c, 105);
   sh.setColumnWidth(6, 165);  // Profile
