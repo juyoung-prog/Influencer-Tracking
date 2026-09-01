@@ -1419,6 +1419,8 @@ export function deriveProgramReport(influencers, inviteCounts = {}, today = new 
         engagements: r.engagements, er: r.er,
         opinion: r.opinion, suggestedOpinion: r.suggestedOpinion,
         email: inf?.email || '',
+        uploadDate: inf?.uploadDate ?? null,
+        recordDate: inf?.recordDate ?? null,
         socialAccountUrl: inf?.socialAccountUrl || '',
         socialHandle: inf?.socialHandle || '',
         collaboLink: inf?.collaboLink || '',

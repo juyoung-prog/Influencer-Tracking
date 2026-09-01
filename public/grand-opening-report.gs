@@ -237,6 +237,8 @@ function parseInfluencerGrid_(grid) {
       socialAccount: String(get(row, 'social account') || '').trim(),
       collaboLink: String(get(row, 'collabo link') || get(row, 'link') || '').trim(),
       visitDate: parseVisitDate_(get(row, 'time')),
+      uploadDate: parseVisitDate_(get(row, 'upload date')),
+      recordDate: parseVisitDate_(get(row, 'record date')),
       attend: isChecked_(get(row, 'attend')),
       collaboShared: isChecked_(get(row, 'collabo shared')),
       creditShared: isChecked_(get(row, 'credit shared')),
@@ -307,6 +309,8 @@ function buildPerformers_(cohort) {
       handle: '',
       email: r.email,
       postUrl: /^https?:\/\//.test(r.collaboLink) ? r.collaboLink : '',
+      uploadDate: r.uploadDate,
+      recordDate: r.recordDate,
       views: r.views,
       likes: r.likes, shares: r.shares, saves: r.saves,
       comments: r.comments, reposts: r.reposts,
@@ -500,7 +504,7 @@ function renderReport_(ss, model) {
   /* 지표 6종 전부 — "ER만 넣지 말고 좋아요·공유·저장·코멘트·리포스트 다"(2026-09-01
      사장님). 대시보드 명단·Performance 순위표와 같은 컬럼 순서. 빈 지표는 빈 칸(0 아님). */
   var perfHeaders = ['#', 'Influencer', 'Tier', 'Platform', 'Profile', 'Email', 'Content',
-    'Views', 'Likes', 'Shares', 'Saves', 'Comments', 'Reposts', 'Engagements', 'Engagement rate'];
+    'Upload date', 'Recorded', 'Views', 'Likes', 'Shares', 'Saves', 'Comments', 'Reposts', 'Engagements', 'Engagement rate'];
   sh.getRange(perfHeaderRow, 2, 1, perfHeaders.length).setValues([perfHeaders])
     .setBackground(STYLE.header).setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
 
@@ -508,6 +512,7 @@ function renderReport_(ss, model) {
     var row = perfHeaderRow + 1 + i;
     sh.getRange(row, 2, 1, perfHeaders.length).setValues([[
       i + 1, p.name, p.tier, p.platform, '', p.email, '',
+      p.uploadDate, p.recordDate,
       p.views, p.likes, p.shares, p.saves, p.comments, p.reposts, p.engagements, p.er,
     ]]);
     if (p.profileUrl) {
@@ -527,9 +532,10 @@ function renderReport_(ss, model) {
     perfRange.setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID);
     perfRange.setHorizontalAlignment('center').setVerticalAlignment('middle');
     sh.setRowHeights(perfHeaderRow, perfRows + 1, 32);
-    sh.getRange(perfHeaderRow + 1, 9, perfRows, 7).setNumberFormat('#,##0');   // Views~Engagements
-    sh.getRange(perfHeaderRow + 1, 16, perfRows, 1).setNumberFormat('0.0%');   // ER
-    sh.getRange(perfHeaderRow + 1, 15, perfRows, 1).setFontWeight('bold');     // Engagements 강조
+    sh.getRange(perfHeaderRow + 1, 9, perfRows, 2).setNumberFormat('mmm d');   // Upload date·Recorded
+    sh.getRange(perfHeaderRow + 1, 11, perfRows, 7).setNumberFormat('#,##0');  // Views~Engagements
+    sh.getRange(perfHeaderRow + 1, 18, perfRows, 1).setNumberFormat('0.0%');   // ER
+    sh.getRange(perfHeaderRow + 1, 17, perfRows, 1).setFontWeight('bold');     // Engagements 강조
   }
 
   // ── 산정 규칙은 화면 문단이 아니라 셀 메모로 — 회장님 보고서에 설명 텍스트를
@@ -550,11 +556,12 @@ function renderReport_(ss, model) {
   sh.setColumnWidth(1, 20);
   sh.setColumnWidth(2, 95);   // KPI 첫 칸("70 / 100")과 # 컬럼 겸용 — 40으로 두면 KPI가 잘린다
   sh.setColumnWidth(3, 150);  // Influencer / Goal
-  for (var c = 4; c <= 16; c++) sh.setColumnWidth(c, 105);
+  for (var c = 4; c <= 18; c++) sh.setColumnWidth(c, 105);
   sh.setColumnWidth(6, 165);  // Profile
   sh.setColumnWidth(7, 215);  // Email — 좁으면 주소가 잘린다
-  sh.setColumnWidth(11, 125); // Credit sent $ / Shares
-  sh.setColumnWidth(13, 125); // Credit used $ / Comments
-  sh.setColumnWidth(15, 125); // Gift cost $ / Engagements
-  sh.setColumnWidth(16, 125); // Engagement rate
+  sh.setColumnWidth(11, 125); // Credit sent $ / Views
+  sh.setColumnWidth(13, 125); // Credit used $ / Shares
+  sh.setColumnWidth(15, 125); // Gift cost $ / Comments
+  sh.setColumnWidth(17, 125); // Engagements
+  sh.setColumnWidth(18, 125); // Engagement rate
 }

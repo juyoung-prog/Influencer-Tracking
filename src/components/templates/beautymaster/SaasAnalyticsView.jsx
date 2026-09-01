@@ -689,6 +689,10 @@ function StrongPerformerTable({ rows, onRowClick }) {
             <TableCell>Profile</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Content</TableCell>
+            {/* 업로드일·성과 기록일(2026-09-01 사장님) — 기록일은 "이 조회수가 언제
+                기준 수치인지"를 말한다. 지표 앞, 링크 뒤. */}
+            <TableCell align="right">Upload date</TableCell>
+            <TableCell align="right">Recorded</TableCell>
             {/* 지표 6종 전부 — "ER만 넣지 말고 다"(2026-09-01 사장님).
                 Performance 순위표와 같은 컬럼 순서·같은 빈 값 규칙("—"). */}
             <TableCell align="right">Views</TableCell>
@@ -739,6 +743,11 @@ function StrongPerformerTable({ rows, onRowClick }) {
                   </Link>
                 ) : <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>}
               </TableCell>
+              {[row.uploadDate, row.recordDate].map((d, di) => (
+                <TableCell key={`date-${di}`} align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                </TableCell>
+              ))}
               {['views', 'likes', 'shares', 'saves', 'comments', 'reposts'].map(key => (
                 <TableCell key={key} align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                   {row[key] != null ? formatCompact(row[key]) : '—'}
