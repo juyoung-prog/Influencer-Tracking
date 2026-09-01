@@ -376,10 +376,17 @@ function isChecked_(v) {
   return v === true || String(v).trim().toUpperCase() === 'TRUE';
 }
 
+/** 지표 숫자 파싱 — 대시보드 parseNum과 동일. 시트에 "20.6k"처럼 k/m 축약 표기가
+    실재한다(Ashleigh Summers 조회수, issue21). 숫자로 못 읽는 값("-" 등)은 null. */
 function toNum_(v) {
   if (v === '' || v === null || v === undefined) return null;
-  var n = Number(String(v).replace(/,/g, ''));
-  return isNaN(n) ? null : n;
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  var raw = String(v).replace(/[,\s]/g, '');
+  if (!raw) return null;
+  var m = raw.match(/^(\d+(?:\.\d+)?)([kKmM])?$/);
+  if (!m) return null;
+  var multiplier = !m[2] ? 1 : m[2].toLowerCase() === 'k' ? 1000 : 1000000;
+  return Math.round(parseFloat(m[1]) * multiplier);
 }
 
 function dayStart_(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
