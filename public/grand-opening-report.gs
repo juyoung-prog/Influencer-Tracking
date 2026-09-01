@@ -89,6 +89,10 @@ function onOpen() {
     .createMenu('Report')
     .addItem('Refresh G10 Grand Opening', 'refreshGrandOpeningReport')
     .addToUi();
+  /* 시트를 열 때마다 자동 갱신(2026-09-01 사장님 A안) — 볼 때는 항상 최신이다.
+     열어둔 채 데이터를 고친 경우에만 메뉴의 Refresh를 누른다.
+     갱신이 어떤 이유로 실패해도 메뉴는 살아 있어야 하므로 조용히 삼킨다. */
+  try { refreshGrandOpeningReport(); } catch (e) {}
 }
 
 function refreshGrandOpeningReport() {
@@ -100,8 +104,12 @@ function refreshGrandOpeningReport() {
   var numberSheet = sheetByGid_(ss, CONFIG.gids.numberTab);
   var numberValues = numberSheet ? numberSheet.getDataRange().getValues() : [];
 
+  var activeBefore = ss.getActiveSheet();
   var model = buildReportModel(influencerValues, numberValues, new Date());
   renderReport_(ss, model);
+  /* 탭 위치 조정이 setActiveSheet를 쓰므로, 열 때 자동 갱신이 사용자가 보던 탭을
+     보고서 탭으로 바꿔버린다 — 갱신 전 탭으로 되돌린다. */
+  if (activeBefore) ss.setActiveSheet(activeBefore);
   SpreadsheetApp.getActiveSpreadsheet().toast('Report refreshed — ' + model.performers.length + ' strong performers, spend ' + fmtUsd_(model.spend.total), 'G10 Grand Opening', 6);
 }
 
