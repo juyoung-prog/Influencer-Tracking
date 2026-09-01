@@ -689,7 +689,14 @@ function StrongPerformerTable({ rows, onRowClick }) {
             <TableCell>Profile</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Content</TableCell>
+            {/* 지표 6종 전부 — "ER만 넣지 말고 다"(2026-09-01 사장님).
+                Performance 순위표와 같은 컬럼 순서·같은 빈 값 규칙("—"). */}
             <TableCell align="right">Views</TableCell>
+            <TableCell align="right">Likes</TableCell>
+            <TableCell align="right">Shares</TableCell>
+            <TableCell align="right">Saves</TableCell>
+            <TableCell align="right">Comments</TableCell>
+            <TableCell align="right">Reposts</TableCell>
             <TableCell align="right">Engagements</TableCell>
             <TableCell align="right">Engagement rate</TableCell>
           </TableRow>
@@ -732,9 +739,11 @@ function StrongPerformerTable({ rows, onRowClick }) {
                   </Link>
                 ) : <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>}
               </TableCell>
-              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                {row.views != null ? formatCompact(row.views) : '—'}
-              </TableCell>
+              {['views', 'likes', 'shares', 'saves', 'comments', 'reposts'].map(key => (
+                <TableCell key={key} align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                  {row[key] != null ? formatCompact(row[key]) : '—'}
+                </TableCell>
+              ))}
               <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCompact(row.engagements)}
               </TableCell>

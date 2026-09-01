@@ -1414,7 +1414,9 @@ export function deriveProgramReport(influencers, inviteCounts = {}, today = new 
       const inf = rows.find(i => i.id === r.id);
       return {
         id: r.id, fullName: r.fullName, tier: r.tier, platform: r.platform,
-        views: r.views, engagements: r.engagements, er: r.er,
+        views: r.views, likes: r.likes, shares: r.shares, saves: r.saves,
+        comments: r.comments, reposts: r.reposts,
+        engagements: r.engagements, er: r.er,
         opinion: r.opinion, suggestedOpinion: r.suggestedOpinion,
         email: inf?.email || '',
         socialAccountUrl: inf?.socialAccountUrl || '',
