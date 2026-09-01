@@ -435,8 +435,15 @@ function renderReport_(ss, model) {
     model.spend.total,
     model.performers.length,
   ];
-  sh.getRange(5, 2, 1, 5).setValues([kpiLabels]).setFontSize(9).setFontColor(STYLE.gray);
-  sh.getRange(6, 2, 1, 5).setValues([kpiValues]).setFontSize(15).setFontWeight('bold');
+  /* 디자인은 사장님이 잡은 모양(issue20, 2026-09-01)을 그대로 스크립트가 재현한다 —
+     Refresh가 손 수정을 지우므로, 유지할 디자인은 코드에 있어야 한다:
+     KPI는 테두리 표(라벨 = 헤더 배경 + 굵게), 모든 표 가운데 정렬 + 넉넉한 행 높이. */
+  sh.getRange(5, 2, 1, 5).setValues([kpiLabels]).setFontSize(10).setFontWeight('bold')
+    .setBackground(STYLE.header).setHorizontalAlignment('center');
+  sh.getRange(6, 2, 1, 5).setValues([kpiValues]).setFontSize(12).setHorizontalAlignment('center');
+  sh.getRange(5, 2, 2, 5).setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID);
+  sh.setRowHeight(5, 30);
+  sh.setRowHeight(6, 34);
   /* KPI 셀 서식을 명시한다 — 문자열 "$1,639.68"을 쓰면 구글이 통화로 파싱하면서
      이웃 셀까지 서식이 물들어 No show가 "$28.00"으로 나왔다(issue19). 값은 숫자로
      쓰고 서식은 칸마다 직접 지정한다. */
@@ -465,6 +472,8 @@ function renderReport_(ss, model) {
     .setBackground(STYLE.header).setFontWeight('bold').setFontSize(10);
   sh.getRange(tierHeaderRow + 3, 2, 1, tierHeaders.length).setFontWeight('bold');
   tierRange.setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID);
+  tierRange.setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.setRowHeights(tierHeaderRow, tierData.length, 32);
   sh.getRange(tierHeaderRow + 1, 6, 3, 1).setNumberFormat('0%');              // Vs goal
   sh.getRange(tierHeaderRow + 1, 11, 3, 1).setNumberFormat('$#,##0.00');      // Credit sent $
   sh.getRange(tierHeaderRow + 1, 13, 3, 1).setNumberFormat('$#,##0.00');      // Credit used $
@@ -481,7 +490,7 @@ function renderReport_(ss, model) {
   var perfHeaderRow = perfTitleRow + 1;
   var perfHeaders = ['#', 'Influencer', 'Tier', 'Platform', 'Profile', 'Email', 'Content', 'Views', 'Engagements', 'Engagement rate'];
   sh.getRange(perfHeaderRow, 2, 1, perfHeaders.length).setValues([perfHeaders])
-    .setBackground(STYLE.header).setFontWeight('bold').setFontSize(10);
+    .setBackground(STYLE.header).setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
 
   model.performers.forEach(function (p, i) {
     var row = perfHeaderRow + 1 + i;
@@ -503,6 +512,8 @@ function renderReport_(ss, model) {
   if (perfRows > 0) {
     var perfRange = sh.getRange(perfHeaderRow, 2, perfRows + 1, perfHeaders.length);
     perfRange.setBorder(true, true, true, true, true, true, STYLE.border, SpreadsheetApp.BorderStyle.SOLID);
+    perfRange.setHorizontalAlignment('center').setVerticalAlignment('middle');
+    sh.setRowHeights(perfHeaderRow, perfRows + 1, 32);
     sh.getRange(perfHeaderRow + 1, 9, perfRows, 2).setNumberFormat('#,##0');   // Views·Engagements
     sh.getRange(perfHeaderRow + 1, 11, perfRows, 1).setNumberFormat('0.0%');   // ER
     sh.getRange(perfHeaderRow + 1, 10, perfRows, 1).setFontWeight('bold');     // Engagements 강조
@@ -521,9 +532,10 @@ function renderReport_(ss, model) {
   // ── 컬럼 폭 ──
   sh.setColumnWidth(1, 20);
   sh.setColumnWidth(2, 95);   // KPI 첫 칸("70 / 100")과 # 컬럼 겸용 — 40으로 두면 KPI가 잘린다
-  sh.setColumnWidth(3, 160);  // Influencer / Goal
-  for (var c = 4; c <= 8; c++) sh.setColumnWidth(c, 105);
-  sh.setColumnWidth(7, 230);  // Email
-  sh.setColumnWidth(6, 170);  // Profile
-  for (var c2 = 9; c2 <= 15; c2++) sh.setColumnWidth(c2, 100);
+  sh.setColumnWidth(3, 150);  // Influencer / Goal
+  for (var c = 4; c <= 15; c++) sh.setColumnWidth(c, 115);
+  sh.setColumnWidth(6, 165);  // Profile
+  sh.setColumnWidth(7, 215);  // Email — 좁으면 주소가 잘린다
+  sh.setColumnWidth(11, 130); // Credit sent $ / Engagements
+  sh.setColumnWidth(13, 130); // Credit used $
 }
