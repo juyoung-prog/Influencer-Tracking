@@ -77,6 +77,9 @@ var CONFIG = {
   /* 탭은 이름이 아니라 gid로 찾는다 — 탭 이름이 바뀌어도 안 깨진다 */
   gids: { influencerTabs: [0, 1776175069], numberTab: 778920622 },
   reportSheetName: 'G10_Grand Opening Influencer',
+  /* 보고서 탭을 이 이름의 탭 바로 오른쪽에 둔다(사장님 지정, 대소문자 무시).
+     못 찾으면 맨 앞에 둔다. */
+  anchorTabName: 'wrong sent',
 };
 
 /* ─── 메뉴 & 실행 ────────────────────────────────────────────────────────────── */
@@ -385,6 +388,18 @@ function fmtUsd_(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,
 
 /* ─── 렌더링 (Apps Script 전용) ─────────────────────────────────────────────── */
 
+/** 보고서 탭을 anchorTabName 탭 바로 오른쪽으로 옮긴다 — 이미 있던 탭도 매 실행마다
+    제자리로 온다. 앵커 인덱스는 보고서 탭 자신을 뺀 목록에서 세야 이동 후 위치가 맞다. */
+function positionReportSheet_(ss, sh) {
+  var others = ss.getSheets().filter(function (x) { return x.getSheetId() !== sh.getSheetId(); });
+  var anchorIdx = -1;
+  for (var i = 0; i < others.length; i++) {
+    if (others[i].getName().trim().toLowerCase().indexOf(CONFIG.anchorTabName) !== -1) { anchorIdx = i; break; }
+  }
+  ss.setActiveSheet(sh);
+  ss.moveActiveSheet(anchorIdx === -1 ? 1 : anchorIdx + 2);
+}
+
 var STYLE = {
   header: '#F4F4F5',      // 표 헤더 배경 (대시보드 surface.sunken 톤)
   border: '#D4D4D8',
@@ -394,7 +409,8 @@ var STYLE = {
 
 function renderReport_(ss, model) {
   var sh = ss.getSheetByName(CONFIG.reportSheetName);
-  if (!sh) sh = ss.insertSheet(CONFIG.reportSheetName, 0);
+  if (!sh) sh = ss.insertSheet(CONFIG.reportSheetName);
+  positionReportSheet_(ss, sh);
   sh.clear();
   sh.setHiddenGridlines(true);
 
