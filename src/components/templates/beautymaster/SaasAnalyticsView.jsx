@@ -4,6 +4,7 @@ import { alpha } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -601,6 +602,7 @@ function ProgramTierTable({ report }) {
     { label: 'Invited', align: 'right', note: 'From the Number tab (DMs sent).' },
     { label: 'Visited', align: 'right', note: 'Rows with the attend check.' },
     { label: 'Vs goal', align: 'right', note: 'Visited ÷ goal.' },
+    { label: 'Uploaded', align: 'right', note: 'Visits with content (video) uploaded.' },
     { label: 'No show', align: 'right', note: 'Visit date passed with no attend check — future visits stay in Scheduled.' },
     ...(hasScheduled ? [{ label: 'Scheduled', align: 'right', note: 'Not visited yet, visit date still ahead.' }] : []),
     { label: 'Credit sent', align: 'right', note: "Count · sum of each row's credit type face value from the sheet." },
@@ -646,6 +648,7 @@ function ProgramTierTable({ report }) {
               {/* Visited가 이 표의 주인공(목표 대비 실제)이라 유일하게 굵다 */}
               <TableCell align="right" sx={{ fontWeight: 600 }}>{row.attended}</TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary' }}>{pct(row.goalRate)}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.uploaded}</TableCell>
               <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.noShow}</TableCell>
               {hasScheduled && <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.scheduled}</TableCell>}
               <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{countAndUsd(row.creditSentCount, row.creditSentUsd)}</TableCell>
@@ -1093,9 +1096,22 @@ function SaasAnalyticsView({
           "코호트를 고른다"는 같은 행동이 다르게 생기면 안 된다). */}
       <SectionTitle
         title={programReport.title}
-        action={programReports.length > 1 && (
-          <Box sx={{ display: 'flex', gap: 0.75 }}>
-            {programReports.map(r => {
+        action={(
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {/* 시트 제출용 스크립트 다운로드 — 같은 결산을 구글시트 탭으로 만들어주는
+                Apps Script(public/grand-opening-report.gs). 저강도 text action(Reset 문법). */}
+            <Link
+              href="/grand-opening-report.gs"
+              download="grand-opening-report.gs"
+              data-program-script
+              title="Google Apps Script that builds this same report as a tab inside the Google Sheet. Install once: Extensions → Apps Script → paste this file → save, then run the Report → Refresh menu in the sheet."
+              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 11, fontWeight: 500, color: 'text.secondary', textDecoration: 'none', whiteSpace: 'nowrap', '&:hover': { color: 'text.primary', textDecoration: 'underline' } }}
+            >
+              <FileDownloadOutlinedIcon sx={{ fontSize: 14 }} /> Sheet script
+            </Link>
+            {programReports.length > 1 && (
+              <Box sx={{ display: 'flex', gap: 0.75 }}>
+                {programReports.map(r => {
               const isActive = r.purpose === programReport.purpose;
               return (
                 <Chip
@@ -1119,7 +1135,9 @@ function SaasAnalyticsView({
                   }}
                 />
               );
-            })}
+                })}
+              </Box>
+            )}
           </Box>
         )}
       />
@@ -1137,6 +1155,8 @@ function SaasAnalyticsView({
           Campaign Summary와 같은 KPI 스트립 문법(셀은 좌측 divider로만 구분). */}
       <Box data-program-kpis sx={{ display: 'flex', flexWrap: 'wrap', rowGap: 2, mb: 2.5 }}>
         <SaasKpiItem label="Visited (of goal)" value={programReport.totals.attended} total={programReport.totals.goal} isFirst />
+        {/* 비디오 업로드 — 회장님 보고 항목. 분모는 방문 수(업로드는 방문한 사람에게서 나온다) */}
+        <SaasKpiItem label="Uploaded" value={programReport.totals.uploaded} total={programReport.totals.attended} />
         <SaasKpiItem label="No show" value={programReport.totals.noShow} />
         {/* 확정 지출 = 방문 때 나간 기프트백 + 사용이 확인된 크레딧.
             발급했지만 사용 미확인인 크레딧은 아직 나간 돈이 아니다 — 표가 따로 말한다. */}

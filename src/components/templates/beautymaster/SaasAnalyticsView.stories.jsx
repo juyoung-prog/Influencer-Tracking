@@ -1004,6 +1004,15 @@ export const GrandOpeningProgramSummary = {
     // 확정 지출 = 기프트백 + 사용 확인 크레딧. 발급액을 지출로 부풀리지 않는다
     await expect(section.querySelector('[data-program-kpis]').textContent).toContain('$256.97');
 
+    // 비디오 업로드 수 — KPI(방문 5명 중 4명 업로드)와 티어 표 컬럼 양쪽에 실린다
+    await expect(section.querySelector('[data-program-kpis]').textContent).toContain('Uploaded');
+    await expect(section.textContent).toContain('Uploaded');
+
+    // 시트 제출용 Apps Script 다운로드 — 회장님 보고 탭을 만드는 스크립트
+    const script = section.querySelector('[data-program-script]');
+    await expect(script.getAttribute('href')).toBe('/grand-opening-report.gs');
+    await expect(script.getAttribute('download')).toBe('grand-opening-report.gs');
+
     // 성과 우수 — Performance와 같은 판정(Opinion USE), 명단 표로 직접 실린다
     await expect(section.querySelector('[data-program-perf]').textContent).toContain('2 strong performers');
     await expect(section.querySelector('[data-program-perf]').textContent).toContain('Na Eunji');
