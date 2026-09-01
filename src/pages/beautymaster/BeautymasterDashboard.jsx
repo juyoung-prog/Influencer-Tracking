@@ -14,7 +14,7 @@ const D = iso => new Date(iso);
 
 export const MOCK_INFLUENCERS = [
   {
-    id: 'Processing_0', sheetStatus: 'Processing', fullName: 'Kim Minjung', store: 'G10', month: 7,
+    id: 'Processing_0', sheetStatus: 'Processing', fullName: 'Kim Minjung', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'Instagram', category: 'kbeauty',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: 'https://instagram.com/kim.minjung',
     email: 'kim.minjung@gmail.com', scheduledTime: D('2026-07-05T10:30:00'), hasScheduledTimeOfDay: true,
@@ -25,7 +25,7 @@ export const MOCK_INFLUENCERS = [
     note: 'Visit complete. Content upload expected.',
   },
   {
-    id: 'Processing_1', sheetStatus: 'Processing', fullName: 'Park Soyeon', store: 'G10', month: 7,
+    id: 'Processing_1', sheetStatus: 'Processing', fullName: 'Park Soyeon', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'TikTok', category: 'general',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: 'https://tiktok.com/@park.soyeon',
     email: 'park.soyeon@naver.com', scheduledTime: D('2026-07-05T14:00:00'), hasScheduledTimeOfDay: true,
@@ -37,7 +37,7 @@ export const MOCK_INFLUENCERS = [
     note: '',
   },
   {
-    id: 'Processing_2', sheetStatus: 'Processing', fullName: 'Lee Jiyeon', store: 'G10', month: 7,
+    id: 'Processing_2', sheetStatus: 'Processing', fullName: 'Lee Jiyeon', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF202620', tier: 'tier2', platform: 'Instagram', category: 'specific',
     creditType: '$20 Credit_Tier2', imageUrl: '', socialAccountUrl: 'https://instagram.com/lee.jiyeon',
     email: 'lee.jiyeon@kakao.com', scheduledTime: D('2026-07-08T11:00:00'), hasScheduledTimeOfDay: true,
@@ -48,7 +48,7 @@ export const MOCK_INFLUENCERS = [
     note: '',
   },
   {
-    id: 'Processing_3', sheetStatus: 'Processing', fullName: 'Han Areum', store: 'G10', month: 7,
+    id: 'Processing_3', sheetStatus: 'Processing', fullName: 'Han Areum', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF202620', tier: 'tier2', platform: 'TikTok', category: 'general',
     creditType: '$20 Credit_Tier2', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-07-10T14:00:00'), hasScheduledTimeOfDay: true,
@@ -59,7 +59,7 @@ export const MOCK_INFLUENCERS = [
     note: 'Rescheduled from Jun 28.',
   },
   {
-    id: 'Processing_4a', sheetStatus: 'Processing', fullName: 'Yoon Soojin', store: 'G10', month: 7,
+    id: 'Processing_4a', sheetStatus: 'Processing', fullName: 'Yoon Soojin', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'Instagram', category: 'kbeauty',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-07-12T11:30:00'), hasScheduledTimeOfDay: true,
@@ -70,7 +70,7 @@ export const MOCK_INFLUENCERS = [
     note: '',
   },
   {
-    id: 'Processing_5a', sheetStatus: 'Processing', fullName: 'Choi Yuna', store: 'G10', month: 7,
+    id: 'Processing_5a', sheetStatus: 'Processing', fullName: 'Choi Yuna', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'Instagram', category: 'kbeauty',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-07-14T13:00:00'), hasScheduledTimeOfDay: true,
@@ -81,7 +81,7 @@ export const MOCK_INFLUENCERS = [
     note: '',
   },
   {
-    id: 'Processing_5', sheetStatus: 'Processing', fullName: 'Shin Dahye', store: 'G10', month: 7,
+    id: 'Processing_5', sheetStatus: 'Processing', fullName: 'Shin Dahye', store: 'G10', purpose: 'grand opening', month: 7,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'Instagram', category: 'kbeauty',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-07-02T13:00:00'), hasScheduledTimeOfDay: true,
@@ -93,7 +93,7 @@ export const MOCK_INFLUENCERS = [
     note: '',
   },
   {
-    id: 'Done_0', sheetStatus: 'Done', fullName: 'Oh Seulgi', store: 'G10', month: 6,
+    id: 'Done_0', sheetStatus: 'Done', fullName: 'Oh Seulgi', store: 'G10', purpose: 'grand opening', month: 6,
     barcode: 'G10INF2026', tier: 'tier1', platform: 'Instagram', category: 'kbeauty',
     creditType: '$100 Credit', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-06-28T10:00:00'), hasScheduledTimeOfDay: true,
@@ -105,7 +105,7 @@ export const MOCK_INFLUENCERS = [
     note: 'To be reviewed next month.',
   },
   {
-    id: 'Done_1', sheetStatus: 'Done', fullName: 'Na Eunji', store: 'G10', month: 6,
+    id: 'Done_1', sheetStatus: 'Done', fullName: 'Na Eunji', store: 'G10', purpose: 'grand opening', month: 6,
     barcode: 'G10INF202620', tier: 'tier2', platform: 'TikTok', category: 'general',
     creditType: '$20 Credit_Tier2', imageUrl: '', socialAccountUrl: '',
     email: '', scheduledTime: D('2026-06-20T14:00:00'), hasScheduledTimeOfDay: true,

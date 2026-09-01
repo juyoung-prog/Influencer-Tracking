@@ -349,6 +349,14 @@ const SOCIAL_URL_OVERRIDES = {
   'ashley clark': 'https://www.tiktok.com/@prettycashbeauty?lang=en',
   /* 실제 계정은 @thegoddessbrand.co(사용자 확인). */
   'myah turner': 'https://www.tiktok.com/@thegoddessbrand.co',
+  /* 셀이 표시명("Victoria Simmone", 띄어쓰기)이라 핸들 문법을 통과 못 해 링크가
+     아예 없었다. 실제 계정은 @victoriasimmone(사용자 확인)으로, 시트의 이메일
+     (thevictoriasimmone@gmail.com)에 핸들이 그대로 들어 있어 두 갈래로 확인된다. */
+  'victoria simmone': 'https://www.tiktok.com/@victoriasimmone',
+  /* 셀이 자기소개("Shannon | hidden Gems")라 링크가 아예 없었다. 실제 계정은
+     이름·이메일 어느 쪽과도 안 겹치는 @shannonshanaye(사용자 확인)라 시트 값만으로는
+     유추할 수 없다. */
+  'shannon redwine': 'https://www.tiktok.com/@shannonshanaye',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
@@ -468,6 +476,11 @@ export function parseInfluencerCsv(csvText, defaultStatus = SHEET_STATUS.PROCESS
       id: `${idPrefix}${currentStatus}_${result.length}`,
       sheetStatus: currentStatus,
       store: row['store'] || '',
+      /* 어느 모집 프로그램의 행인지 — 한 매장이 Grand Opening·Monthly·이벤트를
+         겹쳐 돌릴 수 있어 store만으로는 프로그램을 특정할 수 없다(2026-08-31 사장님이
+         시트에 Purpose 열을 추가). 표기가 "grand opening"/"Grand Opening"으로 섞여
+         있어 비교하는 쪽(schema deriveProgramReport)이 소문자로 정규화한다. */
+      purpose: (row['purpose'] || '').trim(),
       month: parseMonth(row['month']),
       barcode,
       tier: deriveTier(barcode),

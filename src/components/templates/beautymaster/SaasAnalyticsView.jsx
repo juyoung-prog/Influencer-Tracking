@@ -20,10 +20,12 @@ import {
   ALL_STORES,
   CATEGORIES,
   DROP_REASON_LABEL,
+  INFLUENCER_PROGRAMS,
   PLATFORMS,
   TIER_GIFT_VALUE_USD,
   TIERS,
   deriveAnalyticsSummary,
+  deriveProgramReport,
   deriveKpiSummary,
   derivePerformanceReport,
   deriveStores,
@@ -565,6 +567,193 @@ function UnfulfilledTable({ rows, onRowClick }) {
   );
 }
 
+/**
+ * ProgramTierTable — 모집 프로그램 결산의 티어 비교 테이블.
+ *
+ * 이 리포트의 핵심 요구가 "티어별 목표 / 초대 / 실제 참여를 비교해서 볼 것"이라
+ * 세 수를 한 행에 나란히 놓고, 그 뒤로 같은 티어의 비용(크레딧·기프트백)을 잇는다.
+ * 수와 금액을 한 칸에 "15 · $1,500"으로 함께 적는다 — 컬럼을 둘로 쪼개면
+ * 열 수가 자릿수를 넘어 표가 한 화면에 안 들어간다.
+ *
+ * Props:
+ * @param {object} report - deriveProgramReport() 결과 [Required]
+ */
+function ProgramTierTable({ report }) {
+  const { byTier, totals } = report;
+  // 진행 중에만 의미 있는 컬럼 — 프로그램이 끝나 전부 0이면 "—"만 남으므로 숨긴다
+  const hasScheduled = totals.scheduled > 0;
+  const rows = [
+    { label: 'Tier 1', ...byTier[TIERS.TIER1] },
+    { label: 'Tier 2', ...byTier[TIERS.TIER2] },
+    { label: 'Total', isTotal: true, ...totals },
+  ];
+
+  const countAndUsd = (count, amount) => (count > 0 ? `${count} · ${usd(amount)}` : '—');
+
+  /* 컬럼별 산정 규칙은 헤더 title 툴팁으로 — 표 아래 문단으로 다 적었더니 벽이
+     되어 아무도 안 읽었다(issue13). 설명은 그 숫자가 있는 자리에서 꺼내 본다. */
+  const giftMixNote = totals.giftMixCount > 0
+    ? ` ${totals.giftMixCount} ${totals.giftMixCount === 1 ? 'visit' : 'visits'} received the other tier's bag by store mistake — amounts count the bag actually given.`
+    : '';
+  const HEADERS = [
+    { label: 'Tier' },
+    { label: 'Goal', align: 'right', note: 'Program target headcount — a fixed program value, not in the sheet.' },
+    { label: 'Invited', align: 'right', note: 'From the Number tab (DMs sent).' },
+    { label: 'Visited', align: 'right', note: 'Rows with the attend check.' },
+    { label: 'Vs goal', align: 'right', note: 'Visited ÷ goal.' },
+    { label: 'No show', align: 'right', note: 'Visit date passed with no attend check — future visits stay in Scheduled.' },
+    ...(hasScheduled ? [{ label: 'Scheduled', align: 'right', note: 'Not visited yet, visit date still ahead.' }] : []),
+    { label: 'Credit sent', align: 'right', note: "Count · sum of each row's credit type face value from the sheet." },
+    { label: 'Credit used', align: 'right', note: 'Only sheet-confirmed use — a blank cell is not counted as unused.' },
+    { label: 'Gift bags', align: 'right', isGift: true,
+      note: `One per visit · unit cost T1 ${usd(TIER_GIFT_VALUE_USD[TIERS.TIER1])} / T2 ${usd(TIER_GIFT_VALUE_USD[TIERS.TIER2])} (fixed program value, not in the sheet).${giftMixNote}` },
+  ];
+
+  return (
+    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+      <Table size="small">
+        <TableHead>
+          {/* 툴팁 있는 헤더는 점선 밑줄로 "설명이 있다"를 알린다 — 표식 없는 툴팁은 없는 것과 같다 */}
+          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75, whiteSpace: 'nowrap' } }}>
+            {HEADERS.map(h => (
+              <TableCell
+                key={h.label}
+                align={h.align}
+                title={h.note}
+                {...(h.isGift ? { 'data-program-gift-mix': true } : {})}
+                sx={h.note ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: '3px', textDecorationColor: 'rgba(0,0,0,0.25)' } : undefined}
+              >
+                {h.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(row => (
+            <TableRow
+              key={row.label}
+              data-program-tier-row={row.label}
+              sx={{
+                '& td': { fontSize: 13, py: 0.875, fontVariantNumeric: 'tabular-nums' },
+                /* Total은 합산 행이라 위 두 행과 성격이 다르다 — 색이 아니라 굵기로 가른다 */
+                ...(row.isTotal && { '& td': { fontSize: 13, py: 0.875, fontVariantNumeric: 'tabular-nums', fontWeight: 600, borderBottom: 'none' } }),
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              <TableCell sx={{ fontWeight: row.isTotal ? 600 : 500 }}>{row.label}</TableCell>
+              <TableCell align="right">{row.goal}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.invited ?? '—'}</TableCell>
+              {/* Visited가 이 표의 주인공(목표 대비 실제)이라 유일하게 굵다 */}
+              <TableCell align="right" sx={{ fontWeight: 600 }}>{row.attended}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary' }}>{pct(row.goalRate)}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.noShow}</TableCell>
+              {hasScheduled && <TableCell align="right" sx={{ color: 'text.secondary' }}>{row.scheduled}</TableCell>}
+              <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{countAndUsd(row.creditSentCount, row.creditSentUsd)}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{countAndUsd(row.creditUsedCount, row.creditUsedUsd)}</TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{countAndUsd(row.giftCount, row.giftUsd)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+
+/**
+ * StrongPerformerTable — 성과 우수 인플루언서 명단 (결산 블록 안, 회장님 보고용).
+ *
+ * "몇 명"이 아니라 "누구고 성과가 어땠는지"를 표로 직접 보여준다(2026-09-01 사장님:
+ * 숫자 한 줄로 두지 말 것 — 이름·이메일·프로필·콘텐츠 링크·조회수·반응까지).
+ * 아래 Performance 순위표와 다른 표인 이유: 저긴 재섭외 판단용 지표 6종 순위표고,
+ * 여긴 보고용 신원+연락처+핵심 성과다. 링크는 새 탭이고 행 클릭(상세 Drawer)과
+ * 겹치지 않게 전파를 끊는다.
+ *
+ * Props:
+ * @param {Array} rows - deriveProgramReport().performance.top [Required]
+ * @param {function} onRowClick - 행 클릭 시 (id) => void [Optional]
+ */
+function StrongPerformerTable({ rows, onRowClick }) {
+  const linkSx = { fontSize: 12, color: 'accent.main', textDecoration: 'none', whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline' } };
+  return (
+    <Box sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ '& th': { fontSize: 11, fontWeight: 500, color: 'text.secondary', backgroundColor: 'surface.sunken', py: 0.75, whiteSpace: 'nowrap' } }}>
+            <TableCell align="right">#</TableCell>
+            <TableCell>Influencer</TableCell>
+            <TableCell>Tier</TableCell>
+            <TableCell>Platform</TableCell>
+            <TableCell>Profile</TableCell>
+            <TableCell>Email</TableCell>
+            <TableCell>Content</TableCell>
+            <TableCell align="right">Views</TableCell>
+            <TableCell align="right">Engagements</TableCell>
+            <TableCell align="right">Engagement rate</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row, i) => (
+            <TableRow
+              key={row.id}
+              data-program-top-row={row.id}
+              onClick={onRowClick ? () => onRowClick(row.id) : undefined}
+              sx={{
+                '& td': { fontSize: 13, py: 0.875 },
+                cursor: onRowClick ? 'pointer' : 'default',
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums', width: 34 }}>{i + 1}</TableCell>
+              <TableCell sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{toDisplayName(row.fullName)}</TableCell>
+              <TableCell sx={{ color: 'text.secondary' }}>{TIER_LABEL[row.tier] ?? row.tier}</TableCell>
+              <TableCell sx={{ color: 'text.secondary' }}>{normalizePlatform(row.platform)}</TableCell>
+              {/* 링크는 새 탭 — 행 클릭(상세)과 겹치지 않게 전파를 끊는다 */}
+              <TableCell>
+                {row.socialAccountUrl ? (
+                  <Link href={row.socialAccountUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} sx={linkSx}>
+                    {row.socialHandle ? `@${row.socialHandle}` : 'Profile'} <OpenInNewIcon sx={{ fontSize: 11, verticalAlign: '-1px' }} />
+                  </Link>
+                ) : <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>}
+              </TableCell>
+              <TableCell>
+                {row.email ? (
+                  <Link href={`mailto:${row.email}`} onClick={e => e.stopPropagation()} sx={{ ...linkSx, color: 'text.secondary' }}>
+                    {row.email}
+                  </Link>
+                ) : <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>}
+              </TableCell>
+              <TableCell>
+                {row.collaboLink ? (
+                  <Link href={row.collaboLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} sx={linkSx}>
+                    View post <OpenInNewIcon sx={{ fontSize: 11, verticalAlign: '-1px' }} />
+                  </Link>
+                ) : <Box component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>}
+              </TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                {row.views != null ? formatCompact(row.views) : '—'}
+              </TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCompact(row.engagements)}
+              </TableCell>
+              <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                {row.er != null ? erPct(row.er) : '—'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+
+/* 프로그램 기간 표기 — SaasDateRangeSelect 트리거와 같은 en-US 문법.
+   같은 해면 시작 쪽 연도를 생략한다("Jul 8 – Sep 7, 2026"). */
+const formatProgramPeriod = ({ from, to }) => {
+  const md = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const sameYear = from.getFullYear() === to.getFullYear();
+  return `${md(from)}${sameYear ? '' : `, ${from.getFullYear()}`} – ${md(to)}, ${to.getFullYear()}`;
+};
+
 const OPINION_COLOR = { 'USE': 'success.main', 'MAYBE': 'warning.main', "DON'T": 'error.main' };
 
 const REVIEW_TITLE = {
@@ -709,6 +898,9 @@ function PerformanceRankTable({ rows, onRowClick }) {
  *   Performance 안내 줄에서 시트로 바로 안내한다(기록은 시트에만) [Optional, 기본값: '']
  * @param {function} onSelect - Performance 순위 행 클릭 핸들러 (influencer) => void.
  *   페이지가 InfluencerDrawer를 연다 — Operations 목록과 같은 상세 경로 [Optional]
+ * @param {object[]} programs - 인플루언서 모집 프로그램 목록(store × purpose). 선택된
+ *   스토어에 프로그램이 있으면 결산 블록이 리포트 맨 위에 나오고, 같은 매장에 프로그램이
+ *   여럿이면 블록 제목 우측 칩으로 고른다 [Optional, 기본값: INFLUENCER_PROGRAMS]
  *
  * Example usage:
  * <SaasAnalyticsView influencers={influencers} inviteCounts={inviteCounts} />
@@ -721,6 +913,7 @@ function SaasAnalyticsView({
   onStoreChange,
   sheetUrl = '',
   onSelect,
+  programs = INFLUENCER_PROGRAMS,
 }) {
   const [funnelView, setFunnelView] = useState('bar');
 
@@ -751,6 +944,26 @@ function SaasAnalyticsView({
     () => (hasRange ? filtered.filter(i => !i.scheduledTime).length : 0),
     [filtered, hasRange],
   );
+
+  /* 모집 프로그램 결산 — 선택은 두 축이다: **어느 매장의 결산인지는 스토어 셀렉터가
+     정하고**(2026-08-31 사장님: BF5를 보는데 G10 결산이 떠 있으면 안 된다), 같은 매장에
+     프로그램이 여럿이면(Grand Opening 다음에 Monthly·이벤트 — 정체성은 store × purpose)
+     **블록 제목 우측 칩으로 고른다**. All에서는 그리지 않고, 프로그램 없는 매장에서도
+     그리지 않는다. 수치는 여전히 기간 필터 **이전**의 프로그램 전체에서 파생한다 —
+     목표 대비 달성률의 모수는 프로그램 전체라, 기간 코호트를 물려받으면 부분 기간
+     방문 수를 전체 목표와 비교하는 거짓 비율이 된다. */
+  const programReports = useMemo(
+    () => programs
+      .filter(program => program.store === selectedStore)
+      .map(program => deriveProgramReport(influencers, inviteCounts, undefined, program))
+      .filter(Boolean),
+    [influencers, inviteCounts, programs, selectedStore],
+  );
+  /* 칩 선택은 purpose 키로 든다 — 스토어를 옮기면 그 매장에 없는 purpose일 수 있어
+     첫 프로그램으로 조용히 돌아간다(빈 화면보다 낫고, 칩이 현재 상태를 그대로 보여준다) */
+  const [programPurpose, setProgramPurpose] = useState(null);
+  const programReport = programReports.find(r => r.purpose === programPurpose)
+    ?? programReports[0] ?? null;
 
   /** 초대 인원도 같은 스토어로 좁힌다 — 퍼널 Invited 단계가 목록과 어긋나지 않도록 */
   const filteredInviteCounts = useMemo(() => {
@@ -865,16 +1078,125 @@ function SaasAnalyticsView({
     </Box>
   );
 
+  /* Grand Opening 결산 블록 (사장님 보고 요청, 2026-08-31).
+     "언제부터 했고, 티어별 목표 대비 얼마나 왔고, 얼마 썼고, 잘한 사람이 몇 명인가"를
+     그 매장 리포트 맨 위에서 한눈에 답한다. 스토어 셀렉터가 어느 결산을 볼지 정하고
+     (별도 선택 UI를 두지 않는다 — 매장을 고르는 컨트롤이 화면에 이미 있다),
+     수치는 기간 컨트롤과 무관하게 항상 프로그램 전체 기준이다 — 아래 섹션들과
+     모수 규칙이 다르므로 각주가 그걸 직접 말한다.
+     기간 내 방문 0의 빈 상태 화면에서도 이 블록은 남는다:
+     기간 때문에 결산이 사라지면 "데이터가 날아갔나"로 읽힌다. */
+  const programSection = programReport && (
+    <Box sx={{ mb: 4 }} data-program-section={programReport.store} data-program-purpose={programReport.purpose}>
+      {/* 같은 매장에 프로그램이 여럿일 때만 칩이 생긴다 — 하나뿐이면 고를 게 없는
+          선택지는 소음이다. 칩 문법은 Performance 티어 칩과 동일(같은 화면에서
+          "코호트를 고른다"는 같은 행동이 다르게 생기면 안 된다). */}
+      <SectionTitle
+        title={programReport.title}
+        action={programReports.length > 1 && (
+          <Box sx={{ display: 'flex', gap: 0.75 }}>
+            {programReports.map(r => {
+              const isActive = r.purpose === programReport.purpose;
+              return (
+                <Chip
+                  key={r.purpose}
+                  label={r.label}
+                  size="small"
+                  data-program-chip={r.purpose}
+                  onClick={() => setProgramPurpose(r.purpose)}
+                  variant={isActive ? 'filled' : 'outlined'}
+                  sx={{
+                    height: 24, fontSize: 11, fontWeight: 500, borderRadius: '6px',
+                    ...(isActive
+                      ? {
+                        color: 'accent.main',
+                        border: '1px solid',
+                        borderColor: 'accent.main',
+                        backgroundColor: theme => alpha(theme.palette.accent.main, 0.08),
+                        '&:hover': { backgroundColor: theme => alpha(theme.palette.accent.main, 0.12) },
+                      }
+                      : { color: 'text.secondary' }),
+                  }}
+                />
+              );
+            })}
+          </Box>
+        )}
+      />
+      {/* 기간이 첫 줄이다 — 보고의 첫 질문("언제부터 진행됐나")에 먼저 답한다 */}
+      <Typography
+        data-program-period
+        title="Always the whole program — the period control above does not change this block."
+        sx={{ mt: -1.5, mb: 2, fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', width: 'fit-content' }}
+      >
+        {formatProgramPeriod(programReport.period)} · {programReport.period.days} days
+        {programReport.isOngoing && programReport.totals.scheduled > 0
+          && ` · in progress — ${programReport.totals.scheduled} ${programReport.totals.scheduled === 1 ? 'visit' : 'visits'} still scheduled`}
+      </Typography>
+      {/* 헤드라인 네 개 — 참여(목표 대비)·노쇼·확정 지출·성과 우수.
+          Campaign Summary와 같은 KPI 스트립 문법(셀은 좌측 divider로만 구분). */}
+      <Box data-program-kpis sx={{ display: 'flex', flexWrap: 'wrap', rowGap: 2, mb: 2.5 }}>
+        <SaasKpiItem label="Visited (of goal)" value={programReport.totals.attended} total={programReport.totals.goal} isFirst />
+        <SaasKpiItem label="No show" value={programReport.totals.noShow} />
+        {/* 확정 지출 = 방문 때 나간 기프트백 + 사용이 확인된 크레딧.
+            발급했지만 사용 미확인인 크레딧은 아직 나간 돈이 아니다 — 표가 따로 말한다. */}
+        <SaasKpiItem label="Total spent" value={usd(programReport.spendUsd.total)} />
+        <SaasKpiItem label="Strong performers" value={programReport.performance.topCount} />
+      </Box>
+      <ProgramTierTable report={programReport} />
+      {/* Purpose가 빈 행은 어느 프로그램 결산에도 못 든다 — 조용히 빠지면 결산이
+          왜 모자란지 알 수 없다(기간 필터의 undated 규칙과 같은 원칙). 평소엔 0건이라
+          안 보이고, 생기면 손볼 일이라 표 아래 유일하게 소리 내는 줄이다. */}
+      {programReport.unassignedCount > 0 && (
+        <Typography data-program-unassigned sx={{ mt: 1, fontSize: 11, color: 'text.secondary' }}>
+          {programReport.unassignedCount} {programReport.unassignedCount === 1 ? 'row' : 'rows'} for this store
+          {programReport.unassignedCount === 1 ? ' has' : ' have'} no Purpose value in the sheet — counted in no program.
+        </Typography>
+      )}
+      {/* 성과 우수 — 숫자 한 줄이 아니라 명단 표다(2026-09-01 사장님: 회장님 보고용,
+          누구인지·성과·링크·이메일까지). 판정 기준은 소제목 title 툴팁에만 둔다.
+          설명 문단은 화면에 두지 않는다 — 각주 벽은 issue13에서 철거됐고,
+          산정 규칙은 각 표의 컬럼 헤더 툴팁이 들고 있다. */}
+      <Box data-program-perf sx={{ mt: 3 }}>
+        <Typography
+          component="h3"
+          title="Strong performer = opinion USE in the sheet, or a top-quartile engagement suggestion where no opinion is recorded yet."
+          sx={{ mb: 1.5, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', cursor: 'help', width: 'fit-content' }}
+        >
+          {programReport.performance.topCount === 0
+            ? 'Strong performers'
+            : `${programReport.performance.topCount} strong performers — Tier 1 ${programReport.performance.topByTier.tier1} · Tier 2 ${programReport.performance.topByTier.tier2}`}
+        </Typography>
+        {programReport.performance.topCount === 0 ? (
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            None confirmed yet — this list fills in as performance is recorded in the sheet.
+          </Typography>
+        ) : (
+          <StrongPerformerTable
+            rows={programReport.performance.top}
+            onRowClick={onSelect ? id => {
+              const inf = influencers.find(i => i.id === id);
+              if (inf) onSelect(inf);
+            } : undefined}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+
   if (filtered.length === 0) {
     return (
       <>
         {toolbar}
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 8, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            {selectedStore === ALL_STORES
-              ? 'No data yet — campaign analytics appear once the sheet has rows'
-              : `No data for ${selectedStore}`}
-          </Typography>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+          {programSection}
+          <Box sx={{ py: 5, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+              {selectedStore === ALL_STORES
+                ? 'No data yet — campaign analytics appear once the sheet has rows'
+                : `No data for ${selectedStore}`}
+            </Typography>
+          </Box>
         </Box>
       </>
     );
@@ -886,10 +1208,13 @@ function SaasAnalyticsView({
     return (
       <>
         {toolbar}
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 8, textAlign: 'center' }}>
-          <Typography data-report-period-empty sx={{ fontSize: 13, color: 'text.secondary' }}>
-            No visits in this period — widen the range or pick All
-          </Typography>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+          {programSection}
+          <Box sx={{ py: 5, textAlign: 'center' }}>
+            <Typography data-report-period-empty sx={{ fontSize: 13, color: 'text.secondary' }}>
+              No visits in this period — widen the range or pick All
+            </Typography>
+          </Box>
         </Box>
       </>
     );
@@ -917,6 +1242,8 @@ function SaasAnalyticsView({
     <>
       {toolbar}
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
+      {/* 프로그램 결산이 맨 위 — 아래 전부가 "지금 필터로 본 조각"이고 이 블록만 전체다 */}
+      {programSection}
       {/* 기간이 걸려 있는데 방문일 없는 행이 있으면 그 수를 밝힌다 — 조용히 빠지면
           All과 기간의 차이가 어디서 오는지 알 수 없다. Operations의 gaps 줄과 같은 원칙. */}
       {hasRange && undatedCount > 0 && (

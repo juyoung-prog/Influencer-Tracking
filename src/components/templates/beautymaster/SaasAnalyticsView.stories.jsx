@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
 import SaasAnalyticsView from './SaasAnalyticsView';
@@ -34,6 +35,7 @@ export default {
     onStoreChange: { action: 'storeChanged', description: '스토어 변경 핸들러' },
     onSelect: { action: 'selected', description: 'Performance 순위 행 클릭 핸들러 (influencer) => void — 페이지가 Drawer를 연다' },
     sheetUrl: { control: 'text', description: 'Google Sheet 원본 링크 — Performance 첫 사용 안내(Opinion 전무 상태)의 Open sheet 링크' },
+    programs: { control: 'object', description: 'Grand Opening 프로그램 목록 — 2개 이상이면 결산 블록에 매장 선택 칩이 생긴다' },
   },
   args: {
     influencers: MOCK_INFLUENCERS,
@@ -257,9 +259,10 @@ export const BarsAndTableAgree = {
     });
 
     await userEvent.click(canvas.getByRole('button', { name: 'Table' }));
+    // 첫 <table>이 아니라 퍼널 행으로 앵커한다 — 맨 위에 G10 결산 표가 생겼다
     const table = await waitFor(() => {
-      const t = canvasElement.querySelector('table');
-      if (!t) throw new Error('no table');
+      const t = canvasElement.querySelector('tbody tr[data-funnel-step]')?.closest('table');
+      if (!t) throw new Error('no funnel table');
       return t;
     });
 
@@ -760,10 +763,12 @@ export const BreakdownShowsCreditUsedPerGroup = {
     ],
   },
   play: async ({ canvasElement }) => {
-    /** 표의 첫 컬럼 헤더로 어느 축인지 고른 뒤, 행 라벨 → Credit used 셀을 읽는다 */
+    /** 표의 첫 컬럼 헤더로 어느 축인지 고른 뒤, 행 라벨 → Credit used 셀을 읽는다.
+        G10 결산 표도 첫 헤더가 "Tier"라 Credit used 셀의 존재로 Breakdown 표만 고른다 */
     const creditOf = (axis, label) => {
       const table = [...canvasElement.querySelectorAll('table')]
-        .find(t => t.querySelector('thead th')?.textContent.trim() === axis);
+        .find(t => t.querySelector('thead th')?.textContent.trim() === axis
+          && t.querySelector('[data-breakdown-credit]'));
       const row = [...table.querySelectorAll('tbody tr')]
         .find(r => r.children[0].textContent.trim() === label);
       return row?.querySelector('[data-breakdown-credit]')?.textContent.trim();
@@ -817,9 +822,10 @@ export const DropOffMatchesTable = {
     });
 
     await userEvent.click(canvas.getByRole('button', { name: 'Table' }));
+    // 첫 <table>이 아니라 퍼널 행으로 앵커한다 — 맨 위에 G10 결산 표가 생겼다
     const table = await waitFor(() => {
-      const t = canvasElement.querySelector('table');
-      if (!t) throw new Error('no table');
+      const t = canvasElement.querySelector('tbody tr[data-funnel-step]')?.closest('table');
+      if (!t) throw new Error('no funnel table');
       return t;
     });
     const ofPrevious = Object.fromEntries(
@@ -962,5 +968,253 @@ export const BreakdownFillsItsRow = {
     // 트랙 폭이 균등해야 한다 (minmax(0, 1fr))
     const widths = new Set(tracks.map(t => Math.round(parseFloat(t))));
     await expect(widths.size).toBe(1);
+  },
+};
+
+/**
+ * G10_Grand Opening Influencer 결산 블록 — 리포트 맨 위에서 프로그램 전체를 답한다.
+ *
+ * mock 기준 기대값: 기간 Jul 8 – Sep 7, 2026 (62일). T1 목표 30 · 초대 55 · 방문 4 ·
+ * 노쇼 2, T2 목표 70 · 초대 34 · 방문 1 · 노쇼 2. 확정 지출 = 기프트백(4×$8.58 +
+ * 1×$2.65 = $36.97) + 사용 확인 크레딧($220) = $256.97. 성과 우수 2명(Opinion USE) —
+ * 최고는 engagements가 더 큰 Na Eunji고, 명단 표(StrongPerformerTable)에 프로필·
+ * 이메일·게시물 링크까지 실린다(회장님 보고용 — 없는 값은 링크를 지어내지 않는다).
+ */
+export const GrandOpeningProgramSummary = {
+  args: { inviteCounts: INVITE_COUNTS, selectedStore: 'G10' },
+  play: async ({ canvasElement }) => {
+    const section = await waitFor(() => {
+      const el = canvasElement.querySelector('[data-program-section]');
+      if (!el) throw new Error('G10 section not found');
+      return el;
+    });
+
+    await expect(section.textContent).toContain('G10_Grand Opening Influencer');
+    await expect(section.querySelector('[data-program-period]').textContent)
+      .toContain('Jul 8 – Sep 7, 2026 · 62 days');
+
+    // 티어 비교 — 목표 / 초대 / 방문이 한 행에 나란히 있어야 한다(요청의 핵심)
+    const rowText = label => section.querySelector(`[data-program-tier-row="${label}"]`).textContent;
+    await expect(rowText('Tier 1')).toContain('30');
+    await expect(rowText('Tier 1')).toContain('55');
+    await expect(rowText('Tier 2')).toContain('70');
+    await expect(rowText('Tier 2')).toContain('34');
+    await expect(rowText('Total')).toContain('100');
+
+    // 확정 지출 = 기프트백 + 사용 확인 크레딧. 발급액을 지출로 부풀리지 않는다
+    await expect(section.querySelector('[data-program-kpis]').textContent).toContain('$256.97');
+
+    // 성과 우수 — Performance와 같은 판정(Opinion USE), 명단 표로 직접 실린다
+    await expect(section.querySelector('[data-program-perf]').textContent).toContain('2 strong performers');
+    await expect(section.querySelector('[data-program-perf]').textContent).toContain('Na Eunji');
+
+    /* 명단은 연락처·링크까지 — 회장님 보고용(2026-09-01 사장님: "숫자 띡 넣지 말고
+       누구인지, 성과·링크·이메일 다 적으라"). 링크는 새 탭 프로필/게시물, 이메일은 mailto. */
+    const topRow = id => section.querySelector(`[data-program-top-row="${id}"]`);
+    const soyeon = topRow('Processing_1');
+    await expect(soyeon.querySelector('a[href="https://tiktok.com/@park.soyeon"]')).toBeTruthy();
+    await expect(soyeon.querySelector('a[href="mailto:park.soyeon@naver.com"]')).toBeTruthy();
+    await expect(soyeon.querySelector('a[href="https://tiktok.com/@example/video/1"]').textContent).toContain('View post');
+    // 값이 없는 칸은 링크를 지어내지 않는다 — Na Eunji는 시트에 프로필·이메일이 없다
+    const eunji = topRow('Done_1');
+    await expect(eunji.querySelector('a[href^="mailto:"]')).toBeNull();
+    await expect(eunji.querySelector('a[target="_blank"]').getAttribute('href')).toBe('https://tiktok.com/@example2/video/1');
+  },
+};
+
+/**
+ * 결산 블록은 기간 필터를 타지 않는다 — 목표 대비 달성률의 모수는 프로그램 전체다.
+ * 기간을 걸어 아래 섹션들이 코호트로 다시 계산돼도(Agreement 카드가 'of 3'으로)
+ * 결산의 방문 수·티어 표는 그대로여야 한다. 부분 기간 방문 수를 전체 목표와
+ * 비교하면 거짓 비율이 되기 때문이고, 각주가 그 고정 규칙을 직접 말한다.
+ */
+export const GrandOpeningIgnoresPeriodFilter = {
+  args: { inviteCounts: INVITE_COUNTS, selectedStore: 'G10' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const visitedKpi = () => canvasElement.querySelector('[data-program-kpis]').textContent;
+
+    await expect(visitedKpi()).toContain('of 100');
+
+    await userEvent.click(canvas.getByRole('button', { name: /Select date range/ }));
+    await gotoCalendarMonth(2026, 6);
+    await userEvent.click(screen.getByRole('button', { name: 'July 9, 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'July 14, 2026' }));
+
+    await waitFor(async () => {
+      // 아래 섹션들은 기간 코호트(3명)로 좁혀지고
+      await expect(canvasElement.querySelector('[data-summary-kpis]').textContent).toContain('of 3');
+      // 결산 블록은 프로그램 전체 그대로다
+      await expect(visitedKpi()).toContain('of 100');
+      await expect(canvasElement.querySelector('[data-program-tier-row="Tier 1"]').textContent).toContain('30');
+      // 고정 규칙 문구는 화면 문단이 아니라 기간 줄의 title 툴팁에 있다(회장님 보고용 —
+      // 설명 텍스트를 화면에 쌓지 않는다, issue13)
+      await expect(canvasElement.querySelector('[data-program-period]').getAttribute('title'))
+        .toContain('does not change this block');
+    });
+  },
+};
+
+/**
+ * 결산 블록은 스토어 셀렉터를 따라간다 (2026-08-31 사장님: BF5를 보는데 G10 결산이
+ * 떠 있으면 안 된다 — 결산은 그 매장 리포트의 일부다). All·프로그램 없는 매장에서는
+ * 블록이 없고, 프로그램 있는 매장을 고르면 그 매장 결산이 나온다. 별도 선택 UI는
+ * 두지 않는다 — 매장을 고르는 컨트롤이 화면에 이미 있다.
+ */
+const StoreControlled = args => {
+  const [store, setStore] = useState(args.selectedStore ?? ALL_STORES);
+  return <SaasAnalyticsView {...args} selectedStore={store} onStoreChange={setStore} />;
+};
+
+export const GrandOpeningFollowsStoreSelect = {
+  args: {
+    influencers: [
+      ...MOCK_INFLUENCERS,
+      { ...MOCK_INFLUENCERS[0], id: 'g2-1', fullName: 'Ava Stone', store: 'G02', attend: true },
+      { ...MOCK_INFLUENCERS[2], id: 'g2-2', fullName: 'Mia Reyes', store: 'G02' },
+      { ...MOCK_INFLUENCERS[2], id: 'bf5-1', fullName: 'Lia Cole', store: 'BF5' },
+    ],
+    stores: ['G10', 'G02', 'BF5'],
+    programs: [
+      {
+        store: 'G10', purpose: 'grand opening', label: 'Grand Opening',
+        title: 'G10_Grand Opening Influencer',
+        startKey: '2026-07-08', endKey: '2026-09-07',
+        goalByTier: { tier1: 30, tier2: 70 },
+      },
+      {
+        store: 'G02', purpose: 'grand opening', label: 'Grand Opening',
+        title: 'G02_Grand Opening Influencer',
+        startKey: '2026-10-01', endKey: '2026-11-30',
+        goalByTier: { tier1: 20, tier2: 40 },
+      },
+    ],
+  },
+  render: args => <StoreControlled {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const pickStore = async name => {
+      await userEvent.click(canvas.getByRole('combobox'));
+      await userEvent.click(await screen.findByRole('option', { name }));
+    };
+
+    // All — 결산 블록 없음 (어느 매장 결산인지 정해지지 않았다)
+    await expect(canvasElement.querySelector('[data-program-section]')).toBeNull();
+
+    // G10 선택 — G10 결산이 나온다
+    await pickStore('G10');
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-program-section="G10"]').textContent)
+        .toContain('G10_Grand Opening Influencer');
+    });
+
+    // G02 선택 — 그 매장 결산(제목·목표 Total 60·기간)으로 바뀐다
+    await pickStore('G02');
+    await waitFor(async () => {
+      const active = canvasElement.querySelector('[data-program-section="G02"]');
+      await expect(active).toBeTruthy();
+      await expect(active.textContent).toContain('G02_Grand Opening Influencer');
+      await expect(active.querySelector('[data-program-tier-row="Total"]').textContent).toContain('60');
+      await expect(active.querySelector('[data-program-period]').textContent).toContain('Oct 1 – Nov 30, 2026');
+    });
+
+    // BF5 선택 — 프로그램이 없는 매장이라 결산 블록이 없다
+    await pickStore('BF5');
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('[data-program-section]')).toBeNull();
+    });
+  },
+};
+
+/**
+ * 기프트백 착오 보정 — 매장이 다른 티어의 백을 건넨 방문(giftBagTierOverrides)은
+ * 그 사람 티어 단가가 아니라 **실제로 나간 백**의 단가로 센다. 비용 리포트는
+ * 지급했어야 할 것이 아니라 지급한 것을 센다. 백은 시트에 열이 없어 이 상수가
+ * 유일한 보정 경로다(크레딧 착오는 시트 type 열을 고치면 자동 반영이라 여기 없음).
+ * mock: T2 방문자 Na Eunji 1명 → T2 gift가 $2.65 대신 $8.58, 각주가 이유를 밝힌다.
+ */
+export const GrandOpeningGiftBagOverride = {
+  args: {
+    selectedStore: 'G10',
+    programs: [
+      {
+        store: 'G10', purpose: 'grand opening', label: 'Grand Opening',
+        title: 'G10_Grand Opening Influencer',
+        startKey: '2026-07-08', endKey: '2026-09-07',
+        goalByTier: { tier1: 30, tier2: 70 },
+        giftBagTierOverrides: { 'na eunji': 'tier1' },
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const section = await waitFor(() => {
+      const el = canvasElement.querySelector('[data-program-section]');
+      if (!el) throw new Error('program section not found');
+      return el;
+    });
+
+    // T2 방문 1건이 T1 백($8.58)으로 계산된다 — 사람 티어 단가($2.65)가 아니라
+    await expect(section.querySelector('[data-program-tier-row="Tier 2"]').textContent).toContain('$8.58');
+    // 왜 단가×수와 합계가 다른지는 Gift bags 헤더 툴팁이 말한다(issue13 — 표 아래 문단 벽 철거)
+    await expect(section.querySelector('[data-program-gift-mix]').getAttribute('title'))
+      .toContain("1 visit received the other tier's bag by store mistake");
+  },
+};
+
+/**
+ * 같은 매장에 프로그램이 여럿이면(정체성 = store × purpose) 결산 블록 제목 우측
+ * 칩으로 고른다 (2026-08-31 사장님: Grand Opening 다음에 Monthly·이벤트 모집이 온다 —
+ * 매장 선택만으로는 결산을 특정할 수 없다). 행 소속은 시트 Purpose 열이 정하고
+ * (대소문자·공백 무시), Purpose가 빈 행은 어느 결산에도 못 들며 그 수를 화면이 밝힌다.
+ */
+export const ProgramChipsPickWithinStore = {
+  args: {
+    selectedStore: 'G10',
+    influencers: [
+      ...MOCK_INFLUENCERS,
+      // Monthly 모집 행 — Purpose 표기가 대문자여도 잡힌다
+      { ...MOCK_INFLUENCERS[1], id: 'm-1', fullName: 'Mina Kwon', purpose: 'Monthly' },
+      { ...MOCK_INFLUENCERS[2], id: 'm-2', fullName: 'Sora Bae', purpose: 'monthly' },
+      // Purpose 빈 행 — 어느 결산에도 못 든다
+      { ...MOCK_INFLUENCERS[2], id: 'u-1', fullName: 'Hana Seo', purpose: '' },
+    ],
+    programs: [
+      {
+        store: 'G10', purpose: 'grand opening', label: 'Grand Opening',
+        title: 'G10_Grand Opening Influencer',
+        startKey: '2026-07-08', endKey: '2026-09-07',
+        goalByTier: { tier1: 30, tier2: 70 },
+      },
+      {
+        store: 'G10', purpose: 'monthly', label: 'Monthly',
+        title: 'G10_Monthly Influencer',
+        startKey: '2026-10-01', endKey: '2026-10-31',
+        goalByTier: { tier1: 5, tier2: 15 },
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const section = await waitFor(() => {
+      const el = canvasElement.querySelector('[data-program-section]');
+      if (!el) throw new Error('program section not found');
+      return el;
+    });
+
+    // 기본은 첫 프로그램 + 프로그램 수만큼 칩
+    await expect(section.textContent).toContain('G10_Grand Opening Influencer');
+    await expect(section.querySelectorAll('[data-program-chip]').length).toBe(2);
+    // Purpose 빈 행 1건이 밝혀진다 — 조용히 빠지면 결산이 왜 모자란지 알 수 없다
+    await expect(section.querySelector('[data-program-unassigned]').textContent)
+      .toContain('1 row for this store has no Purpose value');
+
+    // Monthly 칩 — 제목·목표가 그 프로그램으로 바뀐다
+    await userEvent.click(section.querySelector('[data-program-chip="monthly"]'));
+    await waitFor(async () => {
+      const active = canvasElement.querySelector('[data-program-purpose="monthly"]');
+      await expect(active).toBeTruthy();
+      await expect(active.textContent).toContain('G10_Monthly Influencer');
+      // 목표 5+15=20 — Visited KPI의 분모가 따라온다
+      await expect(active.querySelector('[data-program-kpis]').textContent).toContain('of 20');
+    });
   },
 };

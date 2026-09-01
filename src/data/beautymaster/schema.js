@@ -96,6 +96,8 @@ export const DEFAULT_INFLUENCER_FILTERS = Object.freeze({
  * @property {string} id - Derived: `${sheetStatus}_${rowIndex}`
  * @property {'Processing'|'Done'} sheetStatus
  * @property {string} store
+ * @property {string} purpose - 시트 Purpose 열. 어느 모집 프로그램의 행인지(예: 'grand opening') —
+ *   한 매장이 Grand Opening·Monthly·이벤트 모집을 겹쳐 돌릴 수 있어 store만으로는 부족하다
  * @property {number} month
  * @property {string} barcode
  * @property {'tier1'|'tier2'} tier
@@ -303,6 +305,76 @@ export const TIER_GIFT_VALUE_USD = Object.freeze({
   [TIERS.TIER1]: 8.58,
   [TIERS.TIER2]: 2.65,
 });
+
+/**
+ * 인플루언서 모집 프로그램 목록 — 시트 어디에도 없는 값들이라 상수로 둔다
+ * (TIER_GIFT_VALUE_USD와 같은 규약: 시트에 열이 없으면 상수 + 화면이 출처를 밝힌다).
+ *
+ * 프로그램의 정체성은 **store × purpose**다 (2026-08-31 사장님): 한 매장이
+ * Grand Opening 다음에 Monthly·이벤트 모집을 겹쳐 돌릴 수 있어 store만으로는
+ * 프로그램을 특정할 수 없다. 행 소속은 시트의 Purpose 열이 정한다(사장님이
+ * 'grand opening'처럼 적음 — 대소문자·공백은 비교 시 정규화). 새 모집을 시작하면
+ * 여기 항목 하나를 더하고 시트 Purpose 열에 같은 값을 적으면 리포트에 나타난다.
+ *
+ * - purpose: 시트 Purpose 열과 맞출 키(소문자). label: 매장 안에서 프로그램을 고르는
+ *   칩에 쓸 짧은 표시명.
+ * - useInviteCounts: Number 탭(초대 인원)을 이 프로그램의 분모로 쓸지. Number 탭에는
+ *   purpose 축이 없어서 같은 매장의 두 프로그램에 같은 초대 수를 얹으면 거짓이 된다 —
+ *   그 탭이 실제로 집계하는 프로그램(G10 그랜드 오프닝)에만 켠다.
+ *
+ * G10 항목:
+ * - 기간: 2026-07-08 ~ 2026-09-07 (사장님 확정, 2026-08-31). 실데이터의 방문일
+ *   범위와 정확히 일치한다 — 그래도 기간은 방문일 min/max로 파생하지 않는다.
+ *   파생하면 늦게 잡힌 방문 한 건이 "프로그램 기간"을 바꿔버린다.
+ * - 티어별 목표 인원: T1 30 / T2 70 (사장님 확정, 2026-08-31). 시트·코드 어디에도
+ *   목표라는 개념이 없어서 이 리포트의 핵심(목표 대비 달성)이 비어 있었다.
+ * - giftBagTierOverrides: 매장이 실수로 다른 티어의 기프트백을 건넨 방문(사장님 보고,
+ *   2026-08-31 확정 — T2 방문자 5명에게 T1 백. 크레딧까지 $100 나간 건 Zadie Franklin
+ *   하나고 나머지 넷은 크레딧은 $20이 맞다). 백은 시트에 열이 없어 여기서만 고칠 수 있다.
+ *   키는 소문자·trim한 **전체 이름**이다 — 동명이인이 실재해서(Justice Lee/Justice Cross,
+ *   Dominique Doyle/Dominique Austin) 부분 매칭이면 엉뚱한 사람이 보정된다.
+ *   **크레딧 착오는 여기 넣지 않는다** — 크레딧 액면가는 시트 type 열이 진실이라
+ *   시트를 고치면 자동 반영된다(Zadie Franklin 행이 이미 그렇게 $100으로 고쳐져 있다).
+ *   (같은 보고에 있던 Nicole(hello@toldbynik.com)·Emanii Cater는 노쇼 확정 — 방문이
+ *   없으니 백·크레딧도 없다. 보정 대상 아님.)
+ */
+export const INFLUENCER_PROGRAMS = Object.freeze([
+  Object.freeze({
+    store: 'G10',
+    purpose: 'grand opening',
+    label: 'Grand Opening',
+    title: 'G10_Grand Opening Influencer',
+    useInviteCounts: true,
+    startKey: '2026-07-08',
+    endKey: '2026-09-07',
+    goalByTier: Object.freeze({
+      [TIERS.TIER1]: 30,
+      [TIERS.TIER2]: 70,
+    }),
+    giftBagTierOverrides: Object.freeze({
+      'zadie franklin': TIERS.TIER1,
+      'jakerra': TIERS.TIER1,
+      'justice cross': TIERS.TIER1,
+      'jayla brewster': TIERS.TIER1,
+      'dominique austin': TIERS.TIER1,
+    }),
+  }),
+]);
+
+/**
+ * 시트 type 열("$100 Credit", "$20 Credit_Tier2")에서 크레딧 액면가를 읽는다.
+ *
+ * 티어별 상수로 두지 않는 이유: 실데이터에 T2인데 "$100 Credit"인 행이 실재한다
+ * (1행). 티어로 곱하면 그 행이 $20으로 계산돼 합계가 조용히 어긋난다 —
+ * 시트가 행마다 액면가를 이미 말하고 있으므로 그 값을 그대로 쓴다.
+ *
+ * @param {string} creditType - 시트 type 열 원본
+ * @returns {number|null} 금액을 못 읽으면 null — 0으로 단정하지 않는다
+ */
+export function creditValueUsd(creditType) {
+  const match = (creditType || '').match(/\$\s*([\d,]+(?:\.\d+)?)/);
+  return match ? Number(match[1].replace(/,/g, '')) : null;
+}
 
 /**
  * 미이행 손실 리포트 — 방문시켰는데 콘텐츠를 못 받은 건의 수와 금액.
@@ -1183,6 +1255,187 @@ export function deriveAnalyticsSummary(influencers, inviteCounts = {}) {
   };
 }
 
+/**
+ * G10 Grand Opening 프로그램 결산 리포트 — "언제부터 했고, 목표 대비 얼마나 왔고,
+ * 얼마 썼고, 잘한 사람이 몇 명인가"를 한 블록으로 답한다.
+ *
+ * 전체 목록에서 스토어 × Purpose(시트 열)로 코호트를 스스로 거른다 — 호출부의 스토어/기간 필터를 타지 않는다.
+ * 목표 대비 달성률은 프로그램 전체가 모수인데, 화면의 기간 코호트를 물려받으면
+ * 부분 기간 방문 수를 전체 목표와 비교하는 거짓 비율이 된다.
+ *
+ * 정직성 규칙(기존 리포트와 동일):
+ * - No show는 방문 예정일이 **지난** 미방문만 센다. 예정일이 아직 안 온 사람은
+ *   scheduled로 따로 센다 — 프로그램 진행 중에 미래 방문을 노쇼로 부르면 안 된다.
+ *   날짜 없는 미방문은 프로그램이 끝난 뒤에만 노쇼로 넘긴다(그 전엔 판정 불가).
+ * - 크레딧 사용액은 시트에 사용이 **확인된** 행만 합산한다(빈 칸 ≠ 미사용).
+ * - 기프트백 수 = 방문 수다(방문 때 지급) — 재고 실사와 한두 개 어긋날 수 있는
+ *   장부값이지, 실사값이 아니다. 단가는 그 사람 티어가 기본이고, 매장이 다른 티어
+ *   백을 건넨 방문(program.giftBagTierOverrides)은 **실제로 나간 백**의 단가로 센다 —
+ *   비용 리포트는 지급했어야 할 것이 아니라 지급한 것을 센다.
+ * - 성과 우수 판정은 Performance 섹션과 같은 derivePerformanceReport에서 나온다:
+ *   시트 Opinion이 USE이거나, Opinion이 빈 행 중 engagements 상위 사분위 추천이
+ *   USE인 행. 두 화면이 다른 기준으로 "잘했다"를 말하면 안 된다.
+ *
+ * @param {Influencer[]} influencers - **전체** 목록 (스토어·기간 필터 이전)
+ * @param {Object<string, Object<string, Object<string, number>>>} [inviteCounts] - Number 탭 전체
+ * @param {Date} [today] - 테스트 주입점
+ * @param {object} [program] - INFLUENCER_PROGRAMS 항목 [기본값: 첫 프로그램(G10 Grand Opening)]
+ * @returns {null|{
+ *   title: string, store: string, purpose: string, label: string,
+ *   unassignedCount: number,
+ *   period: {from: Date, to: Date, days: number}, isOngoing: boolean,
+ *   byTier: Object<string, {goal: number, invited: number|null, tracked: number,
+ *     attended: number, goalRate: number, noShow: number, scheduled: number,
+ *     creditSentCount: number, creditSentUsd: number,
+ *     creditUsedCount: number, creditUsedUsd: number,
+ *     giftCount: number, giftUsd: number}>,
+ *   totals: object, spendUsd: {gift: number, creditUsed: number, total: number},
+ *   performance: {uploadedCount: number, recordedCount: number, topCount: number,
+ *     topByTier: {tier1: number, tier2: number},
+ *     top: Array<{id: string, fullName: string, tier: string, views: number|null,
+ *       engagements: number, er: number|null}>},
+ * }} G10 행이 하나도 없으면 null — 섹션을 그리지 않는다
+ */
+export function deriveProgramReport(influencers, inviteCounts = {}, today = new Date(), program = INFLUENCER_PROGRAMS[0]) {
+  const storeRows = (influencers || []).filter(i => i.store === program.store);
+  if (storeRows.length === 0) return null;
+
+  /* 행 소속은 시트 Purpose 열이 정한다 — 한 매장이 프로그램 여럿을 겹쳐 돌리면
+     store만으로는 어느 결산의 행인지 알 수 없다. 시트 표기가 "Grand Opening"/
+     "grand opening"으로 섞여 있어 양쪽 다 소문자·trim으로 맞춘다. */
+  const purposeKey = (program.purpose || '').trim().toLowerCase();
+  const rows = storeRows.filter(i => (i.purpose || '').trim().toLowerCase() === purposeKey);
+  /* Purpose가 빈 행은 어느 프로그램에도 못 든다 — 조용히 빼면 결산이 왜 모자란지
+     알 수 없으므로 수를 실어 화면이 밝히게 한다(기간 필터의 undated 규칙과 동일).
+     행이 아직 없는 프로그램도 결산은 그린다(목표 0/30이 "모집 전"을 말한다). */
+  const unassignedCount = storeRows.filter(i => !(i.purpose || '').trim()).length;
+
+  const from = parseDateKey(program.startKey);
+  const to = parseDateKey(program.endKey);
+  const days = Math.round((to - from) / 86400000) + 1;
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const isOngoing = todayStart <= to;
+
+  const cents = n => Math.round(n * 100) / 100;
+  /* Number 탭에는 purpose 축이 없다 — 이 프로그램이 그 탭의 주인일 때만 얹는다
+     (같은 매장의 두 번째 프로그램에 첫 프로그램의 초대 수를 얹으면 거짓 분모가 된다) */
+  const invitedByTier = sumInviteCountsByTier(
+    program.useInviteCounts && inviteCounts[program.store]
+      ? { [program.store]: inviteCounts[program.store] } : {},
+  );
+  const hasInviteData = invitedByTier.tier1 + invitedByTier.tier2 > 0;
+
+  /* 실제로 건네진 백의 티어 — 매장 착오 보정. 이름 매칭이라 소문자·trim으로 맞춘다
+     (시트 이름 칸에 꼬리 공백이 실재하고, 착오 보고는 사람 이름으로 온다). */
+  const bagTierOf = i =>
+    program.giftBagTierOverrides?.[(i.fullName || '').trim().toLowerCase()] ?? i.tier;
+
+  const tierStats = tier => {
+    const list = rows.filter(i => i.tier === tier);
+    const attended = list.filter(i => i.attend);
+    const notAttended = list.filter(i => !i.attend);
+    /* 예정일이 지났는데 안 온 사람만 노쇼다. 날짜가 아직 안 온 사람은 scheduled —
+       진행 중엔 둘을 섞으면 안 되고, 프로그램이 끝나면 남은 미방문 전부가 노쇼다. */
+    const isPastDay = d => d && new Date(d.getFullYear(), d.getMonth(), d.getDate()) < todayStart;
+    const noShow = notAttended.filter(i => isPastDay(i.scheduledTime) || (!i.scheduledTime && !isOngoing));
+    const creditSent = list.filter(i => i.creditShared);
+    const creditUsed = list.filter(i => i.creditUsed);
+    const sumCredit = l => cents(l.reduce((s, i) => s + (creditValueUsd(i.creditType) ?? 0), 0));
+    const goal = program.goalByTier[tier] ?? 0;
+    return {
+      goal,
+      invited: hasInviteData ? invitedByTier[tier] : null,
+      tracked: list.length,
+      attended: attended.length,
+      goalRate: goal > 0 ? attended.length / goal : 0,
+      noShow: noShow.length,
+      scheduled: notAttended.length - noShow.length,
+      creditSentCount: creditSent.length,
+      creditSentUsd: sumCredit(creditSent),
+      creditUsedCount: creditUsed.length,
+      creditUsedUsd: sumCredit(creditUsed),
+      giftCount: attended.length,
+      giftUsd: cents(attended.reduce((s, i) => s + (TIER_GIFT_VALUE_USD[bagTierOf(i)] ?? 0), 0)),
+      /* 다른 티어 백이 나간 방문 수 — 화면 각주가 "왜 단가×수와 합계가 다른지"를 말한다 */
+      giftMixCount: attended.filter(i => bagTierOf(i) !== i.tier).length,
+    };
+  };
+
+  const byTier = {
+    [TIERS.TIER1]: tierStats(TIERS.TIER1),
+    [TIERS.TIER2]: tierStats(TIERS.TIER2),
+  };
+  const sum = key => byTier.tier1[key] + byTier.tier2[key];
+  const totals = {
+    goal: sum('goal'),
+    invited: hasInviteData ? sum('invited') : null,
+    tracked: sum('tracked'),
+    attended: sum('attended'),
+    goalRate: sum('goal') > 0 ? sum('attended') / sum('goal') : 0,
+    noShow: sum('noShow'),
+    scheduled: sum('scheduled'),
+    creditSentCount: sum('creditSentCount'),
+    creditSentUsd: cents(sum('creditSentUsd')),
+    creditUsedCount: sum('creditUsedCount'),
+    creditUsedUsd: cents(sum('creditUsedUsd')),
+    giftCount: sum('giftCount'),
+    giftUsd: cents(sum('giftUsd')),
+    giftMixCount: sum('giftMixCount'),
+  };
+
+  /* "실제로 쓴 돈"은 방문 때 나간 기프트백 + 사용이 확인된 크레딧이다.
+     발급했지만 사용 미확인인 크레딧은 아직 나간 돈이 아니라 여기 안 넣는다 —
+     발급 총액은 byTier/totals가 따로 말한다. */
+  const spendUsd = {
+    gift: totals.giftUsd,
+    creditUsed: totals.creditUsedUsd,
+    total: cents(totals.giftUsd + totals.creditUsedUsd),
+  };
+
+  /* 성과 우수 — Performance 순위표와 같은 함수·같은 코호트(G10 전체) */
+  const perf = derivePerformanceReport(rows);
+  const top = perf.ranked.filter(r => r.opinion === OPINIONS.USE || r.suggestedOpinion === OPINIONS.USE);
+  const performance = {
+    uploadedCount: perf.uploadedCount,
+    recordedCount: perf.recordedCount,
+    topCount: top.length,
+    topByTier: {
+      tier1: top.filter(r => r.tier === TIERS.TIER1).length,
+      tier2: top.filter(r => r.tier === TIERS.TIER2).length,
+    },
+    /* 결산 블록이 명단 표를 직접 그린다(2026-09-01 사장님: "숫자 띡 넣지 말고 누구인지,
+       성과·링크·이메일 다 적으라" — 회장님 보고용). ranked 행에는 연락처가 없어
+       원본 행에서 이메일·프로필·콘텐츠 링크를 되찾아 싣는다 — 표기는 목록 행과
+       같은 출처(socialHandle 등)라 두 화면이 어긋나지 않는다. */
+    top: top.map(r => {
+      const inf = rows.find(i => i.id === r.id);
+      return {
+        id: r.id, fullName: r.fullName, tier: r.tier, platform: r.platform,
+        views: r.views, engagements: r.engagements, er: r.er,
+        opinion: r.opinion, suggestedOpinion: r.suggestedOpinion,
+        email: inf?.email || '',
+        socialAccountUrl: inf?.socialAccountUrl || '',
+        socialHandle: inf?.socialHandle || '',
+        collaboLink: inf?.collaboLink || '',
+      };
+    }),
+  };
+
+  return {
+    title: program.title,
+    store: program.store,
+    purpose: purposeKey,
+    label: program.label || program.title,
+    unassignedCount,
+    period: { from, to, days },
+    isOngoing,
+    byTier,
+    totals,
+    spendUsd,
+    performance,
+  };
+}
+
 // ─── Factory Functions (safe defaults) ───────────────────────────────────────
 
 /**
@@ -1194,6 +1447,7 @@ export function createInfluencer(overrides = {}) {
     id: '',
     sheetStatus: SHEET_STATUS.PROCESSING,
     store: '',
+    purpose: '',
     month: 0,
     barcode: '',
     tier: TIERS.TIER1,

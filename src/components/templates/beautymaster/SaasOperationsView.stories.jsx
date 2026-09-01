@@ -1445,3 +1445,70 @@ export const VisitsFollowStoreFilter = {
     await expect(band.textContent).toMatch(new RegExp(`all time${g10Visits}`));
   },
 };
+
+/**
+ * 모집 프로그램(Purpose) 필터 — 매장을 고르고 그 다음 이벤트를 고른다(2026-08-31 사장님).
+ * 옵션은 상수가 아니라 지금 매장 행들의 시트 Purpose 값에서 나온다 — 결산 상수에 아직
+ * 없는 모집도 시트에 적히는 즉시 골라진다. 프로그램이 하나뿐이고 빈 행도 없으면 칩을
+ * 그리지 않으므로(지금의 G10) 기존 화면은 그대로다. Purpose 빈 행은 특정 프로그램을
+ * 고르면 빠진다 — 어느 모집 소속인지 시트가 말하지 않은 행이다.
+ */
+export const PurposeFilterPicksProgram = {
+  args: {
+    influencers: [
+      ...MOCK_INFLUENCERS,
+      // Monthly 모집 행 — 표기가 대문자여도 같은 프로그램으로 묶인다
+      { ...MOCK_INFLUENCERS[0], id: 'm-1', fullName: 'Mina Kwon', purpose: 'Monthly' },
+      // Purpose 빈 행 — 특정 모집을 고르면 빠진다
+      { ...MOCK_INFLUENCERS[0], id: 'u-1', fullName: 'Hana Seo', purpose: '' },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // 칩은 실재하는 프로그램 두 개 — 라벨은 표기 편차를 정리한 형태
+    const chips = await waitFor(() => {
+      const els = [...canvasElement.querySelectorAll('[data-ops-purpose]')];
+      if (els.length === 0) throw new Error('no purpose chips');
+      return els;
+    });
+    await expect(chips.map(c => c.textContent)).toEqual(['Grand Opening', 'Monthly']);
+
+    // 필터 전 — 세 행 모두 Action required에 보인다
+    await expect(canvas.queryByText('Kim Minjung')).toBeTruthy();
+    await expect(canvas.queryByText('Mina Kwon')).toBeTruthy();
+    await expect(canvas.queryByText('Hana Seo')).toBeTruthy();
+
+    // Monthly 선택 — 그 모집 행만 남고, Purpose 빈 행도 빠진다
+    await userEvent.click(canvasElement.querySelector('[data-ops-purpose="monthly"]'));
+    await waitFor(async () => {
+      await expect(canvas.queryByText('Mina Kwon')).toBeTruthy();
+      await expect(canvas.queryByText('Kim Minjung')).toBeNull();
+      await expect(canvas.queryByText('Hana Seo')).toBeNull();
+    });
+
+    // 같은 칩을 다시 누르면 전체로 복귀
+    await userEvent.click(canvasElement.querySelector('[data-ops-purpose="monthly"]'));
+    await waitFor(async () => {
+      await expect(canvas.queryByText('Kim Minjung')).toBeTruthy();
+      await expect(canvas.queryByText('Hana Seo')).toBeTruthy();
+    });
+  },
+};
+
+/**
+ * 프로그램이 하나뿐이어도 Purpose 칩은 보인다 — "둘 이상일 때만"으로 두었더니 정작
+ * G10(전 행이 한 프로그램)에서 아무것도 안 보여 기능이 없는 것과 같았다(issue12,
+ * 2026-09-01 사장님). 칩 하나가 "지금 어느 모집의 데이터인가"를 이름으로 말한다.
+ */
+export const PurposeChipShowsForSingleProgram = {
+  play: async ({ canvasElement }) => {
+    const chips = await waitFor(() => {
+      const els = [...canvasElement.querySelectorAll('[data-ops-purpose]')];
+      if (els.length === 0) throw new Error('no purpose chips');
+      return els;
+    });
+    await expect(chips.length).toBe(1);
+    await expect(chips[0].textContent).toBe('Grand Opening');
+  },
+};

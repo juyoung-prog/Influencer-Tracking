@@ -378,6 +378,38 @@ function SaasOperationsView({
   const storeOptions = stores ?? derivedStores;
 
   /**
+   * 모집 프로그램(Purpose) 필터 — 스토어 다음의 코호트 축이다(2026-08-31 사장님:
+   * 매장을 고르고 그 다음 이벤트를 고른다). 옵션은 상수가 아니라 **선택된 매장의
+   * 행에 실재하는 Purpose 값**에서 파생한다 — Operations는 일하는 화면이라 결산
+   * 상수(INFLUENCER_PROGRAMS)에 아직 없는 모집도 시트에 적히는 즉시 골라져야 한다.
+   * 시트 표기가 "Grand Opening"/"grand opening"으로 섞여 있어 키는 소문자·trim이고
+   * 라벨은 toDisplayName으로 통일한다. 뷰 내부 일시 상태라 승격하지 않는다.
+   */
+  const [purposeFilter, setPurposeFilter] = useState(null);
+  const purposeOptions = useMemo(() => {
+    const byStore = selectedStore === ALL_STORES
+      ? influencers
+      : influencers.filter(inf => inf.store === selectedStore);
+    const map = new Map();
+    let blankCount = 0;
+    for (const inf of byStore) {
+      const key = (inf.purpose || '').trim().toLowerCase();
+      if (!key) { blankCount += 1; continue; }
+      if (!map.has(key)) map.set(key, toDisplayName(inf.purpose.trim()));
+    }
+    return { options: [...map.entries()].map(([value, label]) => ({ value, label })), blankCount };
+  }, [influencers, selectedStore]);
+  /* Purpose 값이 하나라도 있으면 항상 그린다 — 처음엔 "프로그램이 둘 이상일 때만"으로
+     두었는데, 그러면 정작 G10(전 행이 한 프로그램)에서 아무것도 안 보여서 기능이
+     없는 것과 같았다(issue12, 2026-09-01 사장님). 하나뿐인 칩도 "지금 이 매장의 어느
+     모집 데이터인가"를 이름으로 말하고, 다음 모집이 시트에 적히면 옆에 나란히 선다. */
+  const showPurposeFilter = purposeOptions.options.length >= 1;
+  /* 스토어를 옮겨 지금 매장에 없는 Purpose가 걸려 있으면 조용히 전체로 — 화면에 없는
+     칩이 계속 목록을 거르면 "왜 비었는지"를 알 수 없다 */
+  const activePurpose = purposeOptions.options.some(o => o.value === purposeFilter)
+    ? purposeFilter : null;
+
+  /**
    * KPI 모수 — 스토어/플랫폼/티어/카테고리까지만 적용한다.
    * 검색어와 상태 탭은 "무엇을 보느냐"가 아니라 "지금 화면에서 어디를 찾느냐"라
    * 모수에서 뺀다. 기존 대시보드의 filteredKpi와 같은 기준이다.
@@ -392,9 +424,12 @@ function SaasOperationsView({
       }
       if (tier && inf.tier !== tier) return false;
       if (category && inf.category !== category) return false;
+      /* Purpose는 스토어와 같은 코호트 축이라 KPI·Visits 모수에도 든다 —
+         목록만 거르면 KPI가 다른 모집의 수를 말하게 된다 */
+      if (activePurpose && (inf.purpose || '').trim().toLowerCase() !== activePurpose) return false;
       return true;
     });
-  }, [influencers, selectedStore, activeFilters]);
+  }, [influencers, selectedStore, activeFilters, activePurpose]);
 
   const kpi = useMemo(() => deriveKpiSummary(scoped), [scoped]);
 
@@ -591,6 +626,7 @@ function SaasOperationsView({
 
   const hasFilter = statusFilter !== 'all'
     || selectedStore !== ALL_STORES
+    || activePurpose !== null
     || activeFilters.platform !== null
     || activeFilters.tier !== null
     || activeFilters.category !== null
@@ -601,6 +637,7 @@ function SaasOperationsView({
   const resetFilters = () => {
     setStatusFilter('all');
     setSearchQuery('');
+    setPurposeFilter(null);
     if (!isFiltersControlled) setInternalFilters(DEFAULT_INFLUENCER_FILTERS);
     onFiltersChange?.(DEFAULT_INFLUENCER_FILTERS);
     onStoreChange?.(ALL_STORES);
@@ -1019,6 +1056,24 @@ function SaasOperationsView({
               value={selectedStore}
               onChange={onStoreChange}
             />
+            {/* 모집 프로그램 칩 — 매장 바로 다음, "어느 매장의 → 어느 모집" 순서.
+                다른 그룹처럼 켠 칩을 다시 누르면 전체로 돌아온다(All 칩 없음). */}
+            {showPurposeFilter && (
+              <>
+                <Divider orientation="vertical" flexItem />
+                {purposeOptions.options.map(o => (
+                  <Chip
+                    key={o.value}
+                    label={o.label}
+                    size="small"
+                    data-ops-purpose={o.value}
+                    onClick={() => setPurposeFilter(activePurpose === o.value ? null : o.value)}
+                    variant={activePurpose === o.value ? 'filled' : 'outlined'}
+                    sx={chipSx(activePurpose === o.value)}
+                  />
+                ))}
+              </>
+            )}
             <Divider orientation="vertical" flexItem />
             {PLATFORM_OPTIONS.map(p => (
               <Chip
