@@ -1104,7 +1104,10 @@ function SaasAnalyticsView({
      결산 숫자가 꿈쩍도 안 해 고장으로 읽혔다. Operations Visits 밴드와 같은 문법.
      방문일 없는 행 공지도 기간의 일부라 같은 줄에 산다. */
   const periodBar = (
-    <Box data-report-period-bar sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+    /* 위쪽 1px 경계선 — 결산 구역(항상 전체)과 기간 리포트 구역의 모수 규칙이 다르다는
+       것을 선 하나가 말한다. 선이 없으면 컨트롤이 공백 위에 혼자 떠서 어느 쪽에 속한
+       건지 애매했다(issue26, 2026-09-02 사장님). flat-SaaS의 divider 구획 문법. */
+    <Box data-report-period-bar sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, pt: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
       {hasRange && undatedCount > 0 && (
         <Typography data-report-range-note sx={{ fontSize: 12, color: 'text.secondary', minWidth: 0 }}>
           {undatedCount} with no visit date {undatedCount === 1 ? 'is' : 'are'} outside any period — shown only in All
