@@ -1091,10 +1091,25 @@ function SaasAnalyticsView({
       }}
     >
       {/* 추적 수를 여기 두지 않는다 — Campaign Summary의 Agreement 카드가 "of N"으로,
-          퍼널 제목이 "of N tracked"로 이미 말한다. 한 화면에 같은 숫자를 세 번 둘 이유가 없다. */}
+          퍼널 제목이 "of N tracked"로 이미 말한다. 한 화면에 같은 숫자를 세 번 둘 이유가 없다.
+          기간 컨트롤은 여기 없다 — 결산 블록이 기간을 무시하므로, 상단에 두면
+          "자기가 지배하지 않는 것 바로 위"에 앉게 된다(2026-09-02 사장님 승인으로 이동).
+          스토어는 결산 블록까지 포함해 화면 전체를 바꾸니 상단에 남는다. */}
       <SaasStoreSelect stores={storeOptions} value={selectedStore} onChange={onStoreChange} />
-      {/* 기간은 우측 끝 — 스토어처럼 "무엇을"이 아니라 "언제를"을 거르는 뷰 스코프라
-          같은 줄에서 성격이 다름을 자리로 말한다. Operations Visits 밴드와 같은 컨트롤. */}
+    </Box>
+  );
+
+  /* 기간 컨트롤 — 자기 관할이 시작되는 지점(결산 블록 아래, Campaign Summary 위)에
+     둔다. 컨트롤은 자기가 조작하는 것 옆에 있어야 한다 — 상단에 있을 때는 바로 밑
+     결산 숫자가 꿈쩍도 안 해 고장으로 읽혔다. Operations Visits 밴드와 같은 문법.
+     방문일 없는 행 공지도 기간의 일부라 같은 줄에 산다. */
+  const periodBar = (
+    <Box data-report-period-bar sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+      {hasRange && undatedCount > 0 && (
+        <Typography data-report-range-note sx={{ fontSize: 12, color: 'text.secondary', minWidth: 0 }}>
+          {undatedCount} with no visit date {undatedCount === 1 ? 'is' : 'are'} outside any period — shown only in All
+        </Typography>
+      )}
       <SaasDateRangeSelect value={visitRange} onChange={setVisitRange} sx={{ ml: 'auto' }} />
     </Box>
   );
@@ -1241,13 +1256,14 @@ function SaasAnalyticsView({
   }
 
   /* 기간 안에 방문이 하나도 없는 상태 — 데이터 없음과 구분해서 말한다.
-     기간 컨트롤은 툴바에 계속 있으므로 여기서 바로 넓혀 나갈 수 있다. */
+     기간 컨트롤(periodBar)이 이 화면에도 남으므로 여기서 바로 넓혀 나갈 수 있다. */
   if (ranged.length === 0) {
     return (
       <>
         {toolbar}
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
           {programSection}
+          {periodBar}
           <Box sx={{ py: 5, textAlign: 'center' }}>
             <Typography data-report-period-empty sx={{ fontSize: 13, color: 'text.secondary' }}>
               No visits in this period — widen the range or pick All
@@ -1282,13 +1298,8 @@ function SaasAnalyticsView({
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 3, py: 3 }}>
       {/* 프로그램 결산이 맨 위 — 아래 전부가 "지금 필터로 본 조각"이고 이 블록만 전체다 */}
       {programSection}
-      {/* 기간이 걸려 있는데 방문일 없는 행이 있으면 그 수를 밝힌다 — 조용히 빠지면
-          All과 기간의 차이가 어디서 오는지 알 수 없다. Operations의 gaps 줄과 같은 원칙. */}
-      {hasRange && undatedCount > 0 && (
-        <Typography data-report-range-note sx={{ mb: 2, fontSize: 12, color: 'text.secondary' }}>
-          {undatedCount} with no visit date {undatedCount === 1 ? 'is' : 'are'} outside any period — shown only in All
-        </Typography>
-      )}
+      {/* 기간 관할은 여기서 시작 — 컨트롤·방문일 없는 행 공지가 한 줄에 산다 */}
+      {periodBar}
       {/* Summary — KPI 카드 행 */}
       <Box sx={{ mb: 4 }}>
         <SectionTitle title="Campaign Summary" />
