@@ -24,7 +24,6 @@ const COLOR_SWATCHES = [
   { label: 'success.main', value: '#167C3D', usage: '4단계 상태 완료 아이콘', change: '교체(MUI 기본값→브랜드 전용)' },
   { label: 'warning.main', value: '#8A5A00', usage: 'Alert 배너 — 방문 미확인 · 업로드 대기', change: '교체(MUI 기본값→브랜드 전용)' },
   { label: 'error.main', value: '#B3261E', usage: 'Alert 배너 — 크레딧 미발송', change: '교체(MUI 기본값→브랜드 전용)' },
-  { label: 'info.main', value: '#0E6B7A', usage: '현재 미사용 — primary(#0000FF)와 색상군이 겹치지 않도록 청록 계열로 사전 정의', change: '교체(MUI 기본값→브랜드 전용)' },
 ];
 
 export const Doc = {
@@ -430,7 +429,6 @@ export const Doc = {
                 ['palette.error.main', 'MUI 기본 #D32F2F (byte-identical)', '#B3261E', 'Alert 배너 — 크레딧 미발송'],
                 ['palette.warning.main', 'MUI 기본 #ED6C02 (byte-identical)', '#8A5A00', 'Alert 배너 — 방문·업로드 미완료'],
                 ['palette.success.main', 'MUI 기본 #2E7D32 (byte-identical)', '#167C3D', '4단계 상태 완료 아이콘'],
-                ['palette.info.main', 'MUI 기본 #0288D1 (byte-identical, 미사용)', '#0E6B7A', 'primary(#0000FF)와 색상군 분리 — 사용처 생기면 대비'],
                 ['typography.fontFamily', "'Roboto' 포함 (MUI 보일러플레이트 잔재)", "'Roboto' 제거", '본문 전체'],
                 ['typography.headingFontFamily / h1-h6', "'Outfit' (로드되는 폰트 이름과 불일치)", "'Outfit Variable' (실제 파일명과 일치)", '헤딩 전체'],
                 ['폰트 실제 로드', '로드 안 됨 — 프로덕션 0곳, Storybook은 Outfit만 CDN', 'pretendard · @fontsource-variable/outfit self-host, main.jsx + preview.jsx 양쪽 로드', '전체 타이포그래피'],
@@ -446,7 +444,7 @@ export const Doc = {
           </Table>
         </TableContainer>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          핵심 발견: success/warning/error/info의 이전 hex 값은 <code>createTheme()</code>이 인자 없이 생성하는 MUI 순정 기본값과 완전히 동일했다 — "브랜드 색"으로 문서화되어 있었지만 실제로는 아무도 고르지 않은 값이었다. 폰트도 마찬가지로 이름만 지정되어 있었을 뿐, 실제 파일이 어디에도 로드되지 않아 프로덕션에서는 100% 시스템 폰트로 대체되고 있었다.
+          핵심 발견: success/warning/error의 이전 hex 값은 <code>createTheme()</code>이 인자 없이 생성하는 MUI 순정 기본값과 완전히 동일했다 — "브랜드 색"으로 문서화되어 있었지만 실제로는 아무도 고르지 않은 값이었다. 폰트도 마찬가지로 이름만 지정되어 있었을 뿐, 실제 파일이 어디에도 로드되지 않아 프로덕션에서는 100% 시스템 폰트로 대체되고 있었다.
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
           Workflow 탭: 신규 토큰 없음 — 기존 secondary · grey.100 · divider만 재구성. success/warning/error는 의도적으로 미사용.
