@@ -361,6 +361,8 @@ const SOCIAL_URL_OVERRIDES = {
   'serena hale': 'https://www.tiktok.com/@god4bandmeatl',
   /* 실제 계정은 @originalbestiebri(사용자 확인). */
   'briana poindexter': 'https://www.tiktok.com/@originalbestiebri',
+  /* 실제 계정은 @livin.lavish_(사용자 확인). */
+  'eduarda de oliveira': 'https://www.tiktok.com/@livin.lavish_',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {
