@@ -357,6 +357,10 @@ const SOCIAL_URL_OVERRIDES = {
      이름·이메일 어느 쪽과도 안 겹치는 @shannonshanaye(사용자 확인)라 시트 값만으로는
      유추할 수 없다. */
   'shannon redwine': 'https://www.tiktok.com/@shannonshanaye',
+  /* 실제 계정은 @god4bandmeatl(사용자 확인). */
+  'serena hale': 'https://www.tiktok.com/@god4bandmeatl',
+  /* 실제 계정은 @originalbestiebri(사용자 확인). */
+  'briana poindexter': 'https://www.tiktok.com/@originalbestiebri',
 };
 
 function resolveSocialUrl(fullName, raw, platform) {

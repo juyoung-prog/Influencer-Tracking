@@ -73,6 +73,8 @@ var CONFIG = {
     'myah turner': 'https://www.tiktok.com/@thegoddessbrand.co',
     'victoria simmone': 'https://www.tiktok.com/@victoriasimmone',
     'shannon redwine': 'https://www.tiktok.com/@shannonshanaye',
+    'serena hale': 'https://www.tiktok.com/@god4bandmeatl',
+    'briana poindexter': 'https://www.tiktok.com/@originalbestiebri',
   },
   /* 탭은 이름이 아니라 gid로 찾는다 — 탭 이름이 바뀌어도 안 깨진다 */
   gids: { influencerTabs: [0, 1776175069], numberTab: 778920622 },
